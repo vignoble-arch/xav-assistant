@@ -348,8 +348,13 @@
           </div>
           <button class="icon-button" value="cancel" aria-label="Fermer" type="submit">x</button>
         </div>
+        <div class="assistant-mode" aria-label="Mode de reponse de Fernand">
+          <button class="is-active" type="button" data-assistant-mode="quick">Question rapide</button>
+          <button type="button" data-assistant-mode="report">Rapport Fernand</button>
+        </div>
+        <div class="worker-menu" id="workerMenu" hidden></div>
         <textarea id="assistantText" rows="5" placeholder="Exemples : organise ma journee, prepare le dossier client, analyse cette urgence, note une idee"></textarea>
-        <div class="assistant-preview" id="assistantPreview">La demande sera analysee par l'IA. Si elle est ambigue, elle ira dans l'Inbox.</div>
+        <div class="assistant-preview" id="assistantPreview">Question rapide : Fernand repond directement, sans creer de demande-projet.</div>
         <div class="dialog-actions">
           <button class="ghost-button" value="cancel" type="submit">Annuler</button>
           <button class="ghost-button" id="askLocalAi" value="default" type="button">Demander a Fernand</button>

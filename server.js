@@ -1110,9 +1110,24 @@ async function sendAiStatus(res) {
 }
 
 async function sendAiChat(body, res) {
-  const message = String(body.message || "").trim();
+  const routed = parseWorkerMention(String(body.message || ""));
+  const message = routed.message.trim();
+  const mode = body.mode === "report" ? "report" : "quick";
   if (!message) {
     return sendJson(res, { error: "Message vide." }, 400);
+  }
+
+  const directAnswer = tryHandleDirectWorker(message, mode, routed.worker);
+  if (directAnswer) {
+    rememberAiExchange(message, directAnswer.answer);
+    return sendJson(res, {
+      ok: true,
+      model: directAnswer.worker,
+      mode,
+      routedTo: directAnswer.worker,
+      cost: 0,
+      answer: directAnswer.answer,
+    });
   }
 
   const config = getAiConfigStatus();
@@ -1135,7 +1150,7 @@ async function sendAiChat(body, res) {
         model,
         temperature: 0.3,
         max_completion_tokens: 900,
-        messages: buildAiMessages(message),
+        messages: buildAiMessages(message, mode, routed.worker),
       }),
     });
 
@@ -1150,7 +1165,7 @@ async function sendAiChat(body, res) {
     const answer = payload.choices?.[0]?.message?.content?.trim() || "Je n'ai pas recu de reponse du modele.";
     recordAiUsage(model, payload.usage, config.provider);
     rememberAiExchange(message, answer);
-    return sendJson(res, { ok: true, model, answer });
+    return sendJson(res, { ok: true, model, mode, routedTo: routed.worker || "fernand", answer });
   } catch {
     return sendJson(res, {
       error: "OpenAI ne repond pas encore. Verifie la configuration API.",
@@ -1158,7 +1173,93 @@ async function sendAiChat(body, res) {
   }
 }
 
-function buildAiMessages(message) {
+function parseWorkerMention(rawMessage) {
+  const text = String(rawMessage || "").trim();
+  const match = text.match(/^@([a-zA-ZÀ-ÿ]+)\s+(.+)$/);
+  if (!match) return { worker: "", message: text };
+  const worker = normalizeWorkerName(match[1]);
+  return {
+    worker,
+    message: worker ? match[2] : text,
+  };
+}
+
+function normalizeWorkerName(value) {
+  const normalized = normalizeText(value);
+  if (["fernand", "chef", "brasdroit", "bras-droit"].includes(normalized)) return "fernand";
+  if (["agenda", "planning", "calendrier", "rdv"].includes(normalized)) return "agenda";
+  if (["organisation", "orga", "taches", "productivite"].includes(normalized)) return "organisation";
+  if (["secretaire", "secretariat", "email", "emails", "admin"].includes(normalized)) return "secretaire";
+  if (["commercial", "commerce", "client", "clients", "baqio"].includes(normalized)) return "commercial";
+  if (["coach", "mental", "stress"].includes(normalized)) return "coach";
+  return "";
+}
+
+function tryHandleDirectWorker(message, mode, forcedWorker = "") {
+  if (mode !== "quick") return null;
+  const normalized = normalizeText(message);
+  const asksAgenda = /(rendez[-\s]?vous|rdv|agenda|planning|calendrier)/.test(normalized);
+  if (forcedWorker !== "agenda") return null;
+  if (!asksAgenda) return null;
+
+  const state = getAppState();
+  if (/(prochain|suivant|apres)/.test(normalized)) {
+    return {
+      worker: "agenda-direct",
+      answer: getNextAgendaAnswer(state),
+    };
+  }
+  if (/(demain|tomorrow)/.test(normalized)) {
+    return {
+      worker: "agenda-direct",
+      answer: getAgendaForDateAnswer(state, addDaysISO(1), "demain"),
+    };
+  }
+  if (/(aujourd|ce jour|journee)/.test(normalized)) {
+    return {
+      worker: "agenda-direct",
+      answer: getAgendaForDateAnswer(state, todayISO(), "aujourd'hui"),
+    };
+  }
+
+  return null;
+}
+
+function getNextAgendaAnswer(state) {
+  const next = getUpcomingAgendaEvents(state)[0];
+  if (!next) return "Je ne vois aucun rendez-vous a venir dans l'agenda synchronise.";
+  return `Ton prochain rendez-vous est : ${next.time || formatDateLabel(next.date)} - ${next.title}.`;
+}
+
+function getAgendaForDateAnswer(state, dateKey, label) {
+  const events = getUpcomingAgendaEvents(state).filter((event) => event.date === dateKey);
+  if (!events.length) return `Je ne vois aucun rendez-vous ${label} dans l'agenda synchronise.`;
+  const details = events.map((event) => `${event.time || formatDateLabel(event.date)} - ${event.title}`).join("; ");
+  return events.length === 1
+    ? `Tu as 1 rendez-vous ${label} : ${details}.`
+    : `Tu as ${events.length} rendez-vous ${label} : ${details}.`;
+}
+
+function getUpcomingAgendaEvents(state) {
+  const today = todayISO();
+  return (state.agenda || [])
+    .map((event) => ({
+      date: event.date || inferDateKeyFromAgendaTime(event.time) || today,
+      time: event.time || "",
+      title: event.title || "Evenement sans titre",
+    }))
+    .filter((event) => event.date >= today)
+    .sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return String(a.time).localeCompare(String(b.time), "fr");
+    });
+}
+
+function formatDateLabel(dateKey) {
+  return new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric", month: "short" }).format(new Date(`${dateKey}T12:00:00`));
+}
+
+function buildAiMessages(message, mode = "quick", worker = "") {
   const memory = readAiMemory();
   const recentExchanges = memory.exchanges.slice(-8).flatMap((exchange) => [
     { role: "user", content: exchange.user },
@@ -1171,17 +1272,26 @@ function buildAiMessages(message) {
     {
       role: "system",
       content: [
-        "Tu es Fernand, le bras droit de Xavier et le chef d'equipe de ses assistants internes.",
-        "Chaque message de Xavier est une demande-projet a traiter serieusement.",
-        "Commence par reformuler la demande en une phrase courte.",
-        "Puis consulte mentalement tes services internes: Organisation du travail, Secretaire, Commercial, Coach mental.",
-        "Chaque service doit donner uniquement ce qui est utile; indique 'non concerne' si un service n'apporte rien.",
-        "Ensuite, controle la coherence du travail comme chef d'equipe et rends un rapport clair a Xavier.",
-        "Structure toujours la reponse avec: Reformulation, Services consultes, Rapport Fernand, Prochaines actions.",
+        mode === "report" || worker === "fernand"
+          ? [
+              "Tu es Fernand, le bras droit de Xavier et le chef d'equipe de ses assistants internes.",
+              "Chaque message de Xavier est une demande-projet a traiter serieusement.",
+              "Commence par reformuler la demande en une phrase courte.",
+              "Puis consulte mentalement tes services internes: Organisation du travail, Secretaire, Commercial, Coach mental.",
+              "Chaque service doit donner uniquement ce qui est utile; indique 'non concerne' si un service n'apporte rien.",
+              "Ensuite, controle la coherence du travail comme chef d'equipe et rends un rapport clair a Xavier.",
+              "Structure toujours la reponse avec: Reformulation, Services consultes, Rapport Fernand, Prochaines actions.",
+            ].join(" ")
+          : [
+              "Tu es Fernand, le bras droit de Xavier.",
+              "Mode question rapide: reponds directement a la question, sans rapport, sans reformulation longue et sans consulter les services internes.",
+              "Si la question demande une information simple comme le prochain rendez-vous, donne simplement la reponse utile en une ou deux phrases.",
+            ].join(" "),
+        worker && worker !== "fernand" ? `La demande est adressee au service interne: ${worker}. Reste dans ce role et repond simplement.` : "",
         "Ne dis pas que tu as envoye des emails, modifie l'agenda, appele Baqio ou change des fichiers si l'application ne l'a pas vraiment fait.",
-        "Pour l'agent commercial, distingue professionnels et particuliers, mais precise que l'API Baqio n'est pas encore connectee si la demande depend de Baqio.",
-        "Pour le coach mental, reste pratique, apaisant, non medical, et inspire-toi de principes bouddhistes simples sans faire de diagnostic.",
-        "Reponds en francais, de facon concrete et concise.",
+        "Pour le commercial, distingue professionnels et particuliers, mais precise que l'API Baqio n'est pas encore connectee si la demande depend de Baqio.",
+        "Pour le mental, reste pratique, apaisant, non medical, et inspire-toi de principes bouddhistes simples sans faire de diagnostic.",
+        "Reponds en francais, de facon concrete.",
         "Tu as une memoire courte des derniers echanges fournie dans le contexte.",
         "Si Xavier fait reference a une chose dite juste avant, utilise cette memoire.",
         knowledgeContext ? `Memoire documentaire utile: ${knowledgeContext}` : "",
@@ -1354,12 +1464,19 @@ function getAiStateSummary(state) {
   const reports = (state.reports || [])
     .slice(0, 4)
     .map((report) => `${report.title}: ${report.status}`);
+  const upcomingAgenda = getUpcomingAgendaItems(state).slice(0, 5);
 
   return [
     `Contexte actuel: ${openTasks.length} taches ouvertes.`,
     urgentTasks.length ? `Taches importantes: ${urgentTasks.join("; ")}.` : "",
+    upcomingAgenda.length ? `Prochains rendez-vous: ${upcomingAgenda.join("; ")}.` : "Aucun rendez-vous connu dans l'agenda synchronise.",
     reports.length ? `Travaux en cours: ${reports.join("; ")}.` : "",
   ].filter(Boolean).join(" ");
+}
+
+function getUpcomingAgendaItems(state) {
+  return getUpcomingAgendaEvents(state)
+    .map((event) => `${event.time || event.date} - ${event.title}`);
 }
 
 function buildMorningBrief(state) {

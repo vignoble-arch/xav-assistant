@@ -3,6 +3,14 @@ const NOTIFICATION_PREFS_KEY = "assistant-xavier-notifications-v1";
 
 const statuses = ["Inbox", "A faire", "En cours", "En attente", "Termine"];
 const TASK_LISTS = ["Dettes", "Cave Expé", "vignoble", "bureau", "divers et perso"];
+const WORKERS = [
+  { key: "fernand", label: "Fernand", description: "Bras droit et rapports" },
+  { key: "agenda", label: "Agenda", description: "Rendez-vous et planning" },
+  { key: "organisation", label: "Organisation", description: "Taches et priorites" },
+  { key: "secretaire", label: "Secretaire", description: "Emails, dossiers, echeances" },
+  { key: "commercial", label: "Commercial", description: "Clients, relances, Baqio" },
+  { key: "coach", label: "Coach mental", description: "Stress et routine" },
+];
 let currentTaskFilter = "today";
 
 const seedState = {
@@ -128,6 +136,7 @@ let aiUsageState = null;
 let morningBriefState = null;
 let syncStatusState = null;
 let systemStatusState = null;
+let currentAssistantMode = "quick";
 let notificationPrefs = loadNotificationPrefs();
 let morningNotificationTimer = null;
 let autoRefreshTimer = null;
@@ -189,6 +198,8 @@ const el = {
   assistantDialog: document.querySelector("#assistantDialog"),
   assistantText: document.querySelector("#assistantText"),
   assistantPreview: document.querySelector("#assistantPreview"),
+  assistantModeButtons: document.querySelectorAll("[data-assistant-mode]"),
+  workerMenu: document.querySelector("#workerMenu"),
   askLocalAi: document.querySelector("#askLocalAi"),
   taskDialog: document.querySelector("#taskDialog"),
   toast: document.querySelector("#toast"),
@@ -223,6 +234,12 @@ function bindEvents() {
   el.askLocalAi.addEventListener("click", askLocalAi);
   document.querySelector("#assistantText").addEventListener("input", updateAssistantPreview);
   document.querySelector("#assistantText").addEventListener("keydown", handleAssistantKeydown);
+  document.querySelector("#assistantText").addEventListener("blur", () => {
+    setTimeout(hideWorkerMenu, 120);
+  });
+  el.assistantModeButtons.forEach((button) => {
+    button.addEventListener("click", () => setAssistantMode(button.dataset.assistantMode));
+  });
   document.querySelector("#quickForm").addEventListener("submit", handleQuickCapture);
   document.querySelector("#taskForm").addEventListener("submit", handleTaskSubmit);
   document.querySelector("#addNote").addEventListener("click", addManualNote);
@@ -1048,9 +1065,22 @@ function openAssistant() {
   setTimeout(() => el.assistantText.focus(), 0);
 }
 
+function setAssistantMode(mode) {
+  currentAssistantMode = mode === "report" ? "report" : "quick";
+  el.assistantModeButtons.forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.assistantMode === currentAssistantMode);
+  });
+  updateAssistantPreview();
+}
+
 function updateAssistantPreview() {
+  renderWorkerMenu();
+  if (currentAssistantMode === "quick") {
+    el.assistantPreview.textContent = "Question rapide : Fernand repond directement, sans creer de demande-projet.";
+    return;
+  }
   const parsed = parseIntent(el.assistantText.value);
-  el.assistantPreview.textContent = parsed.preview;
+  el.assistantPreview.textContent = `Rapport Fernand : une demande-projet sera creee. ${parsed.preview}`;
 }
 
 function handleAssistantSubmit() {
@@ -1061,10 +1091,66 @@ function handleAssistantSubmit() {
 }
 
 function handleAssistantKeydown(event) {
+  if (event.key === "Escape") {
+    hideWorkerMenu();
+    return;
+  }
   if (event.key !== "Enter") return;
   if (event.ctrlKey || event.metaKey) return;
   event.preventDefault();
   askLocalAi();
+}
+
+function renderWorkerMenu() {
+  if (!el.workerMenu) return;
+  const text = el.assistantText.value;
+  const cursor = el.assistantText.selectionStart ?? text.length;
+  const beforeCursor = text.slice(0, cursor);
+  const match = beforeCursor.match(/(^|\s)@([a-zA-ZÀ-ÿ]*)$/);
+  if (!match) {
+    hideWorkerMenu();
+    return;
+  }
+
+  const query = normalizeText(match[2] || "");
+  const matches = WORKERS.filter((worker) => normalizeText(`${worker.key} ${worker.label}`).includes(query)).slice(0, 6);
+  if (!matches.length) {
+    hideWorkerMenu();
+    return;
+  }
+
+  el.workerMenu.hidden = false;
+  el.workerMenu.innerHTML = matches.map((worker) => `
+    <button type="button" data-worker-key="${escapeHTML(worker.key)}">
+      <strong>@${escapeHTML(worker.key)}</strong>
+      <span>${escapeHTML(worker.label)} - ${escapeHTML(worker.description)}</span>
+    </button>
+  `).join("");
+  el.workerMenu.querySelectorAll("[data-worker-key]").forEach((button) => {
+    button.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      insertWorkerMention(button.dataset.workerKey);
+    });
+  });
+}
+
+function hideWorkerMenu() {
+  if (!el.workerMenu) return;
+  el.workerMenu.hidden = true;
+}
+
+function insertWorkerMention(workerKey) {
+  const text = el.assistantText.value;
+  const cursor = el.assistantText.selectionStart ?? text.length;
+  const beforeCursor = text.slice(0, cursor);
+  const afterCursor = text.slice(cursor);
+  const replaced = beforeCursor.replace(/(^|\s)@([a-zA-ZÀ-ÿ]*)$/, `$1@${workerKey} `);
+  el.assistantText.value = `${replaced}${afterCursor}`;
+  const nextCursor = replaced.length;
+  el.assistantText.focus();
+  el.assistantText.setSelectionRange(nextCursor, nextCursor);
+  hideWorkerMenu();
+  updateAssistantPreview();
 }
 
 async function askLocalAi() {
@@ -1077,29 +1163,33 @@ async function askLocalAi() {
   }
 
   el.askLocalAi.disabled = true;
-  el.assistantPreview.textContent = "L'IA reflechit...";
+  el.assistantPreview.textContent = currentAssistantMode === "report"
+    ? "Fernand lance le traitement..."
+    : "Fernand cherche la reponse...";
   el.assistantText.value = "";
-  const request = createFernandRequest(text);
-  setFernandRequestStatus(request.id, "En traitement", "Fernand reformule la demande et consulte ses services internes.");
+  const request = currentAssistantMode === "report" ? createFernandRequest(text) : null;
+  if (request) {
+    setFernandRequestStatus(request.id, "En traitement", "Fernand reformule la demande et consulte ses services internes.");
+  }
   try {
     const response = await fetch("/api/ai/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text }),
+      body: JSON.stringify({ message: text, mode: currentAssistantMode }),
     });
     const payload = await response.json();
     if (!response.ok) {
       el.assistantPreview.textContent = payload.error || "OpenAI ne repond pas.";
-      setFernandRequestStatus(request.id, "Erreur", payload.error || "OpenAI ne repond pas.");
+      if (request) setFernandRequestStatus(request.id, "Erreur", payload.error || "OpenAI ne repond pas.");
       return;
     }
     el.assistantPreview.textContent = payload.answer;
-    completeFernandRequest(request.id, payload.answer);
+    if (request) completeFernandRequest(request.id, payload.answer);
     await loadAiMemory();
     await loadAiUsage();
   } catch {
     el.assistantPreview.textContent = "Impossible de joindre OpenAI pour l'instant.";
-    setFernandRequestStatus(request.id, "Erreur", "Impossible de joindre OpenAI pour l'instant.");
+    if (request) setFernandRequestStatus(request.id, "Erreur", "Impossible de joindre OpenAI pour l'instant.");
   } finally {
     el.askLocalAi.disabled = false;
   }

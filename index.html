@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=quick-note-1" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="styles.css?v=baqio-sync-1" />
+    <link rel="stylesheet" href="styles.css?v=commercial-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -29,6 +29,7 @@
           <button class="nav-item" type="button" data-view="requests">Demandes</button>
           <button class="nav-item" type="button" data-view="tasks">Taches</button>
           <button class="nav-item" type="button" data-view="inbox">Inbox</button>
+          <button class="nav-item" type="button" data-view="commercial">Commercial</button>
           <button class="nav-item" type="button" data-view="notes">Notes</button>
           <button class="nav-item" type="button" data-view="memory">Memoire</button>
           <button class="nav-item" type="button" data-view="lists">Listes</button>
@@ -200,6 +201,37 @@
             </div>
           </div>
           <div class="wide-list" id="fullInbox"></div>
+        </section>
+
+        <section class="management-view" data-panel="commercial" hidden>
+          <div class="view-header">
+            <div>
+              <p class="section-kicker">Baqio</p>
+              <h2>Pilotage commercial</h2>
+            </div>
+            <button class="assistant-button small" type="button" id="syncBaqioFromCommercial">Synchroniser Baqio</button>
+          </div>
+          <div class="commercial-summary" id="commercialSummary"></div>
+          <div class="commercial-grid">
+            <section class="panel">
+              <div class="panel-header">
+                <div>
+                  <p class="section-kicker">Clients</p>
+                  <h2>Meilleurs clients lus</h2>
+                </div>
+              </div>
+              <div class="wide-list" id="commercialTopCustomers"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-header">
+                <div>
+                  <p class="section-kicker">Commandes</p>
+                  <h2>Commandes recentes</h2>
+                </div>
+              </div>
+              <div class="wide-list" id="commercialRecentOrders"></div>
+            </section>
+          </div>
         </section>
 
         <section class="management-view" data-panel="notes" hidden>
@@ -524,7 +556,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=baqio-sync-1"></script>
+    <script src="app.js?v=commercial-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

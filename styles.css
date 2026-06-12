@@ -1157,6 +1157,38 @@ button:disabled {
   margin-top: 14px;
 }
 
+.commercial-summary {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.commercial-summary article {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--surface-strong);
+}
+
+.commercial-summary strong {
+  display: block;
+  color: var(--ink);
+  font-size: 1.25rem;
+}
+
+.commercial-summary span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.commercial-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
 .memory-label {
   margin: 12px 0 0;
   color: var(--blue);
@@ -1421,6 +1453,8 @@ textarea {
   .morning-grid,
   .notes-grid,
   .list-columns,
+  .commercial-summary,
+  .commercial-grid,
   .connections-grid {
     grid-template-columns: 1fr;
   }

@@ -164,6 +164,9 @@ const el = {
   mailCount: document.querySelector("#mailCount"),
   quickLists: document.querySelector("#quickLists"),
   reportsList: document.querySelector("#reportsList"),
+  commercialSummary: document.querySelector("#commercialSummary"),
+  commercialTopCustomers: document.querySelector("#commercialTopCustomers"),
+  commercialRecentOrders: document.querySelector("#commercialRecentOrders"),
   requestSummary: document.querySelector("#requestSummary"),
   requestList: document.querySelector("#requestList"),
   taskBoard: document.querySelector("#taskBoard"),
@@ -216,6 +219,7 @@ const el = {
   baqioConnectionResult: document.querySelector("#baqioConnectionResult"),
   baqioSummary: document.querySelector("#baqioSummary"),
   syncBaqio: document.querySelector("#syncBaqio"),
+  syncBaqioFromCommercial: document.querySelector("#syncBaqioFromCommercial"),
   testBaqioConnection: document.querySelector("#testBaqioConnection"),
   copyCallback: document.querySelector("#copyCallback"),
   syncAllGoogle: document.querySelector("#syncAllGoogle"),
@@ -311,6 +315,7 @@ function bindEvents() {
   el.baqioConfigForm.addEventListener("submit", saveBaqioConfig);
   el.testBaqioConnection.addEventListener("click", testBaqioConnection);
   el.syncBaqio.addEventListener("click", syncBaqio);
+  el.syncBaqioFromCommercial.addEventListener("click", syncBaqio);
   el.copyCallback.addEventListener("click", copyCallbackUrl);
   el.taskListFilter.addEventListener("change", renderTasks);
   el.taskSearch.addEventListener("input", renderTasks);
@@ -347,6 +352,7 @@ function render() {
   renderAgenda();
   renderMail();
   renderReports();
+  renderCommercial();
   renderRequests();
   renderLists();
   renderNotes();
@@ -599,6 +605,60 @@ function renderReports() {
       <p class="card-meta">${report.progress}% d'avancement</p>
     </article>
   `).join("");
+}
+
+function renderCommercial() {
+  if (!el.commercialSummary || !el.commercialTopCustomers || !el.commercialRecentOrders) return;
+  const summary = state.baqio?.summary;
+  if (!summary) {
+    el.commercialSummary.innerHTML = emptyState("Synchronise Baqio pour afficher le pilotage commercial.");
+    el.commercialTopCustomers.innerHTML = emptyState("Aucun client Baqio synchronise.");
+    el.commercialRecentOrders.innerHTML = emptyState("Aucune commande Baqio synchronisee.");
+    return;
+  }
+
+  el.commercialSummary.innerHTML = `
+    <article><strong>${Number(summary.customerCount || 0)}</strong><span>Clients lus</span></article>
+    <article><strong>${Number(summary.proCount || 0)}</strong><span>Pros</span></article>
+    <article><strong>${Number(summary.individualCount || 0)}</strong><span>Particuliers</span></article>
+    <article><strong>${formatEuroCents(summary.totalRevenueCents)}</strong><span>CA echantillon</span></article>
+    <article><strong>${Number(summary.orderCount || 0)}</strong><span>Commandes</span></article>
+    <article><strong>${Number(summary.bottleQuantity || 0).toFixed(0)}</strong><span>Bouteilles</span></article>
+  `;
+
+  const topCustomers = summary.topCustomers || [];
+  el.commercialTopCustomers.innerHTML = topCustomers.length
+    ? topCustomers.map((customer) => commercialCustomerCard(customer)).join("")
+    : emptyState("Aucun client avec commande dans l'echantillon.");
+
+  const recentOrders = summary.recentOrders || [];
+  el.commercialRecentOrders.innerHTML = recentOrders.length
+    ? recentOrders.map((order) => commercialOrderCard(order)).join("")
+    : emptyState("Aucune commande recente dans l'echantillon.");
+}
+
+function commercialCustomerCard(customer) {
+  return `
+    <article class="report-card">
+      <div class="card-top">
+        <p class="card-title">${escapeHTML(customer.customerName || "Client inconnu")}</p>
+        <span class="source-pill">${formatEuroCents(customer.totalCents)}</span>
+      </div>
+      <p class="card-meta">${Number(customer.orderCount || 0)} commande(s), ${Number(customer.bottleQuantity || 0).toFixed(0)} bouteille(s), dernier achat ${escapeHTML(customer.lastOrderDate || "date inconnue")}.</p>
+    </article>
+  `;
+}
+
+function commercialOrderCard(order) {
+  return `
+    <article class="report-card">
+      <div class="card-top">
+        <p class="card-title">${escapeHTML(order.name || "Commande")}</p>
+        <span class="source-pill">${formatEuroCents(order.totalCents)}</span>
+      </div>
+      <p class="card-meta">${escapeHTML(order.customerName || "Client inconnu")} - ${escapeHTML(order.date || "date inconnue")} - ${Number(order.bottleQuantity || 0).toFixed(0)} bouteille(s) - ${escapeHTML(order.state || "")}</p>
+    </article>
+  `;
 }
 
 function buildAutomaticReports() {

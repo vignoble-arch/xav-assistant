@@ -113,6 +113,7 @@ const seedState = {
       summary: "Choisir hebergeur, domaine, backend et sauvegardes.",
     },
   ],
+  requests: [],
 };
 
 const API_ENABLED = location.protocol === "http:" || location.protocol === "https:";
@@ -145,6 +146,8 @@ const el = {
   mailCount: document.querySelector("#mailCount"),
   quickLists: document.querySelector("#quickLists"),
   reportsList: document.querySelector("#reportsList"),
+  requestSummary: document.querySelector("#requestSummary"),
+  requestList: document.querySelector("#requestList"),
   taskBoard: document.querySelector("#taskBoard"),
   taskSummary: document.querySelector("#taskSummary"),
   taskListFilter: document.querySelector("#taskListFilter"),
@@ -215,6 +218,7 @@ function bindEvents() {
   });
 
   document.querySelector("#openAssistant").addEventListener("click", openAssistant);
+  document.querySelector("#openAssistantFromRequests")?.addEventListener("click", openAssistant);
   document.querySelector("#submitAssistant").addEventListener("click", handleAssistantSubmit);
   el.askLocalAi.addEventListener("click", askLocalAi);
   document.querySelector("#assistantText").addEventListener("input", updateAssistantPreview);
@@ -273,6 +277,7 @@ function render() {
   renderAgenda();
   renderMail();
   renderReports();
+  renderRequests();
   renderLists();
   renderNotes();
   renderMemory();
@@ -527,6 +532,7 @@ function buildAutomaticReports() {
   const syncErrors = Object.values(syncStatusState?.lastErrors || {}).filter(Boolean);
   const syncResults = syncStatusState?.lastResults || {};
   const todayUsage = aiUsageState?.today || emptyUsageSummary();
+  const openRequests = (state.requests || []).filter((request) => !["Clos", "Archive"].includes(request.status));
 
   return [
     {
@@ -547,12 +553,54 @@ function buildAutomaticReports() {
     },
     {
       id: "auto-ai",
-      title: "Assistant IA",
-      status: todayUsage.requests ? "Utilise" : "Pret",
-      progress: todayUsage.requests ? 100 : 25,
-      summary: `${todayUsage.requests || 0} demande(s) aujourd'hui, cout estime ${formatUsd(todayUsage.estimatedCostUsd || 0)}.`,
+      title: "Fernand",
+      status: openRequests.length ? "En cours" : "Pret",
+      progress: openRequests.length ? 65 : 100,
+      summary: `${openRequests.length} demande(s) ouverte(s), ${todayUsage.requests || 0} appel(s) IA aujourd'hui, cout estime ${formatUsd(todayUsage.estimatedCostUsd || 0)}.`,
     },
   ];
+}
+
+function renderRequests() {
+  if (!el.requestSummary || !el.requestList) return;
+  const requests = state.requests || [];
+  const active = requests.filter((request) => request.status !== "Archive");
+  const waiting = active.filter((request) => request.status === "A valider").length;
+  const processing = active.filter((request) => request.status === "En traitement").length;
+  const closed = active.filter((request) => request.status === "Clos").length;
+  el.requestSummary.innerHTML = `
+    <article><strong>${active.length}</strong><span>Total visible</span></article>
+    <article><strong>${processing}</strong><span>En traitement</span></article>
+    <article><strong>${waiting}</strong><span>A valider</span></article>
+    <article><strong>${closed}</strong><span>Clos</span></article>
+  `;
+  const visibleRequests = active.sort((a, b) => String(b.updatedAt || b.createdAt).localeCompare(String(a.updatedAt || a.createdAt)));
+  el.requestList.innerHTML = visibleRequests.length
+    ? visibleRequests.map(requestCard).join("")
+    : emptyState("Aucune demande Fernand en cours.");
+}
+
+function requestCard(request) {
+  const statusClass = normalizeText(request.status || "").replace(/\s+/g, "-");
+  const agents = request.agents?.length ? request.agents.join(", ") : "Fernand";
+  const report = request.report || "Fernand n'a pas encore rendu son rapport.";
+  return `
+    <article class="request-card status-${escapeHTML(statusClass)}">
+      <div class="card-top">
+        <div>
+          <p class="card-title">${escapeHTML(request.title || "Demande sans titre")}</p>
+          <p class="card-meta">${escapeHTML(formatDateTime(request.createdAt))} - ${escapeHTML(agents)}</p>
+        </div>
+        <span class="source-pill">${escapeHTML(request.status || "Demande a traiter")}</span>
+      </div>
+      <p class="request-original">${escapeHTML(request.original || "")}</p>
+      <div class="request-report">${formatMultiline(report)}</div>
+      <div class="card-actions">
+        ${request.status !== "Clos" ? `<button class="item-action" type="button" onclick="closeFernandRequest('${request.id}')">Clore</button>` : `<button class="item-action" type="button" onclick="reopenFernandRequest('${request.id}')">Rouvrir</button>`}
+        <button class="item-action" type="button" onclick="archiveFernandRequest('${request.id}')">Archiver</button>
+      </div>
+    </article>
+  `;
 }
 
 function renderSystemStatus() {
@@ -1031,6 +1079,8 @@ async function askLocalAi() {
   el.askLocalAi.disabled = true;
   el.assistantPreview.textContent = "L'IA reflechit...";
   el.assistantText.value = "";
+  const request = createFernandRequest(text);
+  setFernandRequestStatus(request.id, "En traitement", "Fernand reformule la demande et consulte ses services internes.");
   try {
     const response = await fetch("/api/ai/chat", {
       method: "POST",
@@ -1040,16 +1090,74 @@ async function askLocalAi() {
     const payload = await response.json();
     if (!response.ok) {
       el.assistantPreview.textContent = payload.error || "OpenAI ne repond pas.";
+      setFernandRequestStatus(request.id, "Erreur", payload.error || "OpenAI ne repond pas.");
       return;
     }
     el.assistantPreview.textContent = payload.answer;
+    completeFernandRequest(request.id, payload.answer);
     await loadAiMemory();
     await loadAiUsage();
   } catch {
     el.assistantPreview.textContent = "Impossible de joindre OpenAI pour l'instant.";
+    setFernandRequestStatus(request.id, "Erreur", "Impossible de joindre OpenAI pour l'instant.");
   } finally {
     el.askLocalAi.disabled = false;
   }
+}
+
+function createFernandRequest(text) {
+  const request = {
+    id: crypto.randomUUID(),
+    title: summarizeRequestTitle(text),
+    original: text,
+    status: "Demande a traiter",
+    agents: ["Organisation", "Secretaire", "Commercial", "Coach mental"],
+    report: "",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  state.requests = [request, ...(state.requests || [])];
+  render();
+  return request;
+}
+
+function setFernandRequestStatus(id, status, report) {
+  const request = (state.requests || []).find((item) => item.id === id);
+  if (!request) return;
+  request.status = status;
+  if (report !== undefined) request.report = report;
+  request.updatedAt = new Date().toISOString();
+  render();
+}
+
+function completeFernandRequest(id, report) {
+  const request = (state.requests || []).find((item) => item.id === id);
+  if (!request) return;
+  request.status = "A valider";
+  request.report = report;
+  request.updatedAt = new Date().toISOString();
+  render();
+  showToast("Rapport Fernand pret a valider.");
+}
+
+function closeFernandRequest(id) {
+  setFernandRequestStatus(id, "Clos");
+  showToast("Demande close.");
+}
+
+function reopenFernandRequest(id) {
+  setFernandRequestStatus(id, "A valider");
+  showToast("Demande rouverte.");
+}
+
+function archiveFernandRequest(id) {
+  setFernandRequestStatus(id, "Archive");
+  showToast("Demande archivee.");
+}
+
+function summarizeRequestTitle(text) {
+  const cleaned = text.replace(/\s+/g, " ").trim();
+  return cleaned.length > 70 ? `${cleaned.slice(0, 67)}...` : cleaned;
 }
 
 function processAssistantText(text, source) {
@@ -1508,6 +1616,14 @@ function migrateState(saved) {
     ...item,
   }));
   migrated.reports = saved.reports || structuredClone(seedState.reports);
+  migrated.requests = (saved.requests || []).map((request) => ({
+    agents: ["Organisation", "Secretaire", "Commercial", "Coach mental"],
+    report: "",
+    status: "Demande a traiter",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    ...request,
+  }));
   return migrated;
 }
 
@@ -2020,9 +2136,16 @@ function escapeHTML(value) {
     .replaceAll("'", "&#039;");
 }
 
+function formatMultiline(value) {
+  return escapeHTML(value || "").replace(/\n/g, "<br>");
+}
+
 window.completeTask = completeTask;
 window.moveTask = moveTask;
 window.inboxToTask = inboxToTask;
 window.deleteKnowledgeDocument = deleteKnowledgeDocument;
 window.inboxToNote = inboxToNote;
 window.archiveInbox = archiveInbox;
+window.closeFernandRequest = closeFernandRequest;
+window.reopenFernandRequest = reopenFernandRequest;
+window.archiveFernandRequest = archiveFernandRequest;

@@ -173,6 +173,7 @@ const seedState = {
       summary: "Choisir hebergeur, domaine, backend et sauvegardes.",
     },
   ],
+  requests: [],
 };
 
 ensureDataFiles();
@@ -188,11 +189,11 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (requestUrl.pathname === "/api/state" && req.method === "GET") {
-      return sendJson(res, readJson(STATE_FILE, seedState));
+      return sendJson(res, getAppState());
     }
 
     if (requestUrl.pathname === "/api/morning-brief" && req.method === "GET") {
-      return sendJson(res, buildMorningBrief(readJson(STATE_FILE, seedState)));
+      return sendJson(res, buildMorningBrief(getAppState()));
     }
 
     if (requestUrl.pathname === "/api/health" && req.method === "GET") {
@@ -205,13 +206,13 @@ const server = http.createServer(async (req, res) => {
 
     if (requestUrl.pathname === "/api/state" && req.method === "PUT") {
       const nextState = await readBody(req);
-      writeJson(STATE_FILE, nextState);
+      writeJson(STATE_FILE, normalizeAppState(nextState));
       return sendJson(res, { ok: true });
     }
 
     if (requestUrl.pathname === "/api/reset" && req.method === "POST") {
       writeJson(STATE_FILE, seedState);
-      return sendJson(res, readJson(STATE_FILE, seedState));
+      return sendJson(res, getAppState());
     }
 
     if (requestUrl.pathname === "/api/connections" && req.method === "GET") {
@@ -413,7 +414,7 @@ async function syncGoogle(requestUrl, res) {
     return sendJson(res, { error: "Connexion non active.", service }, 409);
   }
 
-  const state = readJson(STATE_FILE, seedState);
+  const state = getAppState();
   if (service === "gmail") {
     state.mail = await fetchGmail(tokens.gmail, service);
   }
@@ -440,7 +441,7 @@ async function syncAllGoogle(res) {
 async function performGoogleSync({ mode = "auto" } = {}) {
   if (googleSyncInProgress) {
     return {
-      state: readJson(STATE_FILE, seedState),
+      state: getAppState(),
       results: {},
       errors: { global: "Synchronisation deja en cours." },
       status: getSyncStatus(),
@@ -456,7 +457,7 @@ async function performGoogleSync({ mode = "auto" } = {}) {
   });
 
   const tokens = readJson(TOKENS_FILE, {});
-  const state = readJson(STATE_FILE, seedState);
+  const state = getAppState();
   const results = {};
   const errors = {};
 
@@ -557,6 +558,26 @@ function getSyncStatus() {
     }),
     inProgress: googleSyncInProgress,
     autoSyncIntervalMinutes: AUTO_SYNC_INTERVAL_MINUTES,
+  };
+}
+
+function getAppState() {
+  return normalizeAppState(readJson(STATE_FILE, seedState));
+}
+
+function normalizeAppState(state) {
+  return {
+    ...structuredClone(seedState),
+    ...state,
+    tasks: Array.isArray(state.tasks) ? state.tasks : structuredClone(seedState.tasks),
+    inbox: Array.isArray(state.inbox) ? state.inbox : structuredClone(seedState.inbox),
+    reminders: Array.isArray(state.reminders) ? state.reminders : structuredClone(seedState.reminders),
+    notes: Array.isArray(state.notes) ? state.notes : structuredClone(seedState.notes),
+    mail: Array.isArray(state.mail) ? state.mail : structuredClone(seedState.mail),
+    reports: Array.isArray(state.reports) ? state.reports : structuredClone(seedState.reports),
+    requests: Array.isArray(state.requests) ? state.requests : [],
+    lists: state.lists && typeof state.lists === "object" ? state.lists : structuredClone(seedState.lists),
+    agenda: Array.isArray(state.agenda) ? state.agenda : structuredClone(seedState.agenda),
   };
 }
 
@@ -900,7 +921,7 @@ function getConnectionStatus() {
 
 function getGoogleDebugInfo() {
   const tokens = readJson(TOKENS_FILE, {});
-  const state = readJson(STATE_FILE, seedState);
+  const state = getAppState();
   const tasks = Array.isArray(state.tasks) ? state.tasks : [];
   return {
     stateFile: STATE_FILE,
@@ -961,7 +982,7 @@ async function sendGoogleTasksDebug(res) {
 
 async function sendGoogleCalendarDebug(res) {
   const tokens = readJson(TOKENS_FILE, {});
-  const state = readJson(STATE_FILE, seedState);
+  const state = getAppState();
   if (!tokens.calendar) {
     return sendJson(res, {
       ok: false,
@@ -1143,14 +1164,23 @@ function buildAiMessages(message) {
     { role: "user", content: exchange.user },
     { role: "assistant", content: exchange.assistant },
   ]);
-  const state = readJson(STATE_FILE, seedState);
+  const state = getAppState();
   const knowledgeContext = findRelevantKnowledge(message);
 
   return [
     {
       role: "system",
       content: [
-        "Tu es l'assistant personnel local de Xavier.",
+        "Tu es Fernand, le bras droit de Xavier et le chef d'equipe de ses assistants internes.",
+        "Chaque message de Xavier est une demande-projet a traiter serieusement.",
+        "Commence par reformuler la demande en une phrase courte.",
+        "Puis consulte mentalement tes services internes: Organisation du travail, Secretaire, Commercial, Coach mental.",
+        "Chaque service doit donner uniquement ce qui est utile; indique 'non concerne' si un service n'apporte rien.",
+        "Ensuite, controle la coherence du travail comme chef d'equipe et rends un rapport clair a Xavier.",
+        "Structure toujours la reponse avec: Reformulation, Services consultes, Rapport Fernand, Prochaines actions.",
+        "Ne dis pas que tu as envoye des emails, modifie l'agenda, appele Baqio ou change des fichiers si l'application ne l'a pas vraiment fait.",
+        "Pour l'agent commercial, distingue professionnels et particuliers, mais precise que l'API Baqio n'est pas encore connectee si la demande depend de Baqio.",
+        "Pour le coach mental, reste pratique, apaisant, non medical, et inspire-toi de principes bouddhistes simples sans faire de diagnostic.",
         "Reponds en francais, de facon concrete et concise.",
         "Tu as une memoire courte des derniers echanges fournie dans le contexte.",
         "Si Xavier fait reference a une chose dite juste avant, utilise cette memoire.",

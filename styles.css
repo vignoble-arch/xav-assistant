@@ -507,6 +507,7 @@ select,
 .mail-card,
 .document-card,
 .report-card,
+.request-card,
 .connection-card {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -635,6 +636,85 @@ select,
   display: grid;
   gap: 12px;
   margin-top: 14px;
+}
+
+.request-summary,
+.usage-summary,
+.memory-summary,
+.knowledge-summary,
+.task-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.request-summary article,
+.usage-summary article,
+.memory-summary article,
+.knowledge-summary article,
+.task-summary article {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--surface-strong);
+}
+
+.request-summary strong,
+.usage-summary strong,
+.memory-summary strong,
+.knowledge-summary strong,
+.task-summary strong {
+  display: block;
+  color: var(--ink);
+  font-size: 1.35rem;
+}
+
+.request-summary span,
+.usage-summary span,
+.memory-summary span,
+.knowledge-summary span,
+.task-summary span {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.request-list {
+  display: grid;
+  gap: 12px;
+}
+
+.request-card {
+  background: #fffdf8;
+}
+
+.request-card.status-en-traitement {
+  border-color: #c9d9e5;
+}
+
+.request-card.status-a-valider {
+  border-color: #d6c08f;
+}
+
+.request-card.status-clos {
+  background: #f8fbf8;
+}
+
+.request-original {
+  margin: 12px 0 0;
+  color: var(--ink);
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.request-report {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 .system-panel {

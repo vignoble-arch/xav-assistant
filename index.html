@@ -26,6 +26,7 @@
 
         <nav class="nav-list">
           <button class="nav-item is-active" type="button" data-view="dashboard">Vue du jour</button>
+          <button class="nav-item" type="button" data-view="requests">Demandes</button>
           <button class="nav-item" type="button" data-view="tasks">Taches</button>
           <button class="nav-item" type="button" data-view="inbox">Inbox</button>
           <button class="nav-item" type="button" data-view="notes">Notes</button>
@@ -154,6 +155,18 @@
             </div>
             <div class="reports-list" id="reportsList"></div>
           </section>
+        </section>
+
+        <section class="management-view" data-panel="requests" hidden>
+          <div class="view-header">
+            <div>
+              <p class="section-kicker">Fernand</p>
+              <h2>Demandes en cours</h2>
+            </div>
+            <button class="assistant-button small" type="button" id="openAssistantFromRequests">Nouvelle demande</button>
+          </div>
+          <div class="request-summary" id="requestSummary"></div>
+          <div class="request-list" id="requestList"></div>
         </section>
 
         <section class="management-view" data-panel="tasks" hidden>
@@ -330,16 +343,16 @@
       <form method="dialog" class="dialog-card">
         <div class="dialog-header">
           <div>
-            <p class="section-kicker">Assistant texte</p>
-            <h2>Que faut-il noter ?</h2>
+            <p class="section-kicker">Fernand</p>
+            <h2>Quelle demande traiter ?</h2>
           </div>
           <button class="icon-button" value="cancel" aria-label="Fermer" type="submit">x</button>
         </div>
-        <textarea id="assistantText" rows="5" placeholder="Exemples : ajoute beurre aux courses, rappelle d'appeler Martin vendredi, note idee ameliorer la page client"></textarea>
+        <textarea id="assistantText" rows="5" placeholder="Exemples : organise ma journee, prepare le dossier client, analyse cette urgence, note une idee"></textarea>
         <div class="assistant-preview" id="assistantPreview">La demande sera analysee par l'IA. Si elle est ambigue, elle ira dans l'Inbox.</div>
         <div class="dialog-actions">
           <button class="ghost-button" value="cancel" type="submit">Annuler</button>
-          <button class="ghost-button" id="askLocalAi" value="default" type="button">Demander a l'IA</button>
+          <button class="ghost-button" id="askLocalAi" value="default" type="button">Demander a Fernand</button>
           <button class="assistant-button" id="submitAssistant" value="default" type="button">Classer</button>
         </div>
       </form>

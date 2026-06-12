@@ -935,6 +935,52 @@ select,
   background: var(--surface-strong);
 }
 
+.settings-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  background: var(--surface-strong);
+}
+
+.settings-preview {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #fbfdff;
+}
+
+.preview-logo {
+  flex: 0 0 auto;
+  width: 62px;
+  height: 62px;
+  color: #23211e;
+}
+
+.settings-preview strong,
+.settings-preview span {
+  display: block;
+}
+
+.settings-preview strong {
+  font-size: 1.12rem;
+}
+
+.settings-preview span,
+.settings-preview p {
+  color: var(--muted);
+}
+
+.settings-preview p {
+  margin: 8px 0 0;
+  line-height: 1.45;
+}
+
 .local-ai-panel {
   margin-top: 18px;
   border: 1px solid var(--line);
@@ -969,6 +1015,12 @@ select,
   padding: 11px 12px;
   color: var(--ink);
   background: var(--surface-strong);
+}
+
+.wide-field textarea {
+  width: 100%;
+  min-height: 160px;
+  resize: vertical;
 }
 
 .connections-grid {
@@ -1576,8 +1628,13 @@ textarea {
   .quick-capture form,
   .priority-band,
   .split-list,
+  .settings-preview,
   .form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .settings-preview {
+    align-items: flex-start;
   }
 
   .panel,

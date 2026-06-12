@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=quick-note-1" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="styles.css?v=ergonomie-mobile-1" />
+    <link rel="stylesheet" href="styles.css?v=personnalisation-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -36,6 +36,7 @@
           <button class="nav-item" type="button" data-view="notes">Notes</button>
           <button class="nav-item" type="button" data-view="memory">Memoire</button>
           <button class="nav-item" type="button" data-view="lists">Listes</button>
+          <button class="nav-item" type="button" data-view="settings">Reglages</button>
           <button class="nav-item" type="button" data-view="connections">Connexions</button>
         </nav>
 
@@ -349,6 +350,51 @@
           <div class="list-columns" id="listColumns"></div>
         </section>
 
+        <section class="management-view" data-panel="settings" hidden>
+          <div class="view-header">
+            <div>
+              <p class="section-kicker">Personnalisation</p>
+              <h2>Ambiance de l'app</h2>
+            </div>
+            <button class="ghost-button" type="button" id="resetBranding">Revenir simple</button>
+          </div>
+          <form class="settings-form" id="brandingForm">
+            <section class="settings-preview">
+              <div class="brand-logo-slot preview-logo" aria-label="Apercu logo">
+                <img id="previewLogo" src="" alt="" hidden />
+                <span id="previewLogoFallback">AX</span>
+              </div>
+              <div>
+                <strong id="previewTitle">Assistant Xavier</strong>
+                <span id="previewSubtitle">Cockpit prive</span>
+                <p id="previewZen">Une chose claire vaut mieux que dix urgences bruyantes.</p>
+              </div>
+            </section>
+            <div class="form-grid">
+              <label>
+                Nom affiche
+                <input id="brandingTitle" type="text" autocomplete="off" placeholder="Assistant Xavier" />
+              </label>
+              <label>
+                Sous-titre
+                <input id="brandingSubtitle" type="text" autocomplete="off" placeholder="Cockpit prive" />
+              </label>
+            </div>
+            <label class="wide-field">
+              Adresse du logo
+              <input id="brandingLogoUrl" type="url" autocomplete="off" placeholder="https://.../mon-logo.png" />
+            </label>
+            <label class="wide-field">
+              Phrases zen
+              <textarea id="brandingZenPhrases" rows="7" placeholder="Une phrase par ligne. L'app en choisira une selon le jour."></textarea>
+            </label>
+            <div class="dialog-actions">
+              <button class="ghost-button" type="button" id="previewBranding">Voir l'apercu</button>
+              <button class="assistant-button small" type="submit">Enregistrer</button>
+            </div>
+          </form>
+        </section>
+
         <section class="management-view" data-panel="connections" hidden>
           <div class="view-header">
             <div>
@@ -598,7 +644,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=ergonomie-mobile-1"></script>
+    <script src="app.js?v=personnalisation-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

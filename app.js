@@ -168,6 +168,8 @@ const el = {
   dailyZen: document.querySelector("#dailyZen"),
   brandLogo: document.querySelector("#brandLogo"),
   brandLogoFallback: document.querySelector("#brandLogoFallback"),
+  brandTitle: document.querySelector(".brand-title"),
+  brandSubtitle: document.querySelector(".brand-subtitle"),
   priorityList: document.querySelector("#priorityList"),
   morningBrief: document.querySelector("#morningBrief"),
   recentProgress: document.querySelector("#recentProgress"),
@@ -212,6 +214,18 @@ const el = {
   clearMemory: document.querySelector("#clearMemory"),
   refreshUsage: document.querySelector("#refreshUsage"),
   listColumns: document.querySelector("#listColumns"),
+  brandingForm: document.querySelector("#brandingForm"),
+  brandingTitle: document.querySelector("#brandingTitle"),
+  brandingSubtitle: document.querySelector("#brandingSubtitle"),
+  brandingLogoUrl: document.querySelector("#brandingLogoUrl"),
+  brandingZenPhrases: document.querySelector("#brandingZenPhrases"),
+  previewBranding: document.querySelector("#previewBranding"),
+  resetBranding: document.querySelector("#resetBranding"),
+  previewLogo: document.querySelector("#previewLogo"),
+  previewLogoFallback: document.querySelector("#previewLogoFallback"),
+  previewTitle: document.querySelector("#previewTitle"),
+  previewSubtitle: document.querySelector("#previewSubtitle"),
+  previewZen: document.querySelector("#previewZen"),
   connectionsGrid: document.querySelector("#connectionsGrid"),
   connectionNotice: document.querySelector("#connectionNotice"),
   syncStatusCard: document.querySelector("#syncStatusCard"),
@@ -331,6 +345,12 @@ function bindEvents() {
   el.knowledgeUploadForm.addEventListener("submit", uploadKnowledgeDocument);
   el.refreshUsage.addEventListener("click", loadAiUsage);
   document.querySelector("#resetDemo").addEventListener("click", resetDemo);
+  el.brandingForm?.addEventListener("submit", saveBranding);
+  el.previewBranding?.addEventListener("click", previewBranding);
+  el.resetBranding?.addEventListener("click", resetBranding);
+  [el.brandingTitle, el.brandingSubtitle, el.brandingLogoUrl, el.brandingZenPhrases].forEach((field) => {
+    field?.addEventListener("input", previewBranding);
+  });
   document.querySelector("#connectAllGoogle").addEventListener("click", () => startGoogleConnection("all"));
   el.syncAllGoogle.addEventListener("click", syncAllGoogleServices);
   el.googleConfigForm.addEventListener("submit", saveGoogleConfig);
@@ -384,6 +404,7 @@ function render() {
   renderLists();
   renderNotes();
   renderMemory();
+  renderBrandingSettings();
   renderAgentInstructions();
   renderKnowledge();
   renderUsage();
@@ -393,25 +414,99 @@ function render() {
 }
 
 function applyBranding() {
-  let branding = {};
-  try {
-    branding = JSON.parse(localStorage.getItem(BRANDING_KEY) || "{}");
-  } catch {
-    branding = {};
-  }
+  const branding = readBranding();
+  if (el.brandTitle) el.brandTitle.textContent = branding.title || "Assistant Xavier";
+  if (el.brandSubtitle) el.brandSubtitle.textContent = branding.subtitle || "Cockpit prive";
   const logoUrl = typeof branding.logoUrl === "string" ? branding.logoUrl.trim() : "";
   if (logoUrl && el.brandLogo && el.brandLogoFallback) {
     el.brandLogo.src = logoUrl;
     el.brandLogo.hidden = false;
     el.brandLogoFallback.hidden = true;
+  } else if (el.brandLogo && el.brandLogoFallback) {
+    el.brandLogo.removeAttribute("src");
+    el.brandLogo.hidden = true;
+    el.brandLogoFallback.hidden = false;
   }
 }
 
 function renderDailyZen() {
   if (!el.dailyZen) return;
+  const branding = readBranding();
+  const phrases = Array.isArray(branding.zenPhrases) && branding.zenPhrases.length ? branding.zenPhrases : DAILY_ZEN_PHRASES;
   const dayKey = Number(new Intl.DateTimeFormat("fr-FR", { day: "numeric" }).format(new Date())) || 1;
-  const index = (dayKey - 1) % DAILY_ZEN_PHRASES.length;
-  el.dailyZen.textContent = DAILY_ZEN_PHRASES[index];
+  const index = (dayKey - 1) % phrases.length;
+  el.dailyZen.textContent = phrases[index];
+}
+
+function readBranding() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(BRANDING_KEY) || "{}");
+    return saved && typeof saved === "object" ? saved : {};
+  } catch {
+    return {};
+  }
+}
+
+function brandingFromForm() {
+  const zenPhrases = String(el.brandingZenPhrases?.value || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 31);
+  return {
+    title: el.brandingTitle?.value.trim() || "",
+    subtitle: el.brandingSubtitle?.value.trim() || "",
+    logoUrl: el.brandingLogoUrl?.value.trim() || "",
+    zenPhrases,
+  };
+}
+
+function renderBrandingSettings() {
+  if (!el.brandingForm) return;
+  const branding = readBranding();
+  el.brandingTitle.value = branding.title || "";
+  el.brandingSubtitle.value = branding.subtitle || "";
+  el.brandingLogoUrl.value = branding.logoUrl || "";
+  el.brandingZenPhrases.value = Array.isArray(branding.zenPhrases) ? branding.zenPhrases.join("\n") : "";
+  previewBranding();
+}
+
+function previewBranding() {
+  if (!el.previewTitle) return;
+  const branding = brandingFromForm();
+  const title = branding.title || "Assistant Xavier";
+  const subtitle = branding.subtitle || "Cockpit prive";
+  const phrases = branding.zenPhrases.length ? branding.zenPhrases : DAILY_ZEN_PHRASES;
+  el.previewTitle.textContent = title;
+  el.previewSubtitle.textContent = subtitle;
+  el.previewZen.textContent = phrases[0] || "";
+  if (branding.logoUrl && el.previewLogo && el.previewLogoFallback) {
+    el.previewLogo.src = branding.logoUrl;
+    el.previewLogo.hidden = false;
+    el.previewLogoFallback.hidden = true;
+  } else if (el.previewLogo && el.previewLogoFallback) {
+    el.previewLogo.removeAttribute("src");
+    el.previewLogo.hidden = true;
+    el.previewLogoFallback.hidden = false;
+  }
+}
+
+function saveBranding(event) {
+  event.preventDefault();
+  const branding = brandingFromForm();
+  localStorage.setItem(BRANDING_KEY, JSON.stringify(branding));
+  applyBranding();
+  renderDailyZen();
+  previewBranding();
+  showToast("Personnalisation enregistree.");
+}
+
+function resetBranding() {
+  localStorage.removeItem(BRANDING_KEY);
+  applyBranding();
+  renderDailyZen();
+  renderBrandingSettings();
+  showToast("Personnalisation remise a zero.");
 }
 
 function renderPriorities() {

@@ -1,0 +1,72 @@
+services:
+  assistant:
+    build: .
+    container_name: assistant-xavier
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      PORT: "4173"
+      DATA_DIR: /app/data
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: assistant
+      POSTGRES_DB: assistant_xavier
+      RAG_URL: http://qdrant:6333
+    volumes:
+      - assistant_data:/app/data
+    ports:
+      - "127.0.0.1:4173:4173"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: assistant-postgres
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      POSTGRES_USER: assistant
+      POSTGRES_DB: assistant_xavier
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U assistant -d assistant_xavier"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  qdrant:
+    image: qdrant/qdrant:v1.15.4
+    container_name: assistant-rag
+    restart: unless-stopped
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: assistant-https
+    restart: unless-stopped
+    profiles:
+      - public
+    env_file:
+      - .env.production
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - assistant
+
+volumes:
+  assistant_data:
+  postgres_data:
+  qdrant_data:
+  caddy_data:
+  caddy_config:

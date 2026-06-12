@@ -1,0 +1,19 @@
+{
+  "name": "Assistant Xavier",
+  "short_name": "Xavier",
+  "description": "Cockpit personnel pour les taches, l'agenda, les emails et les rapports.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f5f1e8",
+  "theme_color": "#172033",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

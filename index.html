@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#172033" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Assistant Xavier" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Assistant Xavier</title>
+    <link rel="manifest" href="manifest.webmanifest?v=pwa-1" />
+    <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
+    <link rel="stylesheet" href="styles.css?v=auto-sync-1" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Navigation principale">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">AX</div>
+          <div>
+            <p class="brand-title">Assistant Xavier</p>
+            <p class="brand-subtitle">Cockpit prive</p>
+          </div>
+        </div>
+
+        <nav class="nav-list">
+          <button class="nav-item is-active" type="button" data-view="dashboard">Vue du jour</button>
+          <button class="nav-item" type="button" data-view="tasks">Taches</button>
+          <button class="nav-item" type="button" data-view="inbox">Inbox</button>
+          <button class="nav-item" type="button" data-view="notes">Notes</button>
+          <button class="nav-item" type="button" data-view="memory">Memoire</button>
+          <button class="nav-item" type="button" data-view="lists">Listes</button>
+          <button class="nav-item" type="button" data-view="connections">Connexions</button>
+        </nav>
+
+        <section class="sync-panel" aria-label="Etat des connexions">
+          <div class="sync-row">
+            <span>Gmail</span>
+            <strong class="status-muted" data-sync-status="gmail">V0.2</strong>
+          </div>
+          <div class="sync-row">
+            <span>Drive</span>
+            <strong class="status-muted" data-sync-status="drive">V0.2</strong>
+          </div>
+          <div class="sync-row">
+            <span>Agenda</span>
+            <strong class="status-muted" data-sync-status="calendar">V0.2</strong>
+          </div>
+          <div class="sync-row">
+            <span>Tasks</span>
+            <strong class="status-muted" data-sync-status="tasks">V0.2</strong>
+          </div>
+        </section>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow" id="todayLabel"></p>
+            <h1>Bonjour Xavier</h1>
+          </div>
+          <div class="topbar-actions">
+            <button class="ghost-button" type="button" id="resetDemo">Reinitialiser</button>
+            <button class="assistant-button" type="button" id="openAssistant">
+              <span class="bell-icon" aria-hidden="true"></span>
+              Appeler l'assistant
+            </button>
+          </div>
+        </header>
+
+        <section class="quick-capture" aria-label="Capture rapide">
+          <form id="quickForm">
+            <input id="quickInput" type="text" autocomplete="off" placeholder="Deposer une idee, une tache, un rappel, une note..." />
+            <button type="submit">Ajouter</button>
+          </form>
+        </section>
+
+        <section class="dashboard-grid" data-panel="dashboard">
+          <div class="priority-band">
+            <div>
+              <p class="section-kicker">Essentiel</p>
+              <h2>A faire aujourd'hui</h2>
+            </div>
+            <div class="priority-list" id="priorityList"></div>
+          </div>
+
+          <section class="panel morning-panel">
+            <div class="panel-header">
+              <div>
+                <p class="section-kicker">Routine matin</p>
+                <h2>Organisation proposee</h2>
+              </div>
+              <div class="panel-actions">
+                <span class="status-muted" id="morningNotificationStatus">Notif inactive</span>
+                <input class="time-input" id="morningNotificationTime" type="time" value="08:00" aria-label="Heure de notification du matin" />
+                <button class="mini-button" type="button" id="enableMorningNotification">Activer notif</button>
+                <button class="mini-button" type="button" id="refreshMorningBrief">Actualiser</button>
+              </div>
+            </div>
+            <div class="morning-brief" id="morningBrief"></div>
+          </section>
+
+          <section class="panel dashboard-main">
+            <div class="panel-header">
+              <div>
+                <p class="section-kicker">Execution</p>
+                <h2>Taches importantes</h2>
+              </div>
+              <button class="mini-button" type="button" data-open-task-form>Nouvelle</button>
+            </div>
+            <div class="item-list" id="activeTasks"></div>
+          </section>
+
+          <section class="panel dashboard-side">
+            <div class="panel-header">
+              <div>
+                <p class="section-kicker">Journee</p>
+                <h2>Planning</h2>
+              </div>
+              <span class="source-pill">Agenda + taches</span>
+            </div>
+            <div class="timeline" id="agendaList"></div>
+          </section>
+
+          <section class="panel dashboard-side">
+            <div class="panel-header">
+              <div>
+                <p class="section-kicker">Messages</p>
+                <h2>Emails a traiter</h2>
+              </div>
+              <span class="count-pill" id="mailCount">0</span>
+            </div>
+            <div class="item-list" id="mailList"></div>
+          </section>
+
+          <section class="panel dashboard-main">
+            <div class="panel-header">
+              <div>
+                <p class="section-kicker">Suivi</p>
+                <h2>Travaux en cours</h2>
+              </div>
+            </div>
+            <div class="reports-list" id="reportsList"></div>
+          </section>
+        </section>
+
+        <section class="management-view" data-panel="tasks" hidden>
+          <div class="view-header">
+            <div>
+              <p class="section-kicker">Pilotage</p>
+              <h2>Taches du jour</h2>
+            </div>
+            <button class="assistant-button small" type="button" data-open-task-form>Ajouter une tache</button>
+          </div>
+          <div class="task-toolbar">
+            <div class="segmented-control" aria-label="Filtre temporel des taches">
+              <button class="is-active" type="button" data-task-filter="today">Aujourd'hui</button>
+              <button type="button" data-task-filter="late">En retard</button>
+              <button type="button" data-task-filter="nodate">Sans date</button>
+              <button type="button" data-task-filter="all">Tout</button>
+            </div>
+            <select id="taskListFilter" aria-label="Filtrer par liste"></select>
+            <input id="taskSearch" type="search" placeholder="Rechercher une tache..." autocomplete="off" />
+          </div>
+          <div class="task-summary" id="taskSummary"></div>
+          <div class="kanban" id="taskBoard"></div>
+        </section>
+
+        <section class="management-view" data-panel="inbox" hidden>
+          <div class="view-header">
+            <div>
+              <p class="section-kicker">Filet de securite</p>
+              <h2>Inbox centrale</h2>
+            </div>
+          </div>
+          <div class="wide-list" id="fullInbox"></div>
+        </section>
+
+        <section class="management-view" data-panel="notes" hidden>
+          <div class="view-header">
+            <div>
+              <p class="section-kicker">Memoire courte</p>
+              <h2>Notes</h2>
+            </div>
+            <button class="assistant-button small" type="button" id="addNote">Ajouter une note</button>
+          </div>
+          <div class="notes-grid" id="notesGrid"></div>
+        </section>
+
+        <section class="management-view" data-panel="memory" hidden>
+          <div class="view-header">
+            <div>
+              <p class="section-kicker">Contexte IA</p>
+              <h2>Memoire courte</h2>
+            </div>
+            <div class="connection-actions">
+              <button class="ghost-button" type="button" id="refreshMemory">Actualiser</button>
+              <button class="assistant-button small" type="button" id="clearMemory">Vider</button>
+            </div>
+          </div>
+          <div class="memory-summary" id="memorySummary"></div>
+          <section class="usage-panel">
+            <div class="panel-header">
+              <div>
+                <p class="section-kicker">Budget IA</p>
+                <h2>Tokens et cout estime</h2>
+              </div>
+              <button class="ghost-button" type="button" id="refreshUsage">Actualiser</button>
+            </div>
+            <div class="usage-summary" id="usageSummary"></div>
+            <div class="usage-list" id="usageList"></div>
+          </section>
+          <div class="memory-list" id="memoryList"></div>
+        </section>
+
+        <section class="management-view" data-panel="lists" hidden>
+          <div class="view-header">
+            <div>
+              <p class="section-kicker">Pratique</p>
+              <h2>Listes de taches</h2>
+            </div>
+          </div>
+          <div class="list-columns" id="listColumns"></div>
+        </section>
+
+        <section class="management-view" data-panel="connections" hidden>
+          <div class="view-header">
+            <div>
+              <p class="section-kicker">Applications</p>
+              <h2>Connexions</h2>
+            </div>
+            <div class="connection-actions">
+              <button class="ghost-button" type="button" id="syncAllGoogle">Synchroniser tout</button>
+              <button class="assistant-button small" type="button" id="connectAllGoogle">Connecter Google</button>
+            </div>
+          </div>
+          <div class="connection-notice" id="connectionNotice"></div>
+          <div class="sync-status-card" id="syncStatusCard">Synchronisation auto : en attente.</div>
+          <form class="oauth-form" id="googleConfigForm">
+            <div class="form-grid">
+              <label>
+                Google Client ID
+                <input id="googleClientId" type="text" autocomplete="off" placeholder="123456789-...apps.googleusercontent.com" />
+              </label>
+              <label>
+                Google Client Secret
+                <input id="googleClientSecret" type="password" autocomplete="off" placeholder="Coller le secret OAuth" />
+              </label>
+            </div>
+            <label class="wide-field">
+              URL callback OAuth
+              <input id="googleRedirectUri" type="text" autocomplete="off" />
+            </label>
+            <div class="dialog-actions">
+              <button class="ghost-button" type="button" id="copyCallback">Copier le callback</button>
+              <button class="assistant-button small" type="submit">Enregistrer la configuration</button>
+            </div>
+          </form>
+          <section class="local-ai-panel">
+            <div class="panel-header">
+              <div>
+                <p class="section-kicker">IA</p>
+                <h2>Moteur de l'assistant</h2>
+              </div>
+              <span class="source-pill" id="aiStatusBadge">A verifier</span>
+            </div>
+            <form class="oauth-form compact" id="aiConfigForm">
+              <label class="wide-field">
+                Fournisseur
+                <select id="aiProvider">
+                  <option value="openai">OpenAI API</option>
+                  <option value="lmstudio">LM Studio local</option>
+                </select>
+              </label>
+              <div class="form-grid">
+                <label>
+                  Adresse API
+                  <input id="aiBaseUrl" type="text" autocomplete="off" placeholder="https://api.openai.com/v1" />
+                </label>
+                <label>
+                  Modele
+                  <input id="aiModel" type="text" autocomplete="off" placeholder="gpt-5.4-mini" />
+                </label>
+              </div>
+              <label class="wide-field">
+                Cle API OpenAI
+                <input id="openAiApiKey" type="password" autocomplete="off" placeholder="Coller la cle API OpenAI" />
+              </label>
+              <div class="dialog-actions">
+                <button class="ghost-button" type="button" id="testAiConnection">Tester l'IA</button>
+                <button class="assistant-button small" type="submit">Enregistrer l'IA</button>
+              </div>
+              <p class="connection-hint" id="aiConnectionResult">OpenAI API est recommande pour le serveur. LM Studio reste disponible pour les tests locaux.</p>
+            </form>
+          </section>
+          <div class="connections-grid" id="connectionsGrid"></div>
+        </section>
+      </main>
+    </div>
+
+    <dialog class="assistant-dialog" id="assistantDialog">
+      <form method="dialog" class="dialog-card">
+        <div class="dialog-header">
+          <div>
+            <p class="section-kicker">Assistant texte</p>
+            <h2>Que faut-il noter ?</h2>
+          </div>
+          <button class="icon-button" value="cancel" aria-label="Fermer" type="submit">x</button>
+        </div>
+        <textarea id="assistantText" rows="5" placeholder="Exemples : ajoute beurre aux courses, rappelle d'appeler Martin vendredi, note idee ameliorer la page client"></textarea>
+        <div class="assistant-preview" id="assistantPreview">La demande sera analysee localement. Si elle est ambigue, elle ira dans l'Inbox.</div>
+        <div class="dialog-actions">
+          <button class="ghost-button" value="cancel" type="submit">Annuler</button>
+          <button class="ghost-button" id="askLocalAi" value="default" type="button">Demander a l'IA</button>
+          <button class="assistant-button" id="submitAssistant" value="default" type="button">Classer</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="assistant-dialog" id="taskDialog">
+      <form method="dialog" class="dialog-card" id="taskForm">
+        <div class="dialog-header">
+          <div>
+            <p class="section-kicker">Nouvelle action</p>
+            <h2>Ajouter une tache</h2>
+          </div>
+          <button class="icon-button" value="cancel" aria-label="Fermer" type="submit">x</button>
+        </div>
+        <div class="form-grid">
+          <label>
+            Titre
+            <input id="taskTitle" type="text" required />
+          </label>
+          <label>
+            Liste
+            <select id="taskCategory">
+              <option>bureau</option>
+              <option>vignoble</option>
+              <option>Cave Expé</option>
+              <option>Dettes</option>
+              <option>divers et perso</option>
+            </select>
+          </label>
+          <label>
+            Priorite
+            <select id="taskPriority">
+              <option>Normale</option>
+              <option>Importante</option>
+              <option>Urgente</option>
+              <option>Faible</option>
+            </select>
+          </label>
+          <label>
+            Echeance
+            <input id="taskDue" type="date" />
+          </label>
+        </div>
+        <div class="dialog-actions">
+          <button class="ghost-button" value="cancel" type="submit">Annuler</button>
+          <button class="assistant-button" type="submit">Ajouter</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="app.js?v=auto-sync-1"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/service-worker.js").catch(() => {});
+        });
+      }
+    </script>
+  </body>
+</html>

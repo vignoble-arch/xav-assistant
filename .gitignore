@@ -1,0 +1,13 @@
+.env
+.env.production
+google-tokens.json
+data/*.json
+*.log
+backups/
+node_modules/
+*.zip
+*.bak
+*.tmp
+Fiche_*.pdf
+.vscode/
+.idea/

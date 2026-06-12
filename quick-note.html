@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#172033" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Note Xavier" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Note rapide</title>
+    <link rel="manifest" href="manifest.webmanifest?v=quick-note-1" />
+    <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
+    <link rel="stylesheet" href="quick-note.css?v=quick-note-1" />
+  </head>
+  <body>
+    <main class="quick-note-shell">
+      <header class="quick-note-header">
+        <p>Assistant Xavier</p>
+        <h1>Note rapide</h1>
+        <span id="syncStatus">Pret</span>
+      </header>
+
+      <section class="capture-panel">
+        <button class="record-button" type="button" id="recordButton" aria-label="Dicter une note">
+          <span id="recordIcon">Micro</span>
+        </button>
+        <p class="record-state" id="recordState">Appuie, parle, enregistre.</p>
+        <textarea id="noteText" rows="8" placeholder="Dicte ou ecris l'idee ici..."></textarea>
+        <div class="quick-actions">
+          <button class="secondary-button" type="button" id="clearButton">Effacer</button>
+          <button class="primary-button" type="button" id="saveButton">Enregistrer</button>
+        </div>
+      </section>
+
+      <section class="pending-panel">
+        <div>
+          <strong id="pendingCount">0</strong>
+          <span>note(s) en attente</span>
+        </div>
+        <button class="secondary-button" type="button" id="syncButton">Synchroniser</button>
+      </section>
+
+      <nav class="quick-footer" aria-label="Navigation">
+        <a href="/">Ouvrir l'app complete</a>
+      </nav>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="quick-note.js?v=quick-note-1"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/service-worker.js").catch(() => {});
+      }
+    </script>
+  </body>
+</html>

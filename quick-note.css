@@ -1,0 +1,275 @@
+:root {
+  color-scheme: light;
+  --ink: #172033;
+  --muted: #6d685f;
+  --surface: #f7f2e9;
+  --card: #fffaf2;
+  --line: #e2d8c8;
+  --accent: #245f73;
+  --accent-strong: #174454;
+  --red: #a9473c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  color: var(--ink);
+  background: var(--surface);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+button,
+textarea,
+a {
+  font: inherit;
+}
+
+.quick-note-shell {
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  gap: 14px;
+  min-height: 100dvh;
+  width: min(100%, 560px);
+  margin: 0 auto;
+  padding: max(16px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+}
+
+.quick-note-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 10px;
+  align-items: center;
+}
+
+.quick-note-header p,
+.quick-note-header h1 {
+  margin: 0;
+}
+
+.quick-note-header p {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.quick-note-header h1 {
+  font-size: 1.65rem;
+  line-height: 1.05;
+}
+
+.quick-note-header span {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: var(--muted);
+  background: #fffdf8;
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.capture-panel,
+.pending-panel {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: 0 18px 42px rgba(36, 32, 25, 0.08);
+}
+
+.capture-panel {
+  display: grid;
+  gap: 13px;
+  align-content: start;
+  padding: 16px;
+}
+
+.record-button {
+  display: grid;
+  place-items: center;
+  width: min(64vw, 220px);
+  aspect-ratio: 1;
+  margin: 0 auto;
+  border: 0;
+  border-radius: 999px;
+  color: white;
+  background: var(--accent);
+  font-size: 1.2rem;
+  font-weight: 900;
+  box-shadow: 0 18px 38px rgba(36, 95, 115, 0.28);
+}
+
+.record-button.is-listening {
+  background: var(--red);
+}
+
+.record-state {
+  margin: 0;
+  color: var(--muted);
+  text-align: center;
+  font-size: 0.95rem;
+}
+
+textarea {
+  width: 100%;
+  min-height: 168px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  color: var(--ink);
+  background: #fffdf8;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+textarea:focus,
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid rgba(36, 95, 115, 0.25);
+  outline-offset: 2px;
+}
+
+.quick-actions {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 10px;
+}
+
+.primary-button,
+.secondary-button {
+  min-height: 48px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  font-weight: 850;
+}
+
+.primary-button {
+  color: white;
+  border-color: var(--accent-strong);
+  background: var(--accent);
+}
+
+.secondary-button {
+  color: var(--ink);
+  background: #fffdf8;
+}
+
+.pending-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px;
+}
+
+.pending-panel div {
+  display: grid;
+  gap: 2px;
+}
+
+.pending-panel strong {
+  font-size: 1.35rem;
+}
+
+.pending-panel span {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.quick-footer {
+  display: flex;
+  justify-content: center;
+}
+
+.quick-footer a {
+  color: var(--accent-strong);
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.toast {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  left: 14px;
+  z-index: 20;
+  transform: translateY(18px);
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: white;
+  background: rgba(23, 32, 51, 0.94);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.toast.is-visible {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+@media (max-width: 260px), (max-height: 360px) {
+  .quick-note-shell {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .quick-note-header p,
+  .pending-panel,
+  .quick-footer {
+    display: none;
+  }
+
+  .quick-note-header h1 {
+    font-size: 1rem;
+  }
+
+  .quick-note-header span {
+    padding: 4px 7px;
+    font-size: 0.68rem;
+  }
+
+  .capture-panel {
+    gap: 8px;
+    padding: 10px;
+    border-radius: 10px;
+  }
+
+  .record-button {
+    width: min(48vw, 96px);
+    font-size: 0.8rem;
+  }
+
+  .record-state {
+    font-size: 0.74rem;
+  }
+
+  textarea {
+    min-height: 84px;
+    max-height: 110px;
+    padding: 8px;
+    font-size: 0.82rem;
+  }
+
+  .quick-actions {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .primary-button,
+  .secondary-button {
+    min-height: 34px;
+    border-radius: 8px;
+    font-size: 0.78rem;
+  }
+}

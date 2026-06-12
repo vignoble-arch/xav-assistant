@@ -239,6 +239,10 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, { ok: true });
     }
 
+    if (requestUrl.pathname === "/api/notes/quick" && req.method === "POST") {
+      return await saveQuickNoteFromApp(req, res);
+    }
+
     if (requestUrl.pathname === "/api/reset" && req.method === "POST") {
       writeJson(STATE_FILE, seedState);
       return sendJson(res, getAppState());
@@ -777,6 +781,40 @@ async function disconnectGoogle(req, res) {
     writeJson(TOKENS_FILE, tokens);
   }
   sendJson(res, getConnectionStatus());
+}
+
+async function saveQuickNoteFromApp(req, res) {
+  const body = await readBody(req);
+  const text = String(body.text || body.body || "").trim();
+  if (!text) {
+    return sendJson(res, { ok: false, error: "Note vide." }, 400);
+  }
+
+  const state = getAppState();
+  const note = {
+    id: String(body.id || randomUUID()),
+    title: makeQuickNoteTitle(text),
+    body: text,
+    category: "Idee",
+    source: "note rapide mobile",
+    createdAt: body.createdAt || new Date().toISOString(),
+    syncedAt: new Date().toISOString(),
+  };
+
+  const existingIndex = state.notes.findIndex((item) => item.id === note.id);
+  if (existingIndex >= 0) {
+    state.notes[existingIndex] = { ...state.notes[existingIndex], ...note };
+  } else {
+    state.notes = [note, ...(state.notes || [])];
+  }
+  writeJson(STATE_FILE, state);
+  return sendJson(res, { ok: true, note });
+}
+
+function makeQuickNoteTitle(text) {
+  const firstLine = String(text || "").split(/\r?\n/).find((line) => line.trim()) || "Idee rapide";
+  const cleaned = firstLine.replace(/\s+/g, " ").trim();
+  return cleaned.length > 56 ? `${cleaned.slice(0, 53)}...` : cleaned;
 }
 
 async function saveTaskFromApp(req, res) {

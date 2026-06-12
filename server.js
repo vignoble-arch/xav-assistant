@@ -859,10 +859,14 @@ async function saveTaskFromApp(req, res) {
   if (!title) return sendJson(res, { error: "Titre de tache manquant." }, 400);
 
   const existing = state.tasks.find((task) => task.id === body.id);
+  const nextStatus = body.status || existing?.status || "A faire";
+  const completedAt = nextStatus === "Termine"
+    ? existing?.completedAt || new Date().toISOString()
+    : "";
   const task = {
     id: existing?.id || randomUUID(),
     title,
-    status: body.status || existing?.status || "A faire",
+    status: nextStatus,
     priority: body.priority || existing?.priority || "Normale",
     list: normalizeTaskList(body.list || existing?.list || existing?.category || "bureau"),
     source: existing?.source || "manuel",
@@ -870,6 +874,7 @@ async function saveTaskFromApp(req, res) {
     notes: String(body.notes || existing?.notes || ""),
     sourceId: existing?.sourceId || "",
     sourceListId: existing?.sourceListId || "",
+    completedAt,
     updatedAt: new Date().toISOString(),
   };
 
@@ -1148,6 +1153,7 @@ async function fetchGoogleTasks(token, service) {
         source: "Google Tasks",
         due: task.due ? task.due.slice(0, 10) : "",
         notes: task.notes || "",
+        completedAt: task.completed || "",
         updatedAt: task.updated || null,
       });
     }
@@ -1212,6 +1218,7 @@ function googleTaskToAppTask(task, listId, listName) {
     source: "Google Tasks",
     due: task.due ? task.due.slice(0, 10) : "",
     notes: task.notes || "",
+    completedAt: task.completed || "",
     updatedAt: task.updated || new Date().toISOString(),
   };
 }

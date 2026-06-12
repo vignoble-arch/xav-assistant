@@ -11,13 +11,16 @@
     <link rel="manifest" href="manifest.webmanifest?v=quick-note-1" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="styles.css?v=commercial-ai-1" />
+    <link rel="stylesheet" href="styles.css?v=ergonomie-mobile-1" />
   </head>
   <body>
     <div class="app-shell">
       <aside class="sidebar" aria-label="Navigation principale">
         <div class="brand">
-          <div class="brand-mark" aria-hidden="true">AX</div>
+          <div class="brand-logo-slot" aria-label="Emplacement logo">
+            <img id="brandLogo" src="" alt="" hidden />
+            <span id="brandLogoFallback">AX</span>
+          </div>
           <div>
             <p class="brand-title">Assistant Xavier</p>
             <p class="brand-subtitle">Cockpit prive</p>
@@ -61,6 +64,7 @@
           <div>
             <p class="eyebrow" id="todayLabel"></p>
             <h1>Bonjour Xavier</h1>
+            <p class="daily-zen" id="dailyZen"></p>
           </div>
           <div class="topbar-actions">
             <button class="ghost-button" type="button" id="resetDemo">Reinitialiser</button>
@@ -102,6 +106,17 @@
               </div>
             </div>
             <div class="morning-brief" id="morningBrief"></div>
+          </section>
+
+          <section class="panel progress-panel">
+            <div class="panel-header">
+              <div>
+                <p class="section-kicker">Avancee</p>
+                <h2>5 derniers jours</h2>
+              </div>
+              <span class="count-pill" id="recentDoneCount">0</span>
+            </div>
+            <div class="recent-progress" id="recentProgress"></div>
           </section>
 
           <section class="panel dashboard-main">
@@ -445,6 +460,24 @@
       </main>
     </div>
 
+    <nav class="mobile-action-dock" aria-label="Actions rapides mobile">
+      <button class="is-active" type="button" data-mobile-view="dashboard">
+        <span>Jour</span>
+      </button>
+      <button type="button" data-mobile-view="tasks">
+        <span>Taches</span>
+      </button>
+      <button class="dock-primary" type="button" id="mobileOpenAssistant">
+        <span>Fernand</span>
+      </button>
+      <button type="button" id="mobileOpenNote">
+        <span>Note</span>
+      </button>
+      <button type="button" data-mobile-view="inbox">
+        <span>Emails</span>
+      </button>
+    </nav>
+
     <dialog class="assistant-dialog" id="assistantDialog">
       <form method="dialog" class="dialog-card">
         <div class="dialog-header">
@@ -565,7 +598,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=commercial-ai-1"></script>
+    <script src="app.js?v=ergonomie-mobile-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

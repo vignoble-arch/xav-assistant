@@ -1,5 +1,6 @@
 const STORAGE_KEY = "assistant-xavier-v01";
 const NOTIFICATION_PREFS_KEY = "assistant-xavier-notifications-v1";
+const BRANDING_KEY = "assistant-xavier-branding-v1";
 
 const statuses = ["Inbox", "A faire", "En cours", "En attente", "Termine"];
 const TASK_LISTS = ["Dettes", "Cave Expé", "vignoble", "bureau", "divers et perso"];
@@ -8,6 +9,18 @@ const WORKERS = [
   { key: "organisation", label: "Organisation", description: "Journee, agenda, taches et mental" },
   { key: "secretaire", label: "Secretaire", description: "Emails, dossiers, echeances" },
   { key: "commercial", label: "Commercial", description: "Clients, relances, Baqio" },
+];
+const DAILY_ZEN_PHRASES = [
+  "Une chose claire vaut mieux que dix urgences bruyantes.",
+  "On avance mieux quand la journee respire.",
+  "Priorite, presence, puis action.",
+  "Ce qui est pose sur le papier pese moins dans la tete.",
+  "Aujourd'hui, on choisit le cap avant la vitesse.",
+  "Une petite action juste vaut mieux qu'un grand elan flou.",
+  "Le calme n'est pas un luxe, c'est un outil de travail.",
+  "On ne porte pas toute la montagne, on choisit le prochain pas.",
+  "Les bonnes journees commencent par une decision simple.",
+  "Moins de bruit, plus de direction.",
 ];
 let currentTaskFilter = "today";
 
@@ -152,8 +165,13 @@ let quickNoteFinalTranscript = "";
 
 const el = {
   todayLabel: document.querySelector("#todayLabel"),
+  dailyZen: document.querySelector("#dailyZen"),
+  brandLogo: document.querySelector("#brandLogo"),
+  brandLogoFallback: document.querySelector("#brandLogoFallback"),
   priorityList: document.querySelector("#priorityList"),
   morningBrief: document.querySelector("#morningBrief"),
+  recentProgress: document.querySelector("#recentProgress"),
+  recentDoneCount: document.querySelector("#recentDoneCount"),
   refreshMorningBrief: document.querySelector("#refreshMorningBrief"),
   morningNotificationStatus: document.querySelector("#morningNotificationStatus"),
   morningNotificationTime: document.querySelector("#morningNotificationTime"),
@@ -251,6 +269,7 @@ const el = {
 document.addEventListener("DOMContentLoaded", async () => {
   bindEvents();
   state = await loadState();
+  applyBranding();
   await loadMorningBrief();
   render();
   await loadConnections();
@@ -276,6 +295,11 @@ function bindEvents() {
   document.querySelector("#openAssistant").addEventListener("click", openAssistant);
   document.querySelector("#openAssistantFromRequests")?.addEventListener("click", openAssistant);
   document.querySelector("#openQuickNote").addEventListener("click", openQuickNote);
+  document.querySelector("#mobileOpenAssistant")?.addEventListener("click", openAssistant);
+  document.querySelector("#mobileOpenNote")?.addEventListener("click", openQuickNote);
+  document.querySelectorAll("[data-mobile-view]").forEach((button) => {
+    button.addEventListener("click", () => switchView(button.dataset.mobileView));
+  });
   document.querySelector("#submitAssistant").addEventListener("click", handleAssistantSubmit);
   el.askLocalAi.addEventListener("click", askLocalAi);
   document.querySelector("#assistantText").addEventListener("input", updateAssistantPreview);
@@ -345,9 +369,11 @@ function render() {
     month: "long",
     year: "numeric",
   }).format(new Date());
+  renderDailyZen();
 
   renderPriorities();
   renderMorningBrief();
+  renderRecentProgress();
   renderInbox();
   renderTasks();
   renderAgenda();
@@ -364,6 +390,28 @@ function render() {
   renderSystemStatus();
   renderNotificationControls();
   saveState();
+}
+
+function applyBranding() {
+  let branding = {};
+  try {
+    branding = JSON.parse(localStorage.getItem(BRANDING_KEY) || "{}");
+  } catch {
+    branding = {};
+  }
+  const logoUrl = typeof branding.logoUrl === "string" ? branding.logoUrl.trim() : "";
+  if (logoUrl && el.brandLogo && el.brandLogoFallback) {
+    el.brandLogo.src = logoUrl;
+    el.brandLogo.hidden = false;
+    el.brandLogoFallback.hidden = true;
+  }
+}
+
+function renderDailyZen() {
+  if (!el.dailyZen) return;
+  const dayKey = Number(new Intl.DateTimeFormat("fr-FR", { day: "numeric" }).format(new Date())) || 1;
+  const index = (dayKey - 1) % DAILY_ZEN_PHRASES.length;
+  el.dailyZen.textContent = DAILY_ZEN_PHRASES[index];
 }
 
 function renderPriorities() {
@@ -431,6 +479,43 @@ function loadLabel(load) {
   if (load === "chargee") return "Journee chargee";
   if (load === "normale") return "Journee normale";
   return "Journee legere";
+}
+
+function renderRecentProgress() {
+  if (!el.recentProgress || !el.recentDoneCount) return;
+  const days = Array.from({ length: 5 }, (_, index) => addDaysISO(index - 4));
+  const completed = state.tasks
+    .filter((task) => task.status === "Termine")
+    .map((task) => ({
+      ...task,
+      doneDate: String(task.completedAt || task.updatedAt || "").slice(0, 10),
+    }))
+    .filter((task) => days.includes(task.doneDate));
+
+  el.recentDoneCount.textContent = `${completed.length}`;
+  if (!completed.length) {
+    el.recentProgress.innerHTML = emptyState("Aucune tache terminee sur les 5 derniers jours. Des que tu coches, le compteur remonte.");
+    return;
+  }
+
+  el.recentProgress.innerHTML = days.reverse().map((day) => {
+    const items = completed.filter((task) => task.doneDate === day);
+    return `
+      <article class="progress-day ${items.length ? "has-progress" : ""}">
+        <div>
+          <strong>${escapeHTML(formatShortDay(day))}</strong>
+          <span>${items.length} terminee${items.length > 1 ? "s" : ""}</span>
+        </div>
+        ${items.length
+          ? `<ul>${items.slice(0, 3).map((task) => `<li>${escapeHTML(task.title)}</li>`).join("")}</ul>`
+          : "<p>Rien de coche ce jour-la.</p>"}
+      </article>
+    `;
+  }).join("");
+}
+
+function formatShortDay(dateKey) {
+  return new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric", month: "short" }).format(new Date(`${dateKey}T12:00:00`));
 }
 
 function renderInbox() {
@@ -1633,7 +1718,16 @@ function closeTaskForm() {
 async function saveTask(payload) {
   if (!API_ENABLED) {
     const existing = state.tasks.find((task) => task.id === payload.id);
-    const next = { ...existing, id: existing?.id || crypto.randomUUID(), source: existing?.source || "manuel", ...payload };
+    const nextStatus = payload.status || existing?.status || "A faire";
+    const next = {
+      ...existing,
+      id: existing?.id || crypto.randomUUID(),
+      source: existing?.source || "manuel",
+      ...payload,
+      status: nextStatus,
+      completedAt: nextStatus === "Termine" ? existing?.completedAt || new Date().toISOString() : "",
+      updatedAt: new Date().toISOString(),
+    };
     state.tasks = existing ? state.tasks.map((task) => task.id === next.id ? next : task) : [next, ...state.tasks];
     showToast("Tache enregistree.");
     render();
@@ -1866,6 +1960,9 @@ function stopQuickNoteDictation() {
 function switchView(view) {
   document.querySelectorAll(".nav-item").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.view === view);
+  });
+  document.querySelectorAll("[data-mobile-view]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.mobileView === view);
   });
   document.querySelectorAll("[data-panel]").forEach((panel) => {
     panel.hidden = panel.dataset.panel !== view;

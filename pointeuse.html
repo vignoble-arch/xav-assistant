@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#172033" />
+    <title>Pointeuse</title>
+    <link rel="stylesheet" href="pointeuse.css?v=2" />
+  </head>
+  <body>
+    <main class="clock-shell">
+      <section class="clock-card">
+        <p class="kicker">Assistant Xavier</p>
+        <h1>Pointeuse</h1>
+        <p class="hint">Choisis ton nom, puis indique simplement ton arrivee ou ton depart.</p>
+
+        <label>
+          Nom
+          <select id="employeeSelect"></select>
+        </label>
+        <label id="manualNameLabel" hidden>
+          Nom libre
+          <input id="employeeName" type="text" autocomplete="name" placeholder="Ton nom" />
+        </label>
+        <label>
+          Code personnel
+          <input id="employeeCode" type="password" inputmode="numeric" autocomplete="one-time-code" placeholder="Optionnel" />
+        </label>
+
+        <div class="clock-actions">
+          <button type="button" data-action="arrival">J'arrive</button>
+          <button type="button" data-action="departure">Je pars</button>
+          <button type="button" data-action="break_start">Pause</button>
+          <button type="button" data-action="break_end">Reprise</button>
+        </div>
+
+        <p class="result" id="result">En attente.</p>
+      </section>
+    </main>
+    <script src="pointeuse.js?v=2"></script>
+  </body>
+</html>

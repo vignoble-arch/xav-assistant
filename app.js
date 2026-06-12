@@ -138,6 +138,10 @@ const seedState = {
     summary: null,
     lastSyncedAt: null,
   },
+  timeclock: {
+    employees: [],
+    entries: [],
+  },
   requests: [],
 };
 
@@ -188,6 +192,14 @@ const el = {
   commercialOpportunities: document.querySelector("#commercialOpportunities"),
   commercialTopCustomers: document.querySelector("#commercialTopCustomers"),
   commercialRecentOrders: document.querySelector("#commercialRecentOrders"),
+  timeclockUrl: document.querySelector("#timeclockUrl"),
+  copyTimeclockUrl: document.querySelector("#copyTimeclockUrl"),
+  employeeForm: document.querySelector("#employeeForm"),
+  employeeName: document.querySelector("#employeeName"),
+  employeeCode: document.querySelector("#employeeCode"),
+  employeeList: document.querySelector("#employeeList"),
+  timeclockSummary: document.querySelector("#timeclockSummary"),
+  timeclockEntries: document.querySelector("#timeclockEntries"),
   requestSummary: document.querySelector("#requestSummary"),
   requestList: document.querySelector("#requestList"),
   taskBoard: document.querySelector("#taskBoard"),
@@ -362,6 +374,8 @@ function bindEvents() {
   el.testBaqioConnection.addEventListener("click", testBaqioConnection);
   el.syncBaqio.addEventListener("click", syncBaqio);
   el.syncBaqioFromCommercial.addEventListener("click", syncBaqio);
+  el.employeeForm?.addEventListener("submit", addEmployee);
+  el.copyTimeclockUrl?.addEventListener("click", copyTimeclockUrl);
   el.copyCallback.addEventListener("click", copyCallbackUrl);
   el.taskListFilter.addEventListener("change", renderTasks);
   el.taskSearch.addEventListener("input", renderTasks);
@@ -401,6 +415,7 @@ function render() {
   renderMail();
   renderReports();
   renderCommercial();
+  renderTimeclock();
   renderRequests();
   renderLists();
   renderNotes();
@@ -882,6 +897,126 @@ function commercialOrderCard(order) {
       <p class="card-meta">${escapeHTML(order.customerName || "Client inconnu")} - ${escapeHTML(order.date || "date inconnue")} - ${Number(order.bottleQuantity || 0).toFixed(0)} bouteille(s) - ${escapeHTML(order.state || "")}</p>
     </article>
   `;
+}
+
+function renderTimeclock() {
+  if (!el.timeclockSummary || !el.timeclockEntries || !el.employeeList || !el.timeclockUrl) return;
+  const timeclock = getTimeclockState();
+  const url = `${location.origin}/pointeuse.html`;
+  el.timeclockUrl.value = url;
+
+  const today = todayISO();
+  const todayEntries = timeclock.entries.filter((entry) => entry.timestamp?.slice(0, 10) === today);
+  const arrivals = todayEntries.filter((entry) => entry.action === "arrival").length;
+  const departures = todayEntries.filter((entry) => entry.action === "departure").length;
+  const activeEmployees = timeclock.employees.filter((employee) => employee.active !== false).length;
+  el.timeclockSummary.innerHTML = `
+    <article><strong>${activeEmployees}</strong><span>Employe(s)</span></article>
+    <article><strong>${todayEntries.length}</strong><span>Pointages aujourd'hui</span></article>
+    <article><strong>${arrivals}</strong><span>Arrivees</span></article>
+    <article><strong>${departures}</strong><span>Departs</span></article>
+  `;
+
+  el.employeeList.innerHTML = timeclock.employees.length
+    ? timeclock.employees.map(employeeCard).join("")
+    : emptyState("Ajoute au moins une personne, ou laisse l'employe creer son nom au premier pointage.");
+
+  const entries = [...timeclock.entries].sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp))).slice(0, 40);
+  el.timeclockEntries.innerHTML = entries.length
+    ? entries.map(timeclockEntryCard).join("")
+    : emptyState("Aucun pointage enregistre pour l'instant.");
+}
+
+function getTimeclockState() {
+  const source = state.timeclock && typeof state.timeclock === "object" ? state.timeclock : {};
+  return {
+    employees: Array.isArray(source.employees) ? source.employees : [],
+    entries: Array.isArray(source.entries) ? source.entries : [],
+  };
+}
+
+function employeeCard(employee) {
+  const status = employee.active === false ? "Inactif" : "Actif";
+  return `
+    <article class="connection-card">
+      <div class="card-top">
+        <p class="card-title">${escapeHTML(employee.name || "Employe")}</p>
+        <span class="source-pill">${status}</span>
+      </div>
+      <p class="card-meta">${employee.code ? "Code personnel defini" : "Sans code personnel"}</p>
+      <div class="card-actions">
+        <button class="item-action" type="button" onclick="toggleEmployee('${escapeHTML(employee.id)}')">${employee.active === false ? "Activer" : "Desactiver"}</button>
+        <button class="item-action" type="button" onclick="deleteEmployee('${escapeHTML(employee.id)}')">Supprimer</button>
+      </div>
+    </article>
+  `;
+}
+
+function timeclockEntryCard(entry) {
+  return `
+    <article class="report-card">
+      <div class="card-top">
+        <p class="card-title">${escapeHTML(entry.employeeName || "Employe")}</p>
+        <span class="source-pill">${escapeHTML(timeclockActionLabel(entry.action))}</span>
+      </div>
+      <p class="card-meta">${escapeHTML(formatDateTime(entry.timestamp))} - ${entry.source === "nfc" ? "NFC/QR" : "App"}</p>
+    </article>
+  `;
+}
+
+function timeclockActionLabel(action) {
+  return {
+    arrival: "Arrivee",
+    departure: "Depart",
+    break_start: "Pause",
+    break_end: "Reprise",
+  }[action] || "Pointage";
+}
+
+function addEmployee(event) {
+  event.preventDefault();
+  const name = el.employeeName.value.trim();
+  if (!name) return;
+  const timeclock = getTimeclockState();
+  const existing = timeclock.employees.find((employee) => normalizeText(employee.name) === normalizeText(name));
+  if (existing) {
+    showToast("Cet employe existe deja.");
+    return;
+  }
+  timeclock.employees.push({
+    id: crypto.randomUUID(),
+    name,
+    code: el.employeeCode.value.trim(),
+    active: true,
+    createdAt: new Date().toISOString(),
+  });
+  state.timeclock = timeclock;
+  el.employeeForm.reset();
+  render();
+  showToast("Employe ajoute.");
+}
+
+function toggleEmployee(id) {
+  const timeclock = getTimeclockState();
+  timeclock.employees = timeclock.employees.map((employee) =>
+    employee.id === id ? { ...employee, active: employee.active === false } : employee
+  );
+  state.timeclock = timeclock;
+  render();
+}
+
+function deleteEmployee(id) {
+  const timeclock = getTimeclockState();
+  timeclock.employees = timeclock.employees.filter((employee) => employee.id !== id);
+  state.timeclock = timeclock;
+  render();
+  showToast("Employe supprime.");
+}
+
+async function copyTimeclockUrl() {
+  const url = el.timeclockUrl.value || `${location.origin}/pointeuse.html`;
+  await navigator.clipboard.writeText(url);
+  showToast("Lien pointeuse copie.");
 }
 
 async function commercialOpportunityToTask(id) {
@@ -2463,6 +2598,12 @@ function migrateState(saved) {
   migrated.baqio = saved.baqio && typeof saved.baqio === "object"
     ? { customers: [], orders: [], summary: null, lastSyncedAt: null, ...saved.baqio }
     : structuredClone(seedState.baqio);
+  migrated.timeclock = saved.timeclock && typeof saved.timeclock === "object"
+    ? {
+        employees: Array.isArray(saved.timeclock.employees) ? saved.timeclock.employees : [],
+        entries: Array.isArray(saved.timeclock.entries) ? saved.timeclock.entries : [],
+      }
+    : structuredClone(seedState.timeclock);
   migrated.requests = (saved.requests || []).map((request) => ({
     agents: ["Organisation", "Secretaire", "Commercial"],
     report: "",
@@ -3141,6 +3282,8 @@ window.archiveMail = archiveMail;
 window.mailToTask = mailToTask;
 window.mailToNote = mailToNote;
 window.commercialOpportunityToTask = commercialOpportunityToTask;
+window.toggleEmployee = toggleEmployee;
+window.deleteEmployee = deleteEmployee;
 window.closeFernandRequest = closeFernandRequest;
 window.reopenFernandRequest = reopenFernandRequest;
 window.archiveFernandRequest = archiveFernandRequest;

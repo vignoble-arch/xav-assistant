@@ -33,6 +33,7 @@
           <button class="nav-item" type="button" data-view="tasks">Taches</button>
           <button class="nav-item" type="button" data-view="inbox">Inbox</button>
           <button class="nav-item" type="button" data-view="commercial">Commercial</button>
+          <button class="nav-item" type="button" data-view="timeclock">Pointeuse</button>
           <button class="nav-item" type="button" data-view="notes">Notes</button>
           <button class="nav-item" type="button" data-view="memory">Memoire</button>
           <button class="nav-item" type="button" data-view="lists">Listes</button>
@@ -258,6 +259,56 @@
               <div class="wide-list" id="commercialRecentOrders"></div>
             </section>
           </div>
+        </section>
+
+        <section class="management-view" data-panel="timeclock" hidden>
+          <div class="view-header">
+            <div>
+              <p class="section-kicker">Equipe</p>
+              <h2>Pointeuse</h2>
+            </div>
+            <a class="assistant-button small link-button" href="/pointeuse.html" target="_blank" rel="noopener">Ouvrir la pointeuse</a>
+          </div>
+          <div class="timeclock-admin-grid">
+            <section class="panel timeclock-panel">
+              <div class="panel-header">
+                <div>
+                  <p class="section-kicker">Acces rapide</p>
+                  <h2>NFC ou QR code</h2>
+                </div>
+              </div>
+              <p class="connection-hint">Programme une pastille NFC avec cette adresse, ou imprime le QR code. C'est la meme page.</p>
+              <div class="timeclock-link-box">
+                <input id="timeclockUrl" type="text" readonly />
+                <button class="ghost-button" type="button" id="copyTimeclockUrl">Copier</button>
+              </div>
+              <img class="timeclock-qr" src="/qr-pointeuse.jpg" alt="QR code pointeuse" />
+            </section>
+            <section class="panel timeclock-panel">
+              <div class="panel-header">
+                <div>
+                  <p class="section-kicker">Employes</p>
+                  <h2>Personnes autorisees</h2>
+                </div>
+              </div>
+              <form class="employee-form" id="employeeForm">
+                <input id="employeeName" type="text" placeholder="Nom de l'employe" autocomplete="off" required />
+                <input id="employeeCode" type="text" inputmode="numeric" placeholder="Code optionnel" autocomplete="off" />
+                <button class="assistant-button small" type="submit">Ajouter</button>
+              </form>
+              <div class="wide-list" id="employeeList"></div>
+            </section>
+          </div>
+          <div class="timeclock-summary" id="timeclockSummary"></div>
+          <section class="panel timeclock-panel">
+            <div class="panel-header">
+              <div>
+                <p class="section-kicker">Historique</p>
+                <h2>Derniers pointages</h2>
+              </div>
+            </div>
+            <div class="wide-list" id="timeclockEntries"></div>
+          </section>
         </section>
 
         <section class="management-view" data-panel="notes" hidden>

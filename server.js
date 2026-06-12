@@ -208,6 +208,10 @@ const seedState = {
     summary: null,
     lastSyncedAt: null,
   },
+  timeclock: {
+    employees: [],
+    entries: [],
+  },
   requests: [],
 };
 
@@ -219,7 +223,7 @@ const server = http.createServer(async (req, res) => {
   try {
     const requestUrl = new URL(req.url, `http://${req.headers.host}`);
 
-    if (requestUrl.pathname !== "/api/health" && !isAuthorized(req)) {
+    if (!isPublicRoute(requestUrl.pathname) && !isAuthorized(req)) {
       return requestAuthentication(res);
     }
 
@@ -247,6 +251,18 @@ const server = http.createServer(async (req, res) => {
 
     if (requestUrl.pathname === "/api/notes/quick" && req.method === "POST") {
       return await saveQuickNoteFromApp(req, res);
+    }
+
+    if (requestUrl.pathname === "/api/timeclock" && req.method === "GET") {
+      return sendJson(res, getTimeClockStatus());
+    }
+
+    if (requestUrl.pathname === "/api/timeclock/public" && req.method === "GET") {
+      return sendJson(res, getPublicTimeClockStatus());
+    }
+
+    if (requestUrl.pathname === "/api/timeclock/punch" && req.method === "POST") {
+      return await saveTimeClockPunch(req, res);
     }
 
     if (requestUrl.pathname === "/api/reset" && req.method === "POST") {
@@ -406,6 +422,16 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, { error: "Erreur serveur locale.", detail: error.message }, 500);
   }
 });
+
+function isPublicRoute(pathname) {
+  return pathname === "/api/health"
+    || pathname === "/pointeuse.html"
+    || pathname === "/pointeuse.css"
+    || pathname === "/pointeuse.js"
+    || pathname === "/qr-pointeuse.jpg"
+    || pathname === "/api/timeclock/public"
+    || pathname === "/api/timeclock/punch";
+}
 
 server.on("error", (error) => {
   if (error.code === "EADDRINUSE") {
@@ -679,10 +705,138 @@ function normalizeAppState(state) {
     mail: Array.isArray(state.mail) ? state.mail : structuredClone(seedState.mail),
     reports: Array.isArray(state.reports) ? state.reports : structuredClone(seedState.reports),
     baqio: state.baqio && typeof state.baqio === "object" ? state.baqio : structuredClone(seedState.baqio),
+    timeclock: normalizeTimeClockState(state.timeclock),
     requests: Array.isArray(state.requests) ? state.requests : [],
     lists: state.lists && typeof state.lists === "object" ? state.lists : structuredClone(seedState.lists),
     agenda: Array.isArray(state.agenda) ? state.agenda : structuredClone(seedState.agenda),
   };
+}
+
+function normalizeTimeClockState(timeclock) {
+  const source = timeclock && typeof timeclock === "object" ? timeclock : {};
+  return {
+    employees: Array.isArray(source.employees)
+      ? source.employees.map((employee) => ({
+          id: employee.id || randomUUID(),
+          name: String(employee.name || "").trim() || "Employe",
+          code: String(employee.code || "").trim(),
+          active: employee.active !== false,
+          createdAt: employee.createdAt || new Date().toISOString(),
+        }))
+      : [],
+    entries: Array.isArray(source.entries)
+      ? source.entries.map((entry) => ({
+          id: entry.id || randomUUID(),
+          employeeId: entry.employeeId || "",
+          employeeName: String(entry.employeeName || "Employe").trim(),
+          action: normalizeTimeClockAction(entry.action),
+          timestamp: entry.timestamp || new Date().toISOString(),
+          source: entry.source || "app",
+        }))
+      : [],
+  };
+}
+
+function getTimeClockStatus() {
+  const state = getAppState();
+  const timeclock = normalizeTimeClockState(state.timeclock);
+  const entries = [...timeclock.entries].sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)));
+  const today = todayISO();
+  return {
+    ok: true,
+    employees: timeclock.employees,
+    entries: entries.slice(0, 200),
+    todayEntries: entries.filter((entry) => entry.timestamp.slice(0, 10) === today),
+    statusByEmployee: getTimeClockStatusByEmployee(timeclock),
+    dailySummary: buildTimeClockDailySummary(timeclock.entries),
+  };
+}
+
+function getPublicTimeClockStatus() {
+  const timeclock = normalizeTimeClockState(getAppState().timeclock);
+  return {
+    ok: true,
+    employees: timeclock.employees
+      .filter((employee) => employee.active !== false)
+      .map((employee) => ({
+        id: employee.id,
+        name: employee.name,
+        requiresCode: Boolean(employee.code),
+      })),
+  };
+}
+
+async function saveTimeClockPunch(req, res) {
+  const body = await readBody(req);
+  const action = normalizeTimeClockAction(body.action);
+  const employeeName = String(body.employeeName || "").trim();
+  const employeeCode = String(body.code || "").trim();
+  const state = getAppState();
+  state.timeclock = normalizeTimeClockState(state.timeclock);
+
+  let employee = state.timeclock.employees.find((item) => item.id === body.employeeId);
+  if (!employee && employeeName) {
+    employee = state.timeclock.employees.find((item) => normalizeText(item.name) === normalizeText(employeeName));
+  }
+  if (!employee && employeeName) {
+    employee = {
+      id: randomUUID(),
+      name: employeeName,
+      code: employeeCode,
+      active: true,
+      createdAt: new Date().toISOString(),
+    };
+    state.timeclock.employees.push(employee);
+  }
+  if (!employee) {
+    return sendJson(res, { error: "Choisis ou saisis un employe." }, 400);
+  }
+  if (employee.active === false) {
+    return sendJson(res, { error: "Cet employe est desactive dans la pointeuse." }, 403);
+  }
+  if (employee.code && employee.code !== employeeCode) {
+    return sendJson(res, { error: "Code personnel incorrect." }, 403);
+  }
+
+  const entry = {
+    id: randomUUID(),
+    employeeId: employee.id,
+    employeeName: employee.name,
+    action,
+    timestamp: new Date().toISOString(),
+    source: body.source === "nfc" ? "nfc" : "app",
+  };
+  state.timeclock.entries.unshift(entry);
+  writeJson(STATE_FILE, state);
+  return sendJson(res, { ok: true, entry, timeclock: getTimeClockStatus() });
+}
+
+function normalizeTimeClockAction(action) {
+  if (["arrival", "departure", "break_start", "break_end"].includes(action)) return action;
+  return "arrival";
+}
+
+function getTimeClockStatusByEmployee(timeclock) {
+  const latest = {};
+  [...timeclock.entries]
+    .sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)))
+    .forEach((entry) => {
+      if (!latest[entry.employeeId]) latest[entry.employeeId] = entry;
+    });
+  return latest;
+}
+
+function buildTimeClockDailySummary(entries) {
+  const labels = {};
+  entries.forEach((entry) => {
+    const day = entry.timestamp.slice(0, 10);
+    labels[day] = labels[day] || { date: day, arrivals: 0, departures: 0, breaks: 0, total: 0 };
+    labels[day].total += 1;
+    if (entry.action === "arrival") labels[day].arrivals += 1;
+    if (entry.action === "departure") labels[day].departures += 1;
+    if (entry.action === "break_start" || entry.action === "break_end") labels[day].breaks += 1;
+  });
+  return Object.values(labels).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 14);
 }
 
 async function getSystemStatus() {

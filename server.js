@@ -23,7 +23,10 @@ const AGENT_INSTRUCTIONS_FILE = path.join(DATA_DIR, "agent-instructions.json");
 const AUTO_SYNC_INTERVAL_MINUTES = Math.max(5, Number(process.env.AUTO_SYNC_INTERVAL_MINUTES || 15));
 
 const GOOGLE_SCOPES = {
-  gmail: ["https://www.googleapis.com/auth/gmail.modify"],
+  gmail: [
+    "https://www.googleapis.com/auth/gmail.modify",
+    "https://www.googleapis.com/auth/gmail.send",
+  ],
   calendar: ["https://www.googleapis.com/auth/calendar.events"],
   drive: ["https://www.googleapis.com/auth/drive.metadata.readonly"],
   tasks: ["https://www.googleapis.com/auth/tasks"],
@@ -410,6 +413,14 @@ const server = http.createServer(async (req, res) => {
 
     if (requestUrl.pathname === "/api/agenda/delete" && req.method === "POST") {
       return await deleteAgendaEventFromApp(req, res);
+    }
+
+    if (requestUrl.pathname === "/api/mail/message" && req.method === "GET") {
+      return await handleMailMessageFromApp(requestUrl, res);
+    }
+
+    if (requestUrl.pathname === "/api/mail/reply" && req.method === "POST") {
+      return await handleMailReplyFromApp(req, res);
     }
 
     if (requestUrl.pathname === "/api/mail/action" && req.method === "POST") {
@@ -1125,12 +1136,105 @@ async function deleteAgendaEventFromApp(req, res) {
   sendJson(res, state);
 }
 
+async function handleMailMessageFromApp(requestUrl, res) {
+  const mailId = String(requestUrl.searchParams.get("id") || "").trim();
+  const state = getAppState();
+  const mail = findMailItem(state, mailId);
+  if (!mail) return sendJson(res, { error: "Email introuvable." }, 404);
+
+  if (String(mail.source || "").startsWith("Gmail") && mail.sourceId) {
+    try {
+      const tokens = readJson(TOKENS_FILE, {});
+      const token = findGmailAccount(tokens, mail.mailbox);
+      if (!token?.access_token) throw new Error("Gmail n'est pas connecte.");
+      const full = await fetchFullGmailMessage(token, "gmail", mail.sourceId);
+      const scopes = String(token.scope || "").split(/\s+/).filter(Boolean);
+      return sendJson(res, {
+        ok: true,
+        message: {
+          id: mail.id,
+          sourceId: mail.sourceId,
+          threadId: full.threadId,
+          mailbox: mail.mailbox || "",
+          title: full.subject || mail.title || "(Sans objet)",
+          from: full.from || "",
+          to: full.to || "",
+          date: full.date || mail.createdAt || "",
+          body: full.body || mail.detail || "",
+          snippet: full.snippet || mail.detail || "",
+          canReply: Boolean(full.from),
+          needsSendScope: !hasGoogleScope(scopes, "https://www.googleapis.com/auth/gmail.send"),
+        },
+      });
+    } catch (error) {
+      return sendJson(res, { error: error.message }, 409);
+    }
+  }
+
+  return sendJson(res, {
+    ok: true,
+    message: {
+      id: mail.id,
+      title: mail.title || "(Sans objet)",
+      from: mail.source || "",
+      to: "",
+      date: mail.createdAt || "",
+      body: mail.body || mail.excerpt || mail.detail || "",
+      snippet: mail.detail || mail.excerpt || "",
+      canReply: false,
+      needsSendScope: false,
+    },
+  });
+}
+
+async function handleMailReplyFromApp(req, res) {
+  const body = await readBody(req);
+  const mailId = String(body.id || "").trim();
+  const messageBody = String(body.body || "").trim();
+  if (!messageBody) return sendJson(res, { error: "La reponse est vide." }, 400);
+
+  const state = getAppState();
+  const mail = findMailItem(state, mailId);
+  if (!mail) return sendJson(res, { error: "Email introuvable." }, 404);
+  if (!String(mail.source || "").startsWith("Gmail") || !mail.sourceId) {
+    return sendJson(res, { error: "Seuls les emails Gmail connectes peuvent recevoir une reponse depuis l'app." }, 409);
+  }
+
+  try {
+    const tokens = readJson(TOKENS_FILE, {});
+    const token = requireGmailSendToken(findGmailAccount(tokens, mail.mailbox));
+    const full = await fetchFullGmailMessage(token, "gmail", mail.sourceId);
+    const to = full.replyTo || full.from;
+    if (!to) return sendJson(res, { error: "Adresse de reponse introuvable." }, 409);
+
+    const raw = buildGmailReplyRaw({
+      to,
+      subject: buildReplySubject(full.subject || mail.title || ""),
+      inReplyTo: full.messageId,
+      references: [full.references, full.messageId].filter(Boolean).join(" "),
+      body: messageBody,
+    });
+
+    await googleFetch(token, "gmail", "https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+      method: "POST",
+      body: {
+        raw,
+        threadId: full.threadId,
+      },
+    });
+
+    return sendJson(res, { ok: true });
+  } catch (error) {
+    return sendJson(res, { error: error.message }, 409);
+  }
+}
+
 async function handleMailActionFromApp(req, res) {
   const body = await readBody(req);
   const action = String(body.action || "").trim();
   const mailId = String(body.id || "").trim();
   const state = getAppState();
-  const mail = (state.mail || []).find((item) => item.id === mailId || item.sourceId === mailId);
+  const mail = findMailItem(state, mailId);
   if (!mail) return sendJson(res, { error: "Email introuvable." }, 404);
 
   try {
@@ -1197,6 +1301,117 @@ async function fetchGmailMessage(token, service, messageId) {
     createdAt: date && !Number.isNaN(date.valueOf()) ? date.toISOString() : new Date().toISOString(),
     detail: `${from}${date && !Number.isNaN(date.valueOf()) ? ` - ${date.toLocaleDateString("fr-FR")}` : ""}${message.snippet ? ` - ${message.snippet}` : ""}`,
   };
+}
+
+async function fetchFullGmailMessage(token, service, messageId) {
+  const message = await googleFetch(token, service, `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}?format=full`);
+  const headers = getGmailHeaders(message);
+  const date = headers.date ? new Date(headers.date) : null;
+  return {
+    id: message.id,
+    threadId: message.threadId,
+    labelIds: message.labelIds || [],
+    subject: headers.subject || "(Sans objet)",
+    from: headers.from || "",
+    replyTo: headers["reply-to"] || "",
+    to: headers.to || "",
+    date: date && !Number.isNaN(date.valueOf()) ? date.toISOString() : "",
+    messageId: headers["message-id"] || "",
+    references: headers.references || "",
+    snippet: message.snippet || "",
+    body: extractGmailBody(message.payload) || message.snippet || "",
+  };
+}
+
+function getGmailHeaders(message) {
+  return Object.fromEntries((message.payload?.headers || []).map((header) => [String(header.name || "").toLowerCase(), header.value || ""]));
+}
+
+function extractGmailBody(payload) {
+  const plainParts = [];
+  const htmlParts = [];
+
+  function walk(part) {
+    if (!part) return;
+    const mimeType = String(part.mimeType || "").toLowerCase();
+    const data = part.body?.data ? decodeGmailData(part.body.data) : "";
+    if (data && mimeType === "text/plain") plainParts.push(data);
+    if (data && mimeType === "text/html") htmlParts.push(htmlToText(data));
+    for (const child of part.parts || []) walk(child);
+  }
+
+  walk(payload);
+  return (plainParts.length ? plainParts : htmlParts)
+    .join("\n\n")
+    .replace(/\r\n/g, "\n")
+    .trim();
+}
+
+function decodeGmailData(value) {
+  const normalized = String(value || "").replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+  return Buffer.from(padded, "base64").toString("utf8");
+}
+
+function htmlToText(value) {
+  return String(value || "")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
+function buildGmailReplyRaw({ to, subject, inReplyTo, references, body }) {
+  const lines = [
+    headerLine("To", to),
+    headerLine("Subject", encodeMailHeader(subject)),
+    "MIME-Version: 1.0",
+    "Content-Type: text/plain; charset=UTF-8",
+    "Content-Transfer-Encoding: 8bit",
+  ];
+  if (inReplyTo) lines.push(headerLine("In-Reply-To", inReplyTo));
+  if (references) lines.push(headerLine("References", references));
+  lines.push("", String(body || "").replace(/\r\n/g, "\n"));
+  return base64UrlEncode(Buffer.from(lines.join("\r\n"), "utf8"));
+}
+
+function buildReplySubject(subject) {
+  const clean = sanitizeHeaderValue(subject || "(Sans objet)");
+  return /^re\s*:/i.test(clean) ? clean : `Re: ${clean}`;
+}
+
+function headerLine(name, value) {
+  return `${name}: ${sanitizeHeaderValue(value)}`;
+}
+
+function sanitizeHeaderValue(value) {
+  return String(value || "").replace(/[\r\n]+/g, " ").trim();
+}
+
+function encodeMailHeader(value) {
+  const clean = sanitizeHeaderValue(value);
+  return /^[\x20-\x7E]*$/.test(clean)
+    ? clean
+    : `=?UTF-8?B?${Buffer.from(clean, "utf8").toString("base64")}?=`;
+}
+
+function base64UrlEncode(buffer) {
+  return buffer.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function findMailItem(state, mailId) {
+  return (state.mail || []).find((item) => item.id === mailId || item.sourceId === mailId);
 }
 
 async function modifyGmailMessage(messageId, removeLabelIds = [], mailbox = "") {
@@ -1550,6 +1765,19 @@ function requireWritableGoogleToken(token, service) {
     throw new Error("Google Tasks est encore connecte en lecture seule. Reconnecte Tasks dans Connexions.");
   }
   return token;
+}
+
+function requireGmailSendToken(token) {
+  if (!token?.access_token) throw new Error("Gmail n'est pas connecte.");
+  const scopes = String(token.scope || "").split(/\s+/).filter(Boolean);
+  if (!hasGoogleScope(scopes, "https://www.googleapis.com/auth/gmail.send")) {
+    throw new Error("Pour envoyer une reponse, reconnecte Gmail dans Connexions afin d'autoriser l'envoi.");
+  }
+  return token;
+}
+
+function hasGoogleScope(scopes, scope) {
+  return scopes.includes(scope) || scopes.includes("https://mail.google.com/");
 }
 
 async function getValidAccessToken(token, service) {

@@ -310,6 +310,11 @@ h3 {
   background: var(--blue-soft);
 }
 
+.item-action-primary {
+  color: #fffdf8;
+  background: var(--blue);
+}
+
 .panel-actions {
   justify-content: flex-end;
   flex-wrap: wrap;
@@ -1488,6 +1493,47 @@ textarea {
   resize: vertical;
 }
 
+.mail-reader-dialog {
+  width: min(900px, calc(100vw - 28px));
+}
+
+.mail-dialog-card {
+  max-height: min(86vh, 860px);
+  grid-template-rows: auto auto minmax(220px, 1fr) auto auto auto;
+}
+
+.mail-dialog-meta,
+.mail-send-status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.mail-body {
+  overflow: auto;
+  min-height: 220px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #fffdf8;
+  color: var(--ink);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.mail-reply-label {
+  display: grid;
+  gap: 8px;
+  color: var(--ink);
+  font-weight: 750;
+}
+
+.mail-reply-label textarea {
+  min-height: 130px;
+  font-weight: 500;
+}
+
 .assistant-preview {
   min-height: 54px;
   border-radius: 8px;
@@ -1825,9 +1871,19 @@ textarea {
   }
 
   #assistantText,
-  #quickNoteText {
+  #quickNoteText,
+  #mailReplyText {
     min-height: 180px;
     font-size: 1rem;
+  }
+
+  .mail-dialog-card {
+    max-height: none;
+    grid-template-rows: auto auto minmax(200px, 1fr) auto auto auto;
+  }
+
+  .mail-body {
+    min-height: 220px;
   }
 
   .assistant-mode {

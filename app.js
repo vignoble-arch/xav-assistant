@@ -166,6 +166,7 @@ let autoRefreshTimer = null;
 let quickNoteRecognition = null;
 let quickNoteIsListening = false;
 let quickNoteFinalTranscript = "";
+let currentMailMessage = null;
 
 const el = {
   todayLabel: document.querySelector("#todayLabel"),
@@ -279,6 +280,14 @@ const el = {
   quickNoteText: document.querySelector("#quickNoteText"),
   startQuickNoteDictation: document.querySelector("#startQuickNoteDictation"),
   saveQuickNote: document.querySelector("#saveQuickNote"),
+  mailDialog: document.querySelector("#mailDialog"),
+  mailDialogTitle: document.querySelector("#mailDialogTitle"),
+  mailDialogMeta: document.querySelector("#mailDialogMeta"),
+  mailDialogBody: document.querySelector("#mailDialogBody"),
+  mailReplyText: document.querySelector("#mailReplyText"),
+  mailSendStatus: document.querySelector("#mailSendStatus"),
+  copyMailReply: document.querySelector("#copyMailReply"),
+  sendMailReply: document.querySelector("#sendMailReply"),
   taskDialog: document.querySelector("#taskDialog"),
   taskEditId: document.querySelector("#taskEditId"),
   taskDialogTitle: document.querySelector("#taskDialogTitle"),
@@ -345,6 +354,11 @@ function bindEvents() {
   el.saveQuickNote.addEventListener("click", saveQuickNote);
   el.startQuickNoteDictation.addEventListener("click", toggleQuickNoteDictation);
   el.quickNoteDialog.addEventListener("close", stopQuickNoteDictation);
+  el.copyMailReply?.addEventListener("click", copyMailReply);
+  el.sendMailReply?.addEventListener("click", sendMailReply);
+  el.mailDialog?.addEventListener("close", () => {
+    currentMailMessage = null;
+  });
   el.refreshMorningBrief.addEventListener("click", loadMorningBrief);
   el.enableMorningNotification.addEventListener("click", toggleMorningNotification);
   el.morningNotificationTime.addEventListener("change", updateMorningNotificationTime);
@@ -1624,6 +1638,7 @@ function mailCard(item) {
       </div>
       <p class="card-meta">${escapeHTML(item.source)}${item.detail ? ` - ${escapeHTML(item.detail)}` : ""}</p>
       <div class="card-actions">
+        <button class="item-action item-action-primary" type="button" onclick="openMail('${item.id}')">Lire</button>
         <button class="item-action" type="button" onclick="markMailRead('${item.id}')">Lu</button>
         <button class="item-action" type="button" onclick="archiveMail('${item.id}')">Archiver</button>
         <button class="item-action" type="button" onclick="mailToTask('${item.id}')">Tache</button>
@@ -2266,6 +2281,105 @@ function inboxToNote(id) {
   archiveInbox(id, false);
   showToast("Inbox transformee en note.");
   render();
+}
+
+async function openMail(id) {
+  const mail = state.mail.find((entry) => entry.id === id || entry.sourceId === id);
+  if (!mail || !el.mailDialog) return;
+
+  currentMailMessage = {
+    id: mail.id,
+    title: mail.title,
+    from: mail.source,
+    body: mail.body || mail.excerpt || mail.detail || "",
+    canReply: false,
+  };
+  renderMailDialog(currentMailMessage, true);
+  el.mailReplyText.value = "";
+  el.mailDialog.showModal();
+
+  if (!API_ENABLED) {
+    renderMailDialog(currentMailMessage, false);
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/mail/message?id=${encodeURIComponent(id)}`);
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "Email impossible a ouvrir.");
+    currentMailMessage = payload.message;
+    renderMailDialog(currentMailMessage, false);
+  } catch (error) {
+    renderMailDialog(currentMailMessage, false);
+    el.mailSendStatus.textContent = error.message || "Email impossible a ouvrir.";
+  }
+}
+
+function renderMailDialog(message, loading = false) {
+  if (!message || !el.mailDialogTitle) return;
+  el.mailDialogTitle.textContent = message.title || "Email";
+  const meta = [
+    message.from ? `De : ${message.from}` : "",
+    message.to ? `A : ${message.to}` : "",
+    message.date ? formatDateTime(message.date) : "",
+    message.mailbox ? `Boite : ${message.mailbox}` : "",
+  ].filter(Boolean);
+  el.mailDialogMeta.textContent = meta.join(" - ");
+  el.mailDialogBody.innerHTML = loading
+    ? `<p class="empty-state">Chargement du message...</p>`
+    : formatMultiline(message.body || message.snippet || "Aucun contenu lisible pour cet email.");
+  el.sendMailReply.disabled = !message.canReply || message.needsSendScope;
+  el.mailSendStatus.textContent = message.needsSendScope
+    ? "Pour envoyer depuis l'app, reconnecte Gmail dans Connexions. Tu peux deja lire et preparer la reponse."
+    : message.canReply ? "" : "Reponse directe indisponible pour cet email.";
+}
+
+async function sendMailReply() {
+  const body = el.mailReplyText.value.trim();
+  if (!currentMailMessage?.id) return;
+  if (!body) {
+    showToast("La reponse est vide.");
+    return;
+  }
+  if (!API_ENABLED) {
+    showToast("Lance d'abord le serveur de l'application.");
+    return;
+  }
+
+  el.sendMailReply.disabled = true;
+  el.mailSendStatus.textContent = "Envoi en cours...";
+  try {
+    const response = await fetch("/api/mail/reply", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: currentMailMessage.id, body }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "Reponse non envoyee.");
+    el.mailReplyText.value = "";
+    el.mailSendStatus.textContent = "Reponse envoyee.";
+    showToast("Reponse envoyee.");
+  } catch (error) {
+    el.mailSendStatus.textContent = error.message || "Reponse non envoyee.";
+    showToast("Reponse non envoyee.");
+  } finally {
+    el.sendMailReply.disabled = !currentMailMessage?.canReply || currentMailMessage?.needsSendScope;
+  }
+}
+
+async function copyMailReply() {
+  const body = el.mailReplyText.value.trim();
+  if (!body) {
+    showToast("La reponse est vide.");
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(body);
+    showToast("Reponse copiee.");
+  } catch {
+    el.mailReplyText.select();
+    showToast("Selectionne puis copie la reponse.");
+  }
 }
 
 async function markMailRead(id) {
@@ -3277,6 +3391,7 @@ window.inboxToTask = inboxToTask;
 window.deleteKnowledgeDocument = deleteKnowledgeDocument;
 window.inboxToNote = inboxToNote;
 window.archiveInbox = archiveInbox;
+window.openMail = openMail;
 window.markMailRead = markMailRead;
 window.archiveMail = archiveMail;
 window.mailToTask = mailToTask;

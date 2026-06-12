@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=quick-note-1" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="styles.css?v=personnalisation-1" />
+    <link rel="stylesheet" href="styles.css?v=email-reader-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -618,6 +618,30 @@
       </form>
     </dialog>
 
+    <dialog class="assistant-dialog mail-reader-dialog" id="mailDialog">
+      <form method="dialog" class="dialog-card mail-dialog-card" id="mailDialogForm">
+        <div class="dialog-header">
+          <div>
+            <p class="section-kicker">Email</p>
+            <h2 id="mailDialogTitle">Lecture email</h2>
+          </div>
+          <button class="icon-button" value="cancel" aria-label="Fermer" type="submit">x</button>
+        </div>
+        <p class="mail-dialog-meta" id="mailDialogMeta"></p>
+        <div class="mail-body" id="mailDialogBody">Chargement...</div>
+        <label class="mail-reply-label">
+          Reponse
+          <textarea id="mailReplyText" rows="6" placeholder="Ecrire la reponse ici..."></textarea>
+        </label>
+        <p class="mail-send-status" id="mailSendStatus"></p>
+        <div class="dialog-actions">
+          <button class="ghost-button" value="cancel" type="submit">Fermer</button>
+          <button class="ghost-button" id="copyMailReply" value="default" type="button">Copier</button>
+          <button class="assistant-button" id="sendMailReply" value="default" type="button">Envoyer</button>
+        </div>
+      </form>
+    </dialog>
+
     <dialog class="assistant-dialog" id="taskDialog">
       <form method="dialog" class="dialog-card" id="taskForm">
         <div class="dialog-header">
@@ -696,7 +720,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=personnalisation-1"></script>
+    <script src="app.js?v=email-reader-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

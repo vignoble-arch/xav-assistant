@@ -581,6 +581,9 @@ function renderSystemStatus() {
   const lastSync = google.lastFinishedAt ? formatDateTime(google.lastFinishedAt) : "jamais";
   const latestBackup = backup.latest?.modifiedAt ? formatDateTime(backup.latest.modifiedAt) : "aucune sauvegarde";
   const aiCost = ai.today?.estimatedCostUsd || 0;
+  const aiLabel = ai.online
+    ? `${ai.provider || "non configure"} - ${ai.selectedModel || ai.model || "modele detecte"}`
+    : `${ai.provider || "non configure"} - indisponible`;
 
   const rows = [
     {
@@ -595,8 +598,8 @@ function renderSystemStatus() {
     },
     {
       label: "IA",
-      value: `${ai.provider || "non configure"}${ai.model ? ` - ${ai.model}` : ""} - ${ai.today?.requests || 0} demande(s), ${formatUsd(aiCost)}`,
-      state: ai.ready ? "ok" : "muted",
+      value: `${aiLabel} - ${ai.today?.requests || 0} demande(s), ${formatUsd(aiCost)}${ai.error ? ` - ${ai.error}` : ""}`,
+      state: ai.online ? "ok" : "warning",
     },
     {
       label: "Sauvegarde VPS",

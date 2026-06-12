@@ -218,7 +218,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (requestUrl.pathname === "/api/system/status" && req.method === "GET") {
-      return sendJson(res, getSystemStatus());
+      return sendJson(res, await getSystemStatus());
     }
 
     if (requestUrl.pathname === "/api/config/google" && req.method === "GET") {
@@ -543,9 +543,10 @@ function getSyncStatus() {
   };
 }
 
-function getSystemStatus() {
+async function getSystemStatus() {
   const sync = getSyncStatus();
   const ai = getAiConfigStatus();
+  const aiRuntime = await getAiRuntimeStatus(ai);
   const usage = getAiUsageSummary();
   const backup = getBackupStatus();
   const safety = getPublicRepoSafetyStatus();
@@ -572,6 +573,10 @@ function getSystemStatus() {
       provider: ai.provider,
       model: ai.model || "",
       ready: ai.ready,
+      online: aiRuntime.online,
+      selectedModel: aiRuntime.selectedModel,
+      availableModels: aiRuntime.models,
+      error: aiRuntime.error,
       today: usage.today,
       month: usage.month,
     },
@@ -579,6 +584,25 @@ function getSystemStatus() {
     safety,
     updatedAt: new Date().toISOString(),
   };
+}
+
+async function getAiRuntimeStatus(config) {
+  try {
+    const models = await fetchAiModels(config);
+    return {
+      online: true,
+      selectedModel: config.model || models[0] || "",
+      models,
+      error: "",
+    };
+  } catch (error) {
+    return {
+      online: false,
+      selectedModel: config.model || "",
+      models: [],
+      error: error.message || "Moteur IA indisponible.",
+    };
+  }
 }
 
 function getBackupStatus() {
@@ -1536,7 +1560,7 @@ async function fetchAiModels(config) {
     return [config.model || "gpt-5.4-mini"];
   }
 
-  const response = await fetch(`${config.baseUrl}/models`);
+  const response = await fetch(`${config.baseUrl}/models`, { signal: AbortSignal.timeout(8000) });
   if (!response.ok) {
     const detail = await response.text();
     throw new Error(`LM Studio a refuse la demande: ${detail}`);

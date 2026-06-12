@@ -125,6 +125,7 @@ let aiMemoryState = { count: 0, exchanges: [] };
 let aiUsageState = null;
 let morningBriefState = null;
 let syncStatusState = null;
+let systemStatusState = null;
 let notificationPrefs = loadNotificationPrefs();
 let morningNotificationTimer = null;
 let autoRefreshTimer = null;
@@ -160,6 +161,8 @@ const el = {
   connectionsGrid: document.querySelector("#connectionsGrid"),
   connectionNotice: document.querySelector("#connectionNotice"),
   syncStatusCard: document.querySelector("#syncStatusCard"),
+  systemStatusCard: document.querySelector("#systemStatusCard"),
+  connectionSystemStatus: document.querySelector("#connectionSystemStatus"),
   googleConfigForm: document.querySelector("#googleConfigForm"),
   googleClientId: document.querySelector("#googleClientId"),
   googleClientSecret: document.querySelector("#googleClientSecret"),
@@ -189,6 +192,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   render();
   await loadConnections();
   await loadSyncStatus();
+  await loadSystemStatus();
   await loadGoogleConfig();
   await loadAiConfig();
   await loadAiMemory();
@@ -226,6 +230,9 @@ function bindEvents() {
   el.copyCallback.addEventListener("click", copyCallbackUrl);
   el.taskListFilter.addEventListener("change", renderTasks);
   el.taskSearch.addEventListener("input", renderTasks);
+  document.querySelectorAll("[data-refresh-system-status]").forEach((button) => {
+    button.addEventListener("click", loadSystemStatus);
+  });
   document.querySelectorAll("[data-task-filter]").forEach((button) => {
     button.addEventListener("click", () => {
       currentTaskFilter = button.dataset.taskFilter;
@@ -260,6 +267,7 @@ function render() {
   renderNotes();
   renderMemory();
   renderUsage();
+  renderSystemStatus();
   renderNotificationControls();
   saveState();
 }
@@ -531,9 +539,85 @@ function buildAutomaticReports() {
       title: "Assistant IA",
       status: todayUsage.requests ? "Utilise" : "Pret",
       progress: todayUsage.requests ? 100 : 25,
-      summary: `${todayUsage.requests || 0} demande(s) aujourd'hui, cout estime ${formatUsd(todayUsage.costUsd || 0)}.`,
+      summary: `${todayUsage.requests || 0} demande(s) aujourd'hui, cout estime ${formatUsd(todayUsage.estimatedCostUsd || 0)}.`,
     },
   ];
+}
+
+function renderSystemStatus() {
+  const targets = [el.systemStatusCard, el.connectionSystemStatus].filter(Boolean);
+  if (!targets.length) return;
+
+  if (!API_ENABLED) {
+    targets.forEach((target) => {
+      target.innerHTML = `<p class="empty-state">Etat systeme disponible en mode serveur.</p>`;
+    });
+    return;
+  }
+
+  if (!systemStatusState) {
+    targets.forEach((target) => {
+      target.innerHTML = `<p class="empty-state">Chargement de l'etat systeme.</p>`;
+    });
+    return;
+  }
+
+  const google = systemStatusState.google || {};
+  const ai = systemStatusState.ai || {};
+  const backup = systemStatusState.backup || {};
+  const safety = systemStatusState.safety || {};
+  const results = google.results || {};
+  const errors = Object.values(google.errors || {}).filter(Boolean);
+  const lastSync = google.lastFinishedAt ? formatDateTime(google.lastFinishedAt) : "jamais";
+  const latestBackup = backup.latest?.modifiedAt ? formatDateTime(backup.latest.modifiedAt) : "aucune sauvegarde";
+  const aiCost = ai.today?.estimatedCostUsd || 0;
+
+  const rows = [
+    {
+      label: "Application",
+      value: "En ligne",
+      state: systemStatusState.ok ? "ok" : "warning",
+    },
+    {
+      label: "Google",
+      value: `${lastSync} - ${results.gmail || 0} mail(s), ${results.calendar || 0} agenda, ${results.tasks || 0} tache(s)`,
+      state: errors.length ? "warning" : "ok",
+    },
+    {
+      label: "IA",
+      value: `${ai.provider || "non configure"}${ai.model ? ` - ${ai.model}` : ""} - ${ai.today?.requests || 0} demande(s), ${formatUsd(aiCost)}`,
+      state: ai.ready ? "ok" : "muted",
+    },
+    {
+      label: "Sauvegarde VPS",
+      value: backup.count ? `${backup.count} archive(s), derniere ${latestBackup}` : "Aucune archive locale detectee",
+      state: backup.ok ? "ok" : "warning",
+    },
+    {
+      label: "GitHub public",
+      value: safety.publicRepoReady ? "Fichiers sensibles proteges" : `A verifier : ${safety.missingPatterns?.join(", ") || "regles manquantes"}`,
+      state: safety.publicRepoReady ? "ok" : "warning",
+    },
+  ];
+
+  const html = `
+    <div class="system-status-list">
+      ${rows.map((row) => `
+        <article class="system-status-row">
+          <span class="system-dot is-${row.state}" aria-hidden="true"></span>
+          <div>
+            <strong>${escapeHTML(row.label)}</strong>
+            <p>${escapeHTML(row.value)}</p>
+          </div>
+        </article>
+      `).join("")}
+    </div>
+    <p class="card-meta">Mis a jour ${escapeHTML(formatDateTime(systemStatusState.updatedAt))}</p>
+  `;
+
+  targets.forEach((target) => {
+    target.innerHTML = html;
+  });
 }
 
 function renderConnections() {
@@ -1437,6 +1521,22 @@ async function loadSyncStatus() {
   renderReports();
 }
 
+async function loadSystemStatus() {
+  if (!API_ENABLED) {
+    systemStatusState = null;
+    renderSystemStatus();
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/system/status");
+    systemStatusState = await response.json();
+  } catch {
+    systemStatusState = null;
+  }
+  renderSystemStatus();
+}
+
 function startAutoRefreshLoop() {
   if (!API_ENABLED) return;
   clearInterval(autoRefreshTimer);
@@ -1454,6 +1554,7 @@ async function refreshServerStateQuietly() {
     state = migrateState(await response.json());
     await loadMorningBrief();
     await loadSyncStatus();
+    await loadSystemStatus();
     render();
   } catch {
     // Le prochain cycle retentera sans interrompre l'utilisateur.

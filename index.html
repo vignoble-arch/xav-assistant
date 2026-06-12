@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=pwa-1" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="styles.css?v=auto-sync-1" />
+    <link rel="stylesheet" href="styles.css?v=system-status-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -134,6 +134,17 @@
             <div class="item-list" id="mailList"></div>
           </section>
 
+          <section class="panel dashboard-side system-panel">
+            <div class="panel-header">
+              <div>
+                <p class="section-kicker">Serveur</p>
+                <h2>Etat systeme</h2>
+              </div>
+              <button class="mini-button" type="button" data-refresh-system-status>Verifier</button>
+            </div>
+            <div class="system-status" id="systemStatusCard"></div>
+          </section>
+
           <section class="panel dashboard-main">
             <div class="panel-header">
               <div>
@@ -237,6 +248,7 @@
           </div>
           <div class="connection-notice" id="connectionNotice"></div>
           <div class="sync-status-card" id="syncStatusCard">Synchronisation auto : en attente.</div>
+          <div class="system-status-card" id="connectionSystemStatus">Etat systeme : chargement.</div>
           <form class="oauth-form" id="googleConfigForm">
             <div class="form-grid">
               <label>
@@ -364,7 +376,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=auto-sync-1"></script>
+    <script src="app.js?v=system-status-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

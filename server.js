@@ -215,6 +215,10 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, getSyncStatus());
     }
 
+    if (requestUrl.pathname === "/api/system/status" && req.method === "GET") {
+      return sendJson(res, getSystemStatus());
+    }
+
     if (requestUrl.pathname === "/api/config/google" && req.method === "GET") {
       return sendJson(res, getGoogleConfigStatus());
     }
@@ -522,6 +526,88 @@ function getSyncStatus() {
     }),
     inProgress: googleSyncInProgress,
     autoSyncIntervalMinutes: AUTO_SYNC_INTERVAL_MINUTES,
+  };
+}
+
+function getSystemStatus() {
+  const sync = getSyncStatus();
+  const ai = getAiConfigStatus();
+  const usage = getAiUsageSummary();
+  const backup = getBackupStatus();
+  const safety = getPublicRepoSafetyStatus();
+  const syncErrors = Object.values(sync.lastErrors || {}).filter(Boolean);
+
+  return {
+    ok: true,
+    app: {
+      name: "Assistant Xavier",
+      mode: process.env.NODE_ENV || "local",
+      time: new Date().toISOString(),
+      dataDir: DATA_DIR,
+    },
+    google: {
+      ok: syncErrors.length === 0,
+      inProgress: sync.inProgress,
+      lastFinishedAt: sync.lastFinishedAt || "",
+      intervalMinutes: sync.autoSyncIntervalMinutes,
+      results: sync.lastResults || {},
+      errors: sync.lastErrors || {},
+      tokenServices: sync.lastTokenServices || [],
+    },
+    ai: {
+      provider: ai.provider,
+      model: ai.model || "",
+      ready: ai.ready,
+      today: usage.today,
+      month: usage.month,
+    },
+    backup,
+    safety,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function getBackupStatus() {
+  const backupDir = path.join(ROOT, "backups");
+  const files = listBackupFiles(backupDir);
+  const latest = files[0] || null;
+  return {
+    directory: backupDir,
+    count: files.length,
+    latest,
+    ok: Boolean(latest),
+  };
+}
+
+function listBackupFiles(directory) {
+  try {
+    if (!fs.existsSync(directory)) return [];
+    return fs.readdirSync(directory, { withFileTypes: true })
+      .filter((entry) => entry.isFile())
+      .map((entry) => {
+        const fullPath = path.join(directory, entry.name);
+        const stat = fs.statSync(fullPath);
+        return {
+          name: entry.name,
+          size: stat.size,
+          modifiedAt: stat.mtime.toISOString(),
+        };
+      })
+      .sort((a, b) => String(b.modifiedAt).localeCompare(String(a.modifiedAt)));
+  } catch {
+    return [];
+  }
+}
+
+function getPublicRepoSafetyStatus() {
+  const gitignorePath = path.join(ROOT, ".gitignore");
+  const gitignore = fs.existsSync(gitignorePath) ? fs.readFileSync(gitignorePath, "utf8") : "";
+  const requiredPatterns = [".env", ".env.production", "data/*.json", "*.log", "*.zip", "backups/"];
+  const missingPatterns = requiredPatterns.filter((pattern) => !gitignore.includes(pattern));
+  return {
+    publicRepoReady: missingPatterns.length === 0,
+    requiredPatterns,
+    missingPatterns,
   };
 }
 

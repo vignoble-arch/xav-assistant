@@ -894,9 +894,11 @@ function applyAiProviderDefaults(shouldOverwrite = true) {
 function connectionCard(service) {
   const statusText = service.needsReconnect
     ? "A reconnecter pour autoriser les modifications"
-    : service.connected ? "Connecte" : "Non connecte";
+    : service.connected ? service.id === "gmail" && service.accountCount ? `${service.accountCount} boite(s) connectee(s)` : "Connecte" : "Non connecte";
   const statusPill = service.needsReconnect ? "A reconnecter" : service.connected ? "Actif" : "Pret";
   const missingScopes = Array.isArray(service.missingScopes) ? service.missingScopes : [];
+  const accounts = Array.isArray(service.accounts) ? service.accounts : [];
+  const connectLabel = service.id === "gmail" && service.connected ? "Ajouter une boite" : "Connecter";
   return `
     <article class="connection-card ${service.needsReconnect ? "needs-reconnect" : ""}">
       <div class="card-top">
@@ -909,6 +911,9 @@ function connectionCard(service) {
       ${service.needsReconnect ? `
         <p class="connection-warning">Reconnecte ce service pour creer, modifier ou supprimer depuis l'app.</p>
       ` : ""}
+      ${accounts.length ? `
+        <p class="connection-missing">Boites : ${escapeHTML(accounts.join(", "))}</p>
+      ` : ""}
       <ul class="scope-list">
         ${service.scopes.map((scope) => `<li>${escapeHTML(scope.replace("https://www.googleapis.com/auth/", ""))}</li>`).join("")}
       </ul>
@@ -916,7 +921,7 @@ function connectionCard(service) {
         <p class="connection-missing">Droit manquant : ${escapeHTML(missingScopes.map((scope) => scope.replace("https://www.googleapis.com/auth/", "")).join(", "))}</p>
       ` : ""}
       <div class="card-actions">
-        <button class="item-action" type="button" data-connect-service="${service.id}" ${service.id === "local" ? "disabled" : ""}>Connecter</button>
+        <button class="item-action" type="button" data-connect-service="${service.id}" ${service.id === "local" ? "disabled" : ""}>${escapeHTML(connectLabel)}</button>
         <button class="item-action" type="button" data-sync-service="${service.id}" ${service.connected ? "" : "disabled"}>Synchroniser</button>
         <button class="item-action" type="button" data-disconnect-service="${service.id}" ${service.connected ? "" : "disabled"}>Deconnecter</button>
       </div>

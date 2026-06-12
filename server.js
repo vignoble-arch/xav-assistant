@@ -469,13 +469,25 @@ async function handleGoogleCallback(requestUrl, res) {
   const tokenPayload = await response.json();
   const tokens = readJson(TOKENS_FILE, {});
   const services = service === "all" ? Object.keys(GOOGLE_SCOPES) : [service];
-  services.forEach((name) => {
-    tokens[name] = {
+  for (const name of services) {
+    const token = {
       ...tokenPayload,
       connectedAt: new Date().toISOString(),
       expiresAt: Date.now() + Number(tokenPayload.expires_in || 3600) * 1000,
     };
-  });
+    if (name === "gmail") {
+      const profile = await getGmailProfile(token);
+      tokens.gmailAccounts = upsertGmailAccount(tokens.gmailAccounts || tokens.gmail, {
+        ...token,
+        emailAddress: profile.emailAddress || "Gmail",
+      });
+      tokens.gmail = tokens.gmailAccounts[0] || token;
+      continue;
+    }
+    tokens[name] = {
+      ...token,
+    };
+  }
   writeJson(TOKENS_FILE, tokens);
   redirect(res, "/index.html?connection=success");
 }
@@ -487,13 +499,15 @@ async function syncGoogle(requestUrl, res) {
   }
 
   const tokens = readJson(TOKENS_FILE, {});
-  if (!tokens[service]) {
+  if (service !== "gmail" && !tokens[service]) {
     return sendJson(res, { error: "Connexion non active.", service }, 409);
   }
 
   const state = getAppState();
   if (service === "gmail") {
-    state.mail = await fetchGmail(tokens.gmail, service);
+    const accounts = getGmailAccounts(tokens);
+    if (!accounts.length) return sendJson(res, { error: "Connexion non active.", service }, 409);
+    state.mail = await fetchAllGmail(accounts);
   }
   if (service === "calendar") {
     state.agenda = await fetchCalendar(tokens.calendar, service);
@@ -539,10 +553,12 @@ async function performGoogleSync({ mode = "auto" } = {}) {
   const errors = {};
 
   try {
-    if (tokens.gmail) {
+    const gmailAccounts = getGmailAccounts(tokens);
+    if (gmailAccounts.length) {
       try {
-        state.mail = await fetchGmail(tokens.gmail, "gmail");
+        state.mail = await fetchAllGmail(gmailAccounts);
         results.gmail = state.mail.length;
+        results.gmailAccounts = gmailAccounts.length;
       } catch (error) {
         errors.gmail = error.message;
       }
@@ -780,6 +796,10 @@ async function disconnectGoogle(req, res) {
   const tokens = readJson(TOKENS_FILE, {});
   if (service === "all") {
     writeJson(TOKENS_FILE, {});
+  } else if (service === "gmail") {
+    delete tokens.gmail;
+    delete tokens.gmailAccounts;
+    writeJson(TOKENS_FILE, tokens);
   } else {
     delete tokens[service];
     writeJson(TOKENS_FILE, tokens);
@@ -944,11 +964,11 @@ async function handleMailActionFromApp(req, res) {
   if (!mail) return sendJson(res, { error: "Email introuvable." }, 404);
 
   try {
-    if (mail.source === "Gmail" && mail.sourceId) {
+    if (String(mail.source || "").startsWith("Gmail") && mail.sourceId) {
       if (action === "archive") {
-        await modifyGmailMessage(mail.sourceId, ["INBOX", "UNREAD"]);
+        await modifyGmailMessage(mail.sourceId, ["INBOX", "UNREAD"], mail.mailbox);
       } else if (action === "read") {
-        await modifyGmailMessage(mail.sourceId, ["UNREAD"]);
+        await modifyGmailMessage(mail.sourceId, ["UNREAD"], mail.mailbox);
       } else {
         return sendJson(res, { error: "Action email inconnue." }, 400);
       }
@@ -967,6 +987,22 @@ async function fetchGmail(token, service) {
   const messages = response.messages || [];
   const details = await Promise.all(messages.map((message) => fetchGmailMessage(token, service, message.id)));
   return details.filter(Boolean);
+}
+
+async function fetchAllGmail(accounts) {
+  const batches = await Promise.all(accounts.map(async (account, index) => {
+    const mailbox = account.emailAddress || `Gmail ${index + 1}`;
+    const mails = await fetchGmail(account, "gmail");
+    return mails.map((mail) => ({
+      ...mail,
+      id: `gmail-${mailbox}-${mail.sourceId || mail.id}`,
+      mailbox,
+      source: `Gmail - ${mailbox}`,
+    }));
+  }));
+  return batches.flat()
+    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
+    .slice(0, 30);
 }
 
 async function fetchGmailMessage(token, service, messageId) {
@@ -993,13 +1029,43 @@ async function fetchGmailMessage(token, service, messageId) {
   };
 }
 
-async function modifyGmailMessage(messageId, removeLabelIds = []) {
+async function modifyGmailMessage(messageId, removeLabelIds = [], mailbox = "") {
   const tokens = readJson(TOKENS_FILE, {});
-  const token = requireWritableGoogleToken(tokens.gmail, "gmail");
+  const token = requireWritableGoogleToken(findGmailAccount(tokens, mailbox), "gmail");
   return googleFetch(token, "gmail", `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}/modify`, {
     method: "POST",
     body: { removeLabelIds },
   });
+}
+
+async function getGmailProfile(token) {
+  try {
+    return await googleFetch(token, "gmail", "https://gmail.googleapis.com/gmail/v1/users/me/profile");
+  } catch {
+    return { emailAddress: "" };
+  }
+}
+
+function getGmailAccounts(tokens) {
+  if (Array.isArray(tokens.gmailAccounts)) return tokens.gmailAccounts.filter((token) => token?.access_token);
+  if (tokens.gmail?.access_token) return [{ ...tokens.gmail, emailAddress: tokens.gmail.emailAddress || "Gmail" }];
+  return [];
+}
+
+function upsertGmailAccount(existing, nextAccount) {
+  const accounts = Array.isArray(existing)
+    ? existing
+    : existing?.access_token ? [{ ...existing, emailAddress: existing.emailAddress || "Gmail" }] : [];
+  const email = normalizeText(nextAccount.emailAddress || "");
+  const filtered = accounts.filter((account) => normalizeText(account.emailAddress || "") !== email);
+  return [{ ...nextAccount }, ...filtered];
+}
+
+function findGmailAccount(tokens, mailbox = "") {
+  const accounts = getGmailAccounts(tokens);
+  if (!accounts.length) return null;
+  const normalizedMailbox = normalizeText(mailbox);
+  return accounts.find((account) => normalizeText(account.emailAddress || "") === normalizedMailbox) || accounts[0];
 }
 
 async function fetchCalendar(token, service) {
@@ -1321,6 +1387,17 @@ async function getValidAccessToken(token, service) {
 
   const refreshed = await refreshGoogleToken(token.refresh_token);
   const tokens = readJson(TOKENS_FILE, {});
+  if (service === "gmail" && token.emailAddress) {
+    tokens.gmailAccounts = upsertGmailAccount(tokens.gmailAccounts || tokens.gmail, {
+      ...token,
+      ...refreshed,
+      refresh_token: token.refresh_token,
+      expiresAt: Date.now() + Number(refreshed.expires_in || 3600) * 1000,
+    });
+    tokens.gmail = tokens.gmailAccounts[0] || tokens.gmail;
+    writeJson(TOKENS_FILE, tokens);
+    return tokens.gmailAccounts.find((account) => account.emailAddress === token.emailAddress)?.access_token || refreshed.access_token;
+  }
   tokens[service] = {
     ...tokens[service],
     ...refreshed,
@@ -1358,18 +1435,22 @@ function getConnectionStatus() {
     googleConfigured: config.ready,
     redirectUri: config.redirectUri,
     services: Object.keys(GOOGLE_SCOPES).map((name) => {
-      const actualScopes = parseScopeList(tokens[name]?.scope);
+      const gmailAccounts = name === "gmail" ? getGmailAccounts(tokens) : [];
+      const primaryToken = name === "gmail" ? gmailAccounts[0] : tokens[name];
+      const actualScopes = parseScopeList(primaryToken?.scope);
       const missingScopes = GOOGLE_SCOPES[name].filter((scope) => !actualScopes.includes(scope));
-      const needsReconnect = Boolean(tokens[name]) && missingScopes.length > 0;
+      const needsReconnect = Boolean(primaryToken) && missingScopes.length > 0;
       return {
         id: name,
         label: name === "gmail" ? "Gmail" : name === "calendar" ? "Agenda" : name === "tasks" ? "Google Tasks" : "Drive",
-        connected: Boolean(tokens[name]),
-        connectedAt: tokens[name]?.connectedAt || null,
+        connected: Boolean(primaryToken),
+        connectedAt: primaryToken?.connectedAt || null,
         scopes: GOOGLE_SCOPES[name],
         actualScopes,
         missingScopes,
         needsReconnect,
+        accounts: gmailAccounts.map((account) => account.emailAddress || "Gmail"),
+        accountCount: gmailAccounts.length,
       };
     }),
   };

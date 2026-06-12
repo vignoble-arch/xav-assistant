@@ -215,6 +215,16 @@ const el = {
   startQuickNoteDictation: document.querySelector("#startQuickNoteDictation"),
   saveQuickNote: document.querySelector("#saveQuickNote"),
   taskDialog: document.querySelector("#taskDialog"),
+  taskEditId: document.querySelector("#taskEditId"),
+  taskDialogTitle: document.querySelector("#taskDialogTitle"),
+  taskSubmitButton: document.querySelector("#taskSubmitButton"),
+  agendaDialog: document.querySelector("#agendaDialog"),
+  agendaForm: document.querySelector("#agendaForm"),
+  agendaEditId: document.querySelector("#agendaEditId"),
+  agendaDialogTitle: document.querySelector("#agendaDialogTitle"),
+  agendaTitle: document.querySelector("#agendaTitle"),
+  agendaDate: document.querySelector("#agendaDate"),
+  agendaTime: document.querySelector("#agendaTime"),
   toast: document.querySelector("#toast"),
 };
 
@@ -257,6 +267,8 @@ function bindEvents() {
   });
   document.querySelector("#quickForm").addEventListener("submit", handleQuickCapture);
   document.querySelector("#taskForm").addEventListener("submit", handleTaskSubmit);
+  el.agendaForm.addEventListener("submit", handleAgendaSubmit);
+  document.querySelector("#openAgendaForm").addEventListener("click", () => openAgendaForm());
   document.querySelector("#addNote").addEventListener("click", addManualNote);
   el.saveQuickNote.addEventListener("click", saveQuickNote);
   el.startQuickNoteDictation.addEventListener("click", toggleQuickNoteDictation);
@@ -297,7 +309,7 @@ function bindEvents() {
   });
 
   document.querySelectorAll("[data-open-task-form]").forEach((button) => {
-    button.addEventListener("click", () => el.taskDialog.showModal());
+    button.addEventListener("click", () => openTaskForm());
   });
 }
 
@@ -490,16 +502,18 @@ function getPlanningItems() {
   const maxDate = addDaysISO(30);
   const calendarItems = (state.agenda || []).map((event) => ({
     type: "event",
+    id: event.id,
     title: event.title,
     dateKey: event.date || inferDateKeyFromAgendaTime(event.time) || today,
     time: event.time || "",
-    meta: "Rendez-vous Calendar",
+    meta: event.source || "Agenda",
   }));
 
   const taskItems = (state.tasks || [])
     .filter((task) => task.status !== "Termine" && task.due && task.due >= today && task.due <= maxDate)
     .map((task) => ({
       type: "task",
+      id: task.id,
       title: task.title,
       dateKey: task.due,
       time: formatDate(task.due),
@@ -518,6 +532,10 @@ function getPlanningItems() {
 
 function planningItem(item) {
   const badge = item.type === "task" ? "Tache" : "Agenda";
+  const actions = item.type === "task"
+    ? `<button class="item-action" type="button" onclick="openTaskForm('${item.id}')">Modifier</button>`
+    : `<button class="item-action" type="button" onclick="openAgendaForm('${item.id}')">Modifier</button>
+       <button class="item-action" type="button" onclick="deleteAgendaEvent('${item.id}')">Supprimer</button>`;
   return `
     <article class="timeline-item ${item.type === "task" ? "is-task" : "is-event"}">
       <div class="timeline-time">${escapeHTML(item.time || formatDate(item.dateKey))}</div>
@@ -527,6 +545,7 @@ function planningItem(item) {
           <span class="source-pill">${badge}</span>
         </div>
         <p class="card-meta">${escapeHTML(item.meta)}</p>
+        <div class="card-actions">${actions}</div>
       </div>
     </article>
   `;
@@ -1010,6 +1029,7 @@ function priorityCard(task) {
       <div class="card-actions">
         <button class="item-action" type="button" onclick="completeTask('${task.id}')">Terminer</button>
         <button class="item-action" type="button" onclick="moveTask('${task.id}', 'En attente')">Reporter</button>
+        <button class="item-action" type="button" onclick="openTaskForm('${task.id}')">Modifier</button>
       </div>
     </article>
   `;
@@ -1029,6 +1049,8 @@ function taskCard(task) {
         ${task.status !== "Termine" ? `<button class="item-action" type="button" onclick="completeTask('${task.id}')">Terminer</button>` : ""}
         ${task.status !== "En cours" && task.status !== "Termine" ? `<button class="item-action" type="button" onclick="moveTask('${task.id}', 'En cours')">Demarrer</button>` : ""}
         ${task.status !== "En attente" && task.status !== "Termine" ? `<button class="item-action" type="button" onclick="moveTask('${task.id}', 'En attente')">Attente</button>` : ""}
+        <button class="item-action" type="button" onclick="openTaskForm('${task.id}')">Modifier</button>
+        <button class="item-action" type="button" onclick="deleteTask('${task.id}')">Supprimer</button>
       </div>
     </article>
   `;
@@ -1382,23 +1404,160 @@ function parseIntent(rawText) {
   return { type: "inbox", preview: "Intention ambigue : l'element sera conserve dans l'Inbox a trier." };
 }
 
-function handleTaskSubmit(event) {
+function openTaskForm(id = "") {
+  const task = id ? state.tasks.find((item) => item.id === id) : null;
+  el.taskEditId.value = task?.id || "";
+  document.querySelector("#taskTitle").value = task?.title || "";
+  document.querySelector("#taskCategory").value = task ? taskListName(task) : "bureau";
+  document.querySelector("#taskPriority").value = task?.priority || "Normale";
+  document.querySelector("#taskDue").value = task?.due || "";
+  el.taskDialogTitle.textContent = task ? "Modifier la tache" : "Ajouter une tache";
+  el.taskSubmitButton.textContent = task ? "Enregistrer" : "Ajouter";
+  el.taskDialog.showModal();
+  setTimeout(() => document.querySelector("#taskTitle").focus(), 0);
+}
+
+function closeTaskForm() {
+  document.querySelector("#taskForm").reset();
+  el.taskEditId.value = "";
+  el.taskDialog.close();
+}
+
+async function saveTask(payload) {
+  if (!API_ENABLED) {
+    const existing = state.tasks.find((task) => task.id === payload.id);
+    const next = { ...existing, id: existing?.id || crypto.randomUUID(), source: existing?.source || "manuel", ...payload };
+    state.tasks = existing ? state.tasks.map((task) => task.id === next.id ? next : task) : [next, ...state.tasks];
+    showToast("Tache enregistree.");
+    render();
+    return true;
+  }
+
+  const response = await fetch("/api/tasks/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    showToast(data.error || "Tache non enregistree.");
+    return false;
+  }
+  state = migrateState(data);
+  showToast(payload.status === "Termine" ? "Tache terminee." : "Tache enregistree.");
+  render();
+  return true;
+}
+
+async function deleteTask(id) {
+  const task = state.tasks.find((item) => item.id === id);
+  if (!task || !confirm("Supprimer cette tache ?")) return;
+  if (!API_ENABLED) {
+    state.tasks = state.tasks.filter((item) => item.id !== id);
+    showToast("Tache supprimee.");
+    render();
+    return;
+  }
+  const response = await fetch("/api/tasks/delete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    showToast(data.error || "Suppression impossible.");
+    return;
+  }
+  state = migrateState(data);
+  showToast("Tache supprimee.");
+  render();
+}
+
+function openAgendaForm(id = "") {
+  const event = id ? (state.agenda || []).find((item) => item.id === id) : null;
+  el.agendaEditId.value = event?.id || "";
+  el.agendaTitle.value = event?.title || "";
+  el.agendaDate.value = event?.date || todayISO();
+  el.agendaTime.value = /^\d{2}:\d{2}$/.test(event?.time || "") ? event.time : "";
+  el.agendaDialogTitle.textContent = event ? "Modifier l'evenement" : "Ajouter un evenement";
+  el.agendaDialog.showModal();
+  setTimeout(() => el.agendaTitle.focus(), 0);
+}
+
+async function handleAgendaSubmit(event) {
+  event.preventDefault();
+  const payload = {
+    id: el.agendaEditId.value,
+    title: el.agendaTitle.value.trim(),
+    date: el.agendaDate.value,
+    time: el.agendaTime.value,
+  };
+  if (!payload.title || !payload.date) return;
+  const saved = await saveAgendaEvent(payload);
+  if (saved && el.agendaDialog.open) {
+    el.agendaForm.reset();
+    el.agendaEditId.value = "";
+    el.agendaDialog.close();
+  }
+}
+
+async function saveAgendaEvent(payload) {
+  if (!API_ENABLED) {
+    const existing = (state.agenda || []).find((event) => event.id === payload.id);
+    const next = { ...existing, id: existing?.id || crypto.randomUUID(), source: existing?.source || "manuel", ...payload };
+    state.agenda = existing ? state.agenda.map((event) => event.id === next.id ? next : event) : [next, ...(state.agenda || [])];
+    showToast("Evenement enregistre.");
+    render();
+    return true;
+  }
+  const response = await fetch("/api/agenda/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    showToast(data.error || "Evenement non enregistre.");
+    return false;
+  }
+  state = migrateState(data);
+  showToast("Evenement enregistre.");
+  render();
+  return true;
+}
+
+async function deleteAgendaEvent(id) {
+  const event = (state.agenda || []).find((item) => item.id === id);
+  if (!event || !confirm("Supprimer cet evenement ?")) return;
+  const response = await fetch("/api/agenda/delete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    showToast(data.error || "Suppression impossible.");
+    return;
+  }
+  state = migrateState(data);
+  showToast("Evenement supprime.");
+  render();
+}
+
+async function handleTaskSubmit(event) {
   event.preventDefault();
   const title = document.querySelector("#taskTitle").value.trim();
   if (!title) return;
-  state.tasks.unshift({
-    id: crypto.randomUUID(),
+  const payload = {
+    id: el.taskEditId.value,
     title,
-    status: "A faire",
+    status: el.taskEditId.value ? state.tasks.find((task) => task.id === el.taskEditId.value)?.status || "A faire" : "A faire",
     priority: document.querySelector("#taskPriority").value,
     list: document.querySelector("#taskCategory").value,
-    source: "manuel",
     due: document.querySelector("#taskDue").value || "",
-  });
-  event.currentTarget.reset();
-  el.taskDialog.close();
-  showToast("Tache ajoutee.");
-  render();
+  };
+  const saved = await saveTask(payload);
+  if (saved) closeTaskForm();
 }
 
 function addManualNote() {
@@ -1512,17 +1671,14 @@ function switchView(view) {
   }
 }
 
-function completeTask(id) {
-  moveTask(id, "Termine");
+async function completeTask(id) {
+  await moveTask(id, "Termine");
 }
 
-function moveTask(id, status) {
+async function moveTask(id, status) {
   const task = state.tasks.find((item) => item.id === id);
   if (!task) return;
-  task.status = status;
-  task.completedAt = status === "Termine" ? new Date().toISOString() : "";
-  showToast(status === "Termine" ? "Tache terminee." : `Tache deplacee : ${status}.`);
-  render();
+  await saveTask({ ...task, status });
 }
 
 function inboxToTask(id) {
@@ -2386,6 +2542,10 @@ function formatMultiline(value) {
 
 window.completeTask = completeTask;
 window.moveTask = moveTask;
+window.openTaskForm = openTaskForm;
+window.deleteTask = deleteTask;
+window.openAgendaForm = openAgendaForm;
+window.deleteAgendaEvent = deleteAgendaEvent;
 window.inboxToTask = inboxToTask;
 window.deleteKnowledgeDocument = deleteKnowledgeDocument;
 window.inboxToNote = inboxToNote;

@@ -24,9 +24,9 @@ const AUTO_SYNC_INTERVAL_MINUTES = Math.max(5, Number(process.env.AUTO_SYNC_INTE
 
 const GOOGLE_SCOPES = {
   gmail: ["https://www.googleapis.com/auth/gmail.readonly"],
-  calendar: ["https://www.googleapis.com/auth/calendar.readonly"],
+  calendar: ["https://www.googleapis.com/auth/calendar.events"],
   drive: ["https://www.googleapis.com/auth/drive.metadata.readonly"],
-  tasks: ["https://www.googleapis.com/auth/tasks.readonly"],
+  tasks: ["https://www.googleapis.com/auth/tasks"],
 };
 
 const OPENAI_MODEL_PRICES = {
@@ -356,6 +356,22 @@ const server = http.createServer(async (req, res) => {
 
     if (requestUrl.pathname === "/api/google/disconnect" && req.method === "POST") {
       return await disconnectGoogle(req, res);
+    }
+
+    if (requestUrl.pathname === "/api/tasks/save" && req.method === "POST") {
+      return await saveTaskFromApp(req, res);
+    }
+
+    if (requestUrl.pathname === "/api/tasks/delete" && req.method === "POST") {
+      return await deleteTaskFromApp(req, res);
+    }
+
+    if (requestUrl.pathname === "/api/agenda/save" && req.method === "POST") {
+      return await saveAgendaEventFromApp(req, res);
+    }
+
+    if (requestUrl.pathname === "/api/agenda/delete" && req.method === "POST") {
+      return await deleteAgendaEventFromApp(req, res);
     }
 
     return serveStatic(requestUrl.pathname, res);
@@ -755,6 +771,120 @@ async function disconnectGoogle(req, res) {
   sendJson(res, getConnectionStatus());
 }
 
+async function saveTaskFromApp(req, res) {
+  const body = await readBody(req);
+  const state = getAppState();
+  const title = String(body.title || "").trim();
+  if (!title) return sendJson(res, { error: "Titre de tache manquant." }, 400);
+
+  const existing = state.tasks.find((task) => task.id === body.id);
+  const task = {
+    id: existing?.id || randomUUID(),
+    title,
+    status: body.status || existing?.status || "A faire",
+    priority: body.priority || existing?.priority || "Normale",
+    list: normalizeTaskList(body.list || existing?.list || existing?.category || "bureau"),
+    source: existing?.source || "manuel",
+    due: String(body.due || ""),
+    notes: String(body.notes || existing?.notes || ""),
+    sourceId: existing?.sourceId || "",
+    sourceListId: existing?.sourceListId || "",
+    updatedAt: new Date().toISOString(),
+  };
+
+  try {
+    if (task.source === "Google Tasks" || (!existing && readJson(TOKENS_FILE, {}).tasks)) {
+      const saved = existing
+        ? await updateGoogleTask(task)
+        : await createGoogleTask(task);
+      Object.assign(task, saved);
+    }
+  } catch (error) {
+    return sendJson(res, { error: error.message }, 409);
+  }
+
+  state.tasks = existing
+    ? state.tasks.map((item) => item.id === task.id ? { ...item, ...task } : item)
+    : [task, ...state.tasks];
+  writeJson(STATE_FILE, state);
+  sendJson(res, state);
+}
+
+async function deleteTaskFromApp(req, res) {
+  const body = await readBody(req);
+  const state = getAppState();
+  const task = state.tasks.find((item) => item.id === body.id);
+  if (!task) return sendJson(res, { error: "Tache introuvable." }, 404);
+
+  try {
+    if (task.source === "Google Tasks") {
+      await deleteGoogleTask(task);
+    }
+  } catch (error) {
+    return sendJson(res, { error: error.message }, 409);
+  }
+
+  state.tasks = state.tasks.filter((item) => item.id !== task.id);
+  writeJson(STATE_FILE, state);
+  sendJson(res, state);
+}
+
+async function saveAgendaEventFromApp(req, res) {
+  const body = await readBody(req);
+  const state = getAppState();
+  const title = String(body.title || "").trim();
+  const date = String(body.date || "").slice(0, 10);
+  const time = String(body.time || "").slice(0, 5);
+  if (!title || !date) return sendJson(res, { error: "Titre et date obligatoires." }, 400);
+
+  const existing = (state.agenda || []).find((event) => event.id === body.id);
+  const event = {
+    id: existing?.id || randomUUID(),
+    sourceId: existing?.sourceId || "",
+    title,
+    date,
+    time,
+    source: existing?.source || "manuel",
+    updatedAt: new Date().toISOString(),
+  };
+
+  try {
+    if (existing?.source === "Google Calendar" || (!existing && readJson(TOKENS_FILE, {}).calendar)) {
+      const saved = existing
+        ? await updateGoogleCalendarEvent(event)
+        : await createGoogleCalendarEvent(event);
+      Object.assign(event, saved);
+    }
+  } catch (error) {
+    return sendJson(res, { error: error.message }, 409);
+  }
+
+  state.agenda = existing
+    ? state.agenda.map((item) => item.id === event.id ? { ...item, ...event } : item)
+    : [event, ...(state.agenda || [])];
+  writeJson(STATE_FILE, state);
+  sendJson(res, state);
+}
+
+async function deleteAgendaEventFromApp(req, res) {
+  const body = await readBody(req);
+  const state = getAppState();
+  const event = (state.agenda || []).find((item) => item.id === body.id);
+  if (!event) return sendJson(res, { error: "Evenement introuvable." }, 404);
+
+  try {
+    if (event.source === "Google Calendar") {
+      await deleteGoogleCalendarEvent(event);
+    }
+  } catch (error) {
+    return sendJson(res, { error: error.message }, 409);
+  }
+
+  state.agenda = (state.agenda || []).filter((item) => item.id !== event.id);
+  writeJson(STATE_FILE, state);
+  sendJson(res, state);
+}
+
 async function fetchGmail(token, service) {
   const response = await googleFetch(token, service, "https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=8&q=newer_than:14d");
   const messages = response.messages || [];
@@ -796,9 +926,11 @@ async function fetchCalendar(token, service) {
   const response = await googleFetch(token, service, `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`);
   return (response.items || []).map((event) => ({
     id: event.id,
+    sourceId: event.id,
     date: getEventDateKey(event.start),
     time: formatEventTime(event.start),
     title: event.summary || "Evenement sans titre",
+    source: "Google Calendar",
   }));
 }
 
@@ -857,6 +989,131 @@ async function fetchGoogleTasks(token, service) {
   return allTasks;
 }
 
+async function createGoogleTask(task) {
+  const tokens = readJson(TOKENS_FILE, {});
+  const token = requireWritableGoogleToken(tokens.tasks, "tasks");
+  const listId = await getGoogleTaskListId(token, task.list);
+  const payload = taskToGooglePayload(task);
+  const saved = await googleFetch(token, "tasks", `https://tasks.googleapis.com/tasks/v1/lists/${encodeURIComponent(listId)}/tasks`, {
+    method: "POST",
+    body: payload,
+  });
+  return googleTaskToAppTask(saved, listId, task.list);
+}
+
+async function updateGoogleTask(task) {
+  const tokens = readJson(TOKENS_FILE, {});
+  const token = requireWritableGoogleToken(tokens.tasks, "tasks");
+  const listId = task.sourceListId || await getGoogleTaskListId(token, task.list);
+  const payload = taskToGooglePayload(task);
+  const saved = await googleFetch(token, "tasks", `https://tasks.googleapis.com/tasks/v1/lists/${encodeURIComponent(listId)}/tasks/${encodeURIComponent(task.sourceId)}`, {
+    method: "PATCH",
+    body: payload,
+  });
+  return googleTaskToAppTask(saved, listId, task.list);
+}
+
+async function deleteGoogleTask(task) {
+  const tokens = readJson(TOKENS_FILE, {});
+  const token = requireWritableGoogleToken(tokens.tasks, "tasks");
+  const listId = task.sourceListId || await getGoogleTaskListId(token, task.list);
+  await googleFetch(token, "tasks", `https://tasks.googleapis.com/tasks/v1/lists/${encodeURIComponent(listId)}/tasks/${encodeURIComponent(task.sourceId)}`, {
+    method: "DELETE",
+  });
+}
+
+function taskToGooglePayload(task) {
+  const payload = {
+    title: task.title,
+    notes: task.notes || "",
+    status: task.status === "Termine" ? "completed" : "needsAction",
+  };
+  if (task.due) payload.due = `${task.due}T00:00:00.000Z`;
+  if (payload.status === "completed") payload.completed = new Date().toISOString();
+  return payload;
+}
+
+function googleTaskToAppTask(task, listId, listName) {
+  return {
+    id: `google-task-${task.id}`,
+    sourceId: task.id,
+    sourceListId: listId,
+    title: task.title || "Tache Google sans titre",
+    status: task.status === "completed" ? "Termine" : "A faire",
+    priority: "Normale",
+    list: normalizeTaskList(listName),
+    source: "Google Tasks",
+    due: task.due ? task.due.slice(0, 10) : "",
+    notes: task.notes || "",
+    updatedAt: task.updated || new Date().toISOString(),
+  };
+}
+
+async function getGoogleTaskListId(token, appListName) {
+  const response = await googleFetch(token, "tasks", "https://tasks.googleapis.com/tasks/v1/users/@me/lists?maxResults=100");
+  const lists = response.items || [];
+  const wanted = normalizeText(appListName || "");
+  const match = lists.find((list) => mapGoogleTaskList(list.title) === normalizeTaskList(appListName))
+    || lists.find((list) => normalizeText(list.title).includes(wanted))
+    || lists[0];
+  if (!match) throw new Error("Aucune liste Google Tasks disponible.");
+  return match.id;
+}
+
+async function createGoogleCalendarEvent(event) {
+  const tokens = readJson(TOKENS_FILE, {});
+  const token = requireWritableGoogleToken(tokens.calendar, "calendar");
+  const saved = await googleFetch(token, "calendar", "https://www.googleapis.com/calendar/v3/calendars/primary/events", {
+    method: "POST",
+    body: calendarEventToGooglePayload(event),
+  });
+  return googleEventToAppEvent(saved);
+}
+
+async function updateGoogleCalendarEvent(event) {
+  const tokens = readJson(TOKENS_FILE, {});
+  const token = requireWritableGoogleToken(tokens.calendar, "calendar");
+  const eventId = event.sourceId || event.id;
+  const saved = await googleFetch(token, "calendar", `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`, {
+    method: "PATCH",
+    body: calendarEventToGooglePayload(event),
+  });
+  return googleEventToAppEvent(saved);
+}
+
+async function deleteGoogleCalendarEvent(event) {
+  const tokens = readJson(TOKENS_FILE, {});
+  const token = requireWritableGoogleToken(tokens.calendar, "calendar");
+  const eventId = event.sourceId || event.id;
+  await googleFetch(token, "calendar", `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`, {
+    method: "DELETE",
+  });
+}
+
+function calendarEventToGooglePayload(event) {
+  const payload = { summary: event.title };
+  if (event.time) {
+    payload.start = { dateTime: `${event.date}T${event.time}:00`, timeZone: "Europe/Paris" };
+    payload.end = { dateTime: `${event.date}T${addMinutesToTime(event.time, 60)}:00`, timeZone: "Europe/Paris" };
+  } else {
+    payload.start = { date: event.date };
+    payload.end = { date: addDaysToISO(event.date, 1) };
+  }
+  return payload;
+}
+
+function googleEventToAppEvent(event) {
+  return {
+    id: event.id,
+    sourceId: event.id,
+    title: event.summary || "Evenement sans titre",
+    date: getEventDateKey(event.start),
+    time: formatEventTime(event.start),
+    source: "Google Calendar",
+    updatedAt: event.updated || new Date().toISOString(),
+  };
+}
+
 async function findDriveFolderId(token, service, folderName) {
   const params = new URLSearchParams({
     pageSize: "1",
@@ -899,16 +1156,66 @@ function mapGoogleTaskList(title) {
   return "divers et perso";
 }
 
-async function googleFetch(token, service, url) {
+function normalizeTaskList(value) {
+  const normalized = normalizeText(value || "");
+  if (normalized.includes("dette")) return "Dettes";
+  if (normalized.includes("cave") || normalized.includes("expe")) return "Cave ExpÃ©";
+  if (normalized.includes("vigne") || normalized.includes("vignoble")) return "vignoble";
+  if (normalized.includes("bureau")) return "bureau";
+  if (normalized.includes("divers") || normalized.includes("perso")) return "divers et perso";
+  return TASK_LISTS.includes(value) ? value : "bureau";
+}
+
+function addDaysToISO(iso, days) {
+  const date = new Date(`${iso}T12:00:00`);
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function addMinutesToTime(time, minutes) {
+  const [hours, mins] = String(time || "09:00").split(":").map(Number);
+  const date = new Date(2000, 0, 1, hours || 9, mins || 0);
+  date.setMinutes(date.getMinutes() + minutes);
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+async function googleFetch(token, service, url, options = {}) {
   const accessToken = await getValidAccessToken(token, service);
+  const headers = {
+    Authorization: `Bearer ${accessToken}`,
+    ...(options.body ? { "Content-Type": "application/json" } : {}),
+    ...(options.headers || {}),
+  };
   const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` },
+    method: options.method || "GET",
+    headers,
+    body: options.body ? JSON.stringify(options.body) : undefined,
   });
+  if (response.status === 204) return {};
   if (!response.ok) {
     const detail = await response.text();
     throw new Error(`Google API a refuse la demande: ${detail}`);
   }
   return response.json();
+}
+
+function requireWritableGoogleToken(token, service) {
+  if (!token?.access_token) {
+    throw new Error(service === "calendar" ? "Agenda Google n'est pas connecte." : "Google Tasks n'est pas connecte.");
+  }
+  const scopes = String(token.scope || "").split(/\s+/).filter(Boolean);
+  const readonlyScope = service === "calendar"
+    ? "https://www.googleapis.com/auth/calendar.readonly"
+    : "https://www.googleapis.com/auth/tasks.readonly";
+  const writeScope = service === "calendar"
+    ? "https://www.googleapis.com/auth/calendar.events"
+    : "https://www.googleapis.com/auth/tasks";
+  if (scopes.includes(readonlyScope) && !scopes.includes(writeScope)) {
+    throw new Error(service === "calendar"
+      ? "Agenda est encore connecte en lecture seule. Reconnecte Agenda dans Connexions."
+      : "Google Tasks est encore connecte en lecture seule. Reconnecte Tasks dans Connexions.");
+  }
+  return token;
 }
 
 async function getValidAccessToken(token, service) {

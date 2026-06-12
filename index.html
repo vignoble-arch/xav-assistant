@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=pwa-1" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="styles.css?v=agent-instructions-1" />
+    <link rel="stylesheet" href="styles.css?v=google-write-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -120,7 +120,7 @@
                 <p class="section-kicker">Journee</p>
                 <h2>Planning</h2>
               </div>
-              <span class="source-pill">Agenda + taches</span>
+              <button class="mini-button" type="button" id="openAgendaForm">Nouvel evenement</button>
             </div>
             <div class="timeline" id="agendaList"></div>
           </section>
@@ -417,10 +417,11 @@
         <div class="dialog-header">
           <div>
             <p class="section-kicker">Nouvelle action</p>
-            <h2>Ajouter une tache</h2>
+            <h2 id="taskDialogTitle">Ajouter une tache</h2>
           </div>
           <button class="icon-button" value="cancel" aria-label="Fermer" type="submit">x</button>
         </div>
+        <input id="taskEditId" type="hidden" />
         <div class="form-grid">
           <label>
             Titre
@@ -452,13 +453,44 @@
         </div>
         <div class="dialog-actions">
           <button class="ghost-button" value="cancel" type="submit">Annuler</button>
-          <button class="assistant-button" type="submit">Ajouter</button>
+          <button class="assistant-button" type="submit" id="taskSubmitButton">Enregistrer</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="assistant-dialog" id="agendaDialog">
+      <form method="dialog" class="dialog-card" id="agendaForm">
+        <div class="dialog-header">
+          <div>
+            <p class="section-kicker">Agenda</p>
+            <h2 id="agendaDialogTitle">Ajouter un evenement</h2>
+          </div>
+          <button class="icon-button" value="cancel" aria-label="Fermer" type="submit">x</button>
+        </div>
+        <input id="agendaEditId" type="hidden" />
+        <div class="form-grid">
+          <label>
+            Titre
+            <input id="agendaTitle" type="text" required />
+          </label>
+          <label>
+            Date
+            <input id="agendaDate" type="date" required />
+          </label>
+          <label>
+            Heure
+            <input id="agendaTime" type="time" />
+          </label>
+        </div>
+        <div class="dialog-actions">
+          <button class="ghost-button" value="cancel" type="submit">Annuler</button>
+          <button class="assistant-button" type="submit">Enregistrer</button>
         </div>
       </form>
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=agent-instructions-1"></script>
+    <script src="app.js?v=google-write-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

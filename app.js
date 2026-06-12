@@ -582,9 +582,13 @@ function renderReports() {
 
 function buildAutomaticReports() {
   const today = todayISO();
+  const yesterday = addDaysISO(-1);
+  const tomorrow = addDaysISO(1);
   const openTasks = state.tasks.filter((task) => task.status !== "Termine" && task.status !== "Inbox");
   const lateTasks = openTasks.filter((task) => task.due && task.due < today);
   const todayTasks = openTasks.filter((task) => task.due === today);
+  const yesterdayCarryOver = openTasks.filter((task) => task.due === yesterday);
+  const tomorrowTasks = openTasks.filter((task) => task.due === tomorrow);
   const completedToday = state.tasks.filter((task) => task.completedAt?.slice(0, 10) === today);
   const syncErrors = Object.values(syncStatusState?.lastErrors || {}).filter(Boolean);
   const syncResults = syncStatusState?.lastResults || {};
@@ -598,6 +602,13 @@ function buildAutomaticReports() {
       status: lateTasks.length ? "A surveiller" : "Stable",
       progress: openTasks.length ? Math.max(5, Math.round((completedToday.length / (openTasks.length + completedToday.length)) * 100)) : 100,
       summary: `${openTasks.length} tache(s) ouverte(s), ${todayTasks.length} prevue(s) aujourd'hui, ${lateTasks.length} en retard, ${completedToday.length} terminee(s) aujourd'hui.`,
+    },
+    {
+      id: "auto-daily-report",
+      title: "Rapport journalier",
+      status: openRequests.length || yesterdayCarryOver.length ? "A suivre" : "Clair",
+      progress: yesterdayCarryOver.length ? 70 : 100,
+      summary: `${yesterdayCarryOver.length} tache(s) a reprendre d'hier, ${todayTasks.length} action(s) pour aujourd'hui, ${tomorrowTasks.length} deja prevue(s) demain, ${openRequests.length} demande(s) Fernand ouverte(s).`,
     },
     {
       id: "auto-sync",

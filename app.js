@@ -166,6 +166,7 @@ let autoRefreshTimer = null;
 let quickNoteRecognition = null;
 let quickNoteIsListening = false;
 let quickNoteFinalTranscript = "";
+let currentQuickNoteEditId = "";
 let currentMailMessage = null;
 
 const el = {
@@ -353,7 +354,10 @@ function bindEvents() {
   document.querySelector("#addNote").addEventListener("click", addManualNote);
   el.saveQuickNote.addEventListener("click", saveQuickNote);
   el.startQuickNoteDictation.addEventListener("click", toggleQuickNoteDictation);
-  el.quickNoteDialog.addEventListener("close", stopQuickNoteDictation);
+  el.quickNoteDialog.addEventListener("close", () => {
+    stopQuickNoteDictation();
+    if (!el.quickNoteText.value.trim()) currentQuickNoteEditId = "";
+  });
   el.copyMailReply?.addEventListener("click", copyMailReply);
   el.sendMailReply?.addEventListener("click", sendMailReply);
   el.mailDialog?.addEventListener("close", () => {
@@ -1439,15 +1443,30 @@ function renderLists() {
 }
 
 function renderNotes() {
-  el.notesGrid.innerHTML = state.notes.map((note) => `
+  el.notesGrid.innerHTML = state.notes.length
+    ? state.notes.map(noteCard).join("")
+    : emptyState("Aucune note pour le moment.");
+}
+
+function noteCard(note) {
+  return `
     <article class="note-card">
       <div class="card-top">
         <h3>${escapeHTML(note.title)}</h3>
         <span class="source-pill">${escapeHTML(note.category)}</span>
       </div>
       <p>${escapeHTML(note.body)}</p>
+      <div class="card-actions note-actions">
+        <button class="item-action" type="button" onclick="editNote('${note.id}')">Modifier</button>
+        <button class="item-action" type="button" onclick="noteToTask('${note.id}')">Tache</button>
+        <button class="item-action item-action-primary" type="button" onclick="processNoteWithWorker('${note.id}', 'fernand')">Fernand</button>
+        <button class="item-action" type="button" onclick="processNoteWithWorker('${note.id}', 'organisation')">Orga</button>
+        <button class="item-action" type="button" onclick="processNoteWithWorker('${note.id}', 'secretaire')">Secretaire</button>
+        <button class="item-action" type="button" onclick="processNoteWithWorker('${note.id}', 'commercial')">Commercial</button>
+        <button class="item-action" type="button" onclick="deleteNote('${note.id}')">Supprimer</button>
+      </div>
     </article>
-  `).join("");
+  `;
 }
 
 function renderMemory() {
@@ -2139,8 +2158,9 @@ function addManualNote() {
   openQuickNote();
 }
 
-function openQuickNote() {
-  el.quickNoteText.value = "";
+function openQuickNote(note = null) {
+  currentQuickNoteEditId = note?.id || "";
+  el.quickNoteText.value = note?.body || "";
   quickNoteFinalTranscript = "";
   el.quickNoteDialog.showModal();
   setTimeout(() => el.quickNoteText.focus(), 0);
@@ -2152,19 +2172,101 @@ function saveQuickNote() {
     showToast("Note vide.");
     return;
   }
-  state.notes.unshift({
-    id: crypto.randomUUID(),
+  const existing = currentQuickNoteEditId
+    ? state.notes.find((note) => note.id === currentQuickNoteEditId)
+    : null;
+  const note = {
+    id: existing?.id || crypto.randomUUID(),
     title: makeQuickNoteTitle(body),
     body,
-    category: "Idee",
-    source: "note rapide",
-    createdAt: new Date().toISOString(),
-  });
+    category: existing?.category || "Idee",
+    source: existing?.source || "note rapide",
+    createdAt: existing?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  state.notes = existing
+    ? state.notes.map((item) => item.id === note.id ? { ...item, ...note } : item)
+    : [note, ...state.notes];
   stopQuickNoteDictation();
   el.quickNoteText.value = "";
+  currentQuickNoteEditId = "";
   el.quickNoteDialog.close();
-  showToast("Note ajoutee.");
+  showToast(existing ? "Note modifiee." : "Note ajoutee.");
   render();
+}
+
+function editNote(id) {
+  const note = state.notes.find((item) => item.id === id);
+  if (!note) return;
+  openQuickNote(note);
+}
+
+async function noteToTask(id) {
+  const note = state.notes.find((item) => item.id === id);
+  if (!note) return;
+  const saved = await saveTask({
+    title: note.title,
+    status: "A faire",
+    priority: "Normale",
+    list: inferTaskList(normalizeText(`${note.title} ${note.body}`)),
+    due: "",
+    notes: note.body,
+  });
+  if (saved) showToast("Note transformee en tache.");
+}
+
+async function processNoteWithWorker(id, worker) {
+  const note = state.notes.find((item) => item.id === id);
+  if (!note) return;
+  if (!API_ENABLED) {
+    showToast("Lance d'abord le serveur de l'application.");
+    return;
+  }
+
+  const workerLabel = getWorkerLabel(worker);
+  showToast(`Note envoyee a ${workerLabel}.`);
+  try {
+    const response = await fetch("/api/ai/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        mode: "quick",
+        message: `@${worker} Traite cette note de Xavier. Dis quoi en faire, les actions utiles, et les points a ne pas oublier.\n\nTitre: ${note.title}\n\nNote:\n${note.body}`,
+      }),
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      showToast(payload.error || "Traitement IA impossible.");
+      return;
+    }
+    state.notes.unshift({
+      id: crypto.randomUUID(),
+      title: `Traitement ${workerLabel} - ${note.title}`.slice(0, 80),
+      body: payload.answer || "Aucune reponse recue.",
+      category: "Traitement IA",
+      source: `IA ${workerLabel}`,
+      createdAt: new Date().toISOString(),
+      sourceNoteId: note.id,
+    });
+    await loadAiMemory();
+    await loadAiUsage();
+    showToast(`Reponse ${workerLabel} ajoutee aux notes.`);
+    render();
+  } catch {
+    showToast("Traitement IA impossible pour le moment.");
+  }
+}
+
+function deleteNote(id) {
+  const note = state.notes.find((item) => item.id === id);
+  if (!note || !confirm("Supprimer cette note ?")) return;
+  state.notes = state.notes.filter((item) => item.id !== id);
+  showToast("Note supprimee.");
+  render();
+}
+
+function getWorkerLabel(worker) {
+  return WORKERS.find((item) => item.key === worker)?.label || "Fernand";
 }
 
 function makeQuickNoteTitle(text) {
@@ -3417,6 +3519,10 @@ window.inboxToTask = inboxToTask;
 window.deleteKnowledgeDocument = deleteKnowledgeDocument;
 window.inboxToNote = inboxToNote;
 window.archiveInbox = archiveInbox;
+window.editNote = editNote;
+window.noteToTask = noteToTask;
+window.processNoteWithWorker = processNoteWithWorker;
+window.deleteNote = deleteNote;
 window.openMail = openMail;
 window.markMailRead = markMailRead;
 window.archiveMail = archiveMail;

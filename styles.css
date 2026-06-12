@@ -1481,6 +1481,11 @@ button:disabled {
   white-space: pre-line;
 }
 
+.note-actions {
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
 .list-card ul {
   display: grid;
   gap: 8px;

@@ -59,8 +59,8 @@ const DEFAULT_AGENT_INSTRUCTIONS = {
   ].join("\n"),
   commercial: [
     "Role: suivi clients, relances, statistiques commerciales et offres.",
-    "Mission: distinguer professionnels et particuliers, proposer des relances selon dernier achat, preparer des pistes commerciales.",
-    "Regle: indiquer clairement que Baqio n'est pas encore connecte quand une analyse depend de Baqio.",
+    "Mission: utiliser les donnees Baqio synchronisees pour distinguer professionnels et particuliers, proposer des relances selon dernier achat, preparer des pistes commerciales et des brouillons d'offres.",
+    "Regle: Baqio est lu en lecture seule. Ne jamais pretendre avoir modifie Baqio, envoye une relance ou cree une offre sans action explicite de l'application et validation de Xavier.",
   ].join("\n"),
 };
 
@@ -2114,6 +2114,7 @@ function buildAiMessages(message, mode = "quick", worker = "") {
   const state = getAppState();
   const knowledgeContext = findRelevantKnowledge(message);
   const agentInstructions = getAgentInstructionContext(worker || (mode === "report" ? "fernand" : "fernand"));
+  const commercialContext = getCommercialAiContext(state, message, worker, mode);
 
   return [
     {
@@ -2136,13 +2137,15 @@ function buildAiMessages(message, mode = "quick", worker = "") {
             ].join(" "),
         worker && worker !== "fernand" ? `La demande est adressee au service interne: ${worker}. Reste dans ce role et repond simplement.` : "",
         "Ne dis pas que tu as envoye des emails, modifie l'agenda, appele Baqio ou change des fichiers si l'application ne l'a pas vraiment fait.",
-        "Pour le commercial, distingue professionnels et particuliers, mais precise que l'API Baqio n'est pas encore connectee si la demande depend de Baqio.",
+        "Pour le commercial, utilise Baqio seulement comme base lue et synchronisee; propose des relances, brouillons et priorites, mais ne promets aucune action automatique.",
         "Pour l'organisation, integre agenda, taches, routine, priorites et charge mentale sans faire de diagnostic medical.",
         "Reponds en francais, de facon concrete.",
         "Tu as une memoire courte des derniers echanges fournie dans le contexte.",
         "Si Xavier fait reference a une chose dite juste avant, utilise cette memoire.",
         agentInstructions ? `Consignes permanentes du role: ${agentInstructions}` : "",
         knowledgeContext ? `Memoire documentaire utile: ${knowledgeContext}` : "",
+        commercialContext ? `Contexte commercial Baqio synchronise: ${commercialContext}` : "",
+        commercialContext ? "Regle prioritaire commercial: Baqio est connecte et des donnees sont disponibles dans le contexte ci-dessus. Ignore toute ancienne consigne disant que Baqio n'est pas connecte." : "",
         "Quand la demande ressemble a une tache, propose une prochaine action claire.",
         "Ne pretends pas avoir modifie l'agenda, les emails ou les fichiers si ce n'est pas fait par l'application.",
         getAiStateSummary(state),
@@ -2151,6 +2154,38 @@ function buildAiMessages(message, mode = "quick", worker = "") {
     ...recentExchanges,
     { role: "user", content: message },
   ];
+}
+
+function getCommercialAiContext(state, message, worker = "", mode = "quick") {
+  const baqio = state.baqio || {};
+  const summary = baqio.summary;
+  if (!summary) return "";
+
+  const normalized = normalizeText(`${worker} ${message}`);
+  const mentionsCommercial = worker === "commercial"
+    || mode === "report"
+    || /(commercial|commerce|client|clients|prospect|relance|relancer|vente|ventes|commande|commandes|baqio|chiffre|ca|offre|particulier|pro\b|professionnel)/.test(normalized);
+  if (!mentionsCommercial) return "";
+
+  const topCustomers = (summary.topCustomers || []).slice(0, 5).map((customer) =>
+    `${customer.customerName}: ${formatEuroCentsServer(customer.totalCents)}, ${customer.orderCount} commande(s), dernier achat ${customer.lastOrderDate || "inconnu"}`
+  );
+  const recentOrders = (summary.recentOrders || []).slice(0, 5).map((order) =>
+    `${order.customerName}: ${formatEuroCentsServer(order.totalCents)}, ${Number(order.bottleQuantity || 0).toFixed(0)} bouteille(s), ${order.date || "date inconnue"}`
+  );
+  const opportunities = (summary.opportunities || []).slice(0, 8).map((opportunity) =>
+    `${opportunity.priority || "Priorite"} - ${opportunity.title}: ${opportunity.detail}`
+  );
+
+  return [
+    `Derniere synchronisation: ${baqio.lastSyncedAt || "inconnue"}.`,
+    `${summary.customerCount || 0} client(s), dont ${summary.proCount || 0} pro(s) et ${summary.individualCount || 0} particulier(s).`,
+    `${summary.orderCount || 0} commande(s), CA lu ${formatEuroCentsServer(summary.totalRevenueCents)}, ${Number(summary.bottleQuantity || 0).toFixed(0)} bouteille(s).`,
+    topCustomers.length ? `Meilleurs clients: ${topCustomers.join(" | ")}.` : "",
+    recentOrders.length ? `Commandes recentes: ${recentOrders.join(" | ")}.` : "",
+    opportunities.length ? `Opportunites calculees: ${opportunities.join(" | ")}.` : "",
+    "Limite: ces donnees viennent de l'echantillon synchronise Baqio et peuvent etre incompletes; annoncer une recommandation plutot qu'une certitude si besoin.",
+  ].filter(Boolean).join(" ");
 }
 
 function getAgentInstructionsStatus() {

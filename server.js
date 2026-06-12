@@ -51,8 +51,6 @@ const CONFIG_ENV_KEYS = [
   "AI_BASE_URL",
   "AI_MODEL",
   "OPENAI_API_KEY",
-  "LM_STUDIO_BASE_URL",
-  "LM_STUDIO_MODEL",
 ];
 
 const MIME_TYPES = {
@@ -1038,28 +1036,27 @@ function getAiConfigStatus() {
 }
 
 function getAiProvider() {
-  return String(process.env.AI_PROVIDER || "lmstudio").toLowerCase() === "openai" ? "openai" : "lmstudio";
+  return "openai";
 }
 
 function getAiBaseUrl() {
-  const provider = getAiProvider();
-  const fallback = provider === "openai" ? "https://api.openai.com/v1" : "http://127.0.0.1:1234/v1";
-  return (process.env.AI_BASE_URL || process.env.LM_STUDIO_BASE_URL || fallback).replace(/\/+$/, "");
+  const configured = process.env.OPENAI_BASE_URL || process.env.AI_BASE_URL || "";
+  const baseUrl = configured.includes("openai.com") ? configured : "https://api.openai.com/v1";
+  return baseUrl.replace(/\/+$/, "");
 }
 
-function getAiModel(provider = getAiProvider()) {
-  if (provider === "openai") return process.env.AI_MODEL || process.env.OPENAI_MODEL || "gpt-5.4-mini";
-  return process.env.AI_MODEL || process.env.LM_STUDIO_MODEL || "";
+function getAiModel() {
+  const configured = process.env.OPENAI_MODEL || process.env.AI_MODEL || "";
+  return configured.toLowerCase().startsWith("gpt-") ? configured : "gpt-5.4-mini";
 }
 
 function saveAiConfig(config) {
-  const provider = String(config.provider || "lmstudio").toLowerCase() === "openai" ? "openai" : "lmstudio";
   const current = getEnvFileValues();
   const next = {
     ...current,
-    AI_PROVIDER: provider,
-    AI_BASE_URL: String(config.baseUrl || (provider === "openai" ? "https://api.openai.com/v1" : "http://127.0.0.1:1234/v1")).trim(),
-    AI_MODEL: String(config.model || (provider === "openai" ? "gpt-5.4-mini" : "")).trim(),
+    AI_PROVIDER: "openai",
+    AI_BASE_URL: String(config.baseUrl || "https://api.openai.com/v1").trim(),
+    AI_MODEL: String(config.model || "gpt-5.4-mini").trim(),
     OPENAI_API_KEY: String(config.openAiApiKey || current.OPENAI_API_KEY || "").trim(),
   };
 
@@ -1086,9 +1083,7 @@ async function sendAiStatus(res) {
       ok: false,
       provider: config.provider,
       baseUrl: config.baseUrl,
-      error: config.provider === "openai"
-        ? "OpenAI n'est pas encore configure. Verifie la cle API."
-        : "LM Studio ne repond pas encore. Demarre le serveur local dans LM Studio.",
+      error: "OpenAI n'est pas encore configure. Verifie la cle API.",
     }, 503);
   }
 }
@@ -1105,14 +1100,12 @@ async function sendAiChat(body, res) {
     const model = config.model || models[0];
     if (!model) {
       return sendJson(res, {
-        error: config.provider === "openai" ? "Aucun modele OpenAI configure." : "Aucun modele LM Studio n'est charge.",
+        error: "Aucun modele OpenAI configure.",
       }, 409);
     }
 
     const headers = { "Content-Type": "application/json" };
-    if (config.provider === "openai") {
-      headers.Authorization = `Bearer ${process.env.OPENAI_API_KEY}`;
-    }
+    headers.Authorization = `Bearer ${process.env.OPENAI_API_KEY}`;
 
     const response = await fetch(`${config.baseUrl}/chat/completions`, {
       method: "POST",
@@ -1128,7 +1121,7 @@ async function sendAiChat(body, res) {
     if (!response.ok) {
       const detail = await response.text();
       return sendJson(res, {
-        error: `${config.provider === "openai" ? "OpenAI" : "LM Studio"} a refuse la demande: ${detail}`,
+        error: `OpenAI a refuse la demande: ${detail}`,
       }, 502);
     }
 
@@ -1139,9 +1132,7 @@ async function sendAiChat(body, res) {
     return sendJson(res, { ok: true, model, answer });
   } catch {
     return sendJson(res, {
-      error: config.provider === "openai"
-        ? "OpenAI ne repond pas encore. Verifie la configuration API."
-        : "LM Studio ne repond pas encore. Verifie que le serveur local est demarre.",
+      error: "OpenAI ne repond pas encore. Verifie la configuration API.",
     }, 503);
   }
 }
@@ -1572,20 +1563,10 @@ function roundMoney(value) {
 }
 
 async function fetchAiModels(config) {
-  if (config.provider === "openai") {
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error("Cle OpenAI absente.");
-    }
-    return [config.model || "gpt-5.4-mini"];
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("Cle OpenAI absente.");
   }
-
-  const response = await fetch(`${config.baseUrl}/models`, { signal: AbortSignal.timeout(8000) });
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(`LM Studio a refuse la demande: ${detail}`);
-  }
-  const payload = await response.json();
-  return (payload.data || []).map((model) => model.id).filter(Boolean);
+  return [config.model || "gpt-5.4-mini"];
 }
 
 function saveGoogleConfig(config) {

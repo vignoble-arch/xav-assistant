@@ -18,7 +18,7 @@ Cette version fonctionne soit directement dans le navigateur, soit avec un petit
 - Connexions Google OAuth preparees pour Gmail, Agenda, Drive et Google Tasks
 - Preparation serveur Docker
 - PostgreSQL et Qdrant prets pour la prochaine etape memoire/RAG
-- Configuration IA locale avec LM Studio
+- Configuration IA avec OpenAI API
 
 ## Lancer
 
@@ -219,14 +219,12 @@ Dans la vue du jour, le bloc `Routine matin` permet d'activer une notification l
 
 Cette premiere version depend de l'app installee sur l'appareil. Une version push serveur pourra ensuite envoyer les notifications meme lorsque l'app n'est pas ouverte.
 
-## LM Studio local
+## OpenAI API
 
-Dans LM Studio, charger un modele puis demarrer le serveur local.
+Dans l'application, ouvrir `Connexions`, puis utiliser le bloc `IA` pour enregistrer la cle OpenAI et tester la connexion.
 
-Adresse attendue en local :
+Modele recommande :
 
 ```text
-http://127.0.0.1:1234/v1
+gpt-5.4-mini
 ```
-
-Dans l'application, ouvrir `Connexions`, puis utiliser le bloc `IA locale > LM Studio` pour enregistrer et tester la connexion.

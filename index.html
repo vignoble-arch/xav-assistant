@@ -298,7 +298,6 @@
                 Fournisseur
                 <select id="aiProvider">
                   <option value="openai">OpenAI API</option>
-                  <option value="lmstudio">LM Studio local</option>
                 </select>
               </label>
               <div class="form-grid">
@@ -319,7 +318,7 @@
                 <button class="ghost-button" type="button" id="testAiConnection">Tester l'IA</button>
                 <button class="assistant-button small" type="submit">Enregistrer l'IA</button>
               </div>
-              <p class="connection-hint" id="aiConnectionResult">OpenAI API est recommande pour le serveur. LM Studio reste disponible pour les tests locaux.</p>
+              <p class="connection-hint" id="aiConnectionResult">Assistant Xavier utilise OpenAI API avec le modele gpt-5.4-mini.</p>
             </form>
           </section>
           <div class="connections-grid" id="connectionsGrid"></div>
@@ -337,7 +336,7 @@
           <button class="icon-button" value="cancel" aria-label="Fermer" type="submit">x</button>
         </div>
         <textarea id="assistantText" rows="5" placeholder="Exemples : ajoute beurre aux courses, rappelle d'appeler Martin vendredi, note idee ameliorer la page client"></textarea>
-        <div class="assistant-preview" id="assistantPreview">La demande sera analysee localement. Si elle est ambigue, elle ira dans l'Inbox.</div>
+        <div class="assistant-preview" id="assistantPreview">La demande sera analysee par l'IA. Si elle est ambigue, elle ira dans l'Inbox.</div>
         <div class="dialog-actions">
           <button class="ghost-button" value="cancel" type="submit">Annuler</button>
           <button class="ghost-button" id="askLocalAi" value="default" type="button">Demander a l'IA</button>

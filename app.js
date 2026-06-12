@@ -1030,14 +1030,14 @@ async function askLocalAi() {
     });
     const payload = await response.json();
     if (!response.ok) {
-      el.assistantPreview.textContent = payload.error || "LM Studio ne repond pas.";
+      el.assistantPreview.textContent = payload.error || "OpenAI ne repond pas.";
       return;
     }
     el.assistantPreview.textContent = payload.answer;
     await loadAiMemory();
     await loadAiUsage();
   } catch {
-    el.assistantPreview.textContent = "Impossible de joindre LM Studio pour l'instant.";
+    el.assistantPreview.textContent = "Impossible de joindre OpenAI pour l'instant.";
   } finally {
     el.askLocalAi.disabled = false;
   }
@@ -1096,7 +1096,7 @@ function parseIntent(rawText) {
   const normalized = normalizeText(text);
 
   if (!text) {
-    return { type: "empty", preview: "La demande sera analysee localement. Si elle est ambigue, elle ira dans l'Inbox." };
+    return { type: "empty", preview: "La demande sera analysee par l'IA. Si elle est ambigue, elle ira dans l'Inbox." };
   }
 
   const listMatch = normalized.match(/^(ajoute|mettre|mets)\s+(.+?)\s+(aux|a la|dans la|dans les|dans)\s+(.+)$/);
@@ -1768,8 +1768,8 @@ async function saveAiConfig(event) {
 
   const payload = {
     provider: el.aiProvider.value,
-    baseUrl: el.aiBaseUrl.value.trim() || "http://127.0.0.1:1234/v1",
-    model: el.aiModel.value.trim(),
+    baseUrl: el.aiBaseUrl.value.trim() || "https://api.openai.com/v1",
+    model: el.aiModel.value.trim() || "gpt-5.4-mini",
     openAiApiKey: el.openAiApiKey.value.trim(),
   };
 
@@ -1780,7 +1780,7 @@ async function saveAiConfig(event) {
   });
   aiConfigState = await response.json();
   renderAiConfig();
-  showToast("Configuration IA locale enregistree.");
+  showToast("Configuration OpenAI enregistree.");
 }
 
 async function testAiConnection() {
@@ -1809,7 +1809,7 @@ async function testAiConnection() {
   if (!el.aiModel.value && payload.selectedModel) {
     el.aiModel.value = payload.selectedModel;
   }
-  showToast("LM Studio est connecte.");
+  showToast("OpenAI est connecte.");
 }
 
 async function clearAiMemory() {

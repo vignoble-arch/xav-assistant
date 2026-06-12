@@ -83,10 +83,6 @@ $tempEnv = Join-Path $projectRoot ".env.production.vps"
   "AI_MODEL=gpt-5.4-mini"
   "OPENAI_API_KEY="
   ""
-  "# Sur le VPS, LM Studio local du PC ne sera pas joignable sans tunnel/VPN."
-  "LM_STUDIO_BASE_URL=http://127.0.0.1:1234/v1"
-  "LM_STUDIO_MODEL="
-  ""
 ) | Set-Content -Path $tempEnv -Encoding UTF8
 
 try {

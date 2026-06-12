@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=quick-note-1" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="styles.css?v=commercial-1" />
+    <link rel="stylesheet" href="styles.css?v=commercial-2" />
   </head>
   <body>
     <div class="app-shell">
@@ -213,6 +213,15 @@
           </div>
           <div class="commercial-summary" id="commercialSummary"></div>
           <div class="commercial-grid">
+            <section class="panel commercial-wide">
+              <div class="panel-header">
+                <div>
+                  <p class="section-kicker">Actions</p>
+                  <h2>Opportunites proposees</h2>
+                </div>
+              </div>
+              <div class="wide-list" id="commercialOpportunities"></div>
+            </section>
             <section class="panel">
               <div class="panel-header">
                 <div>
@@ -556,7 +565,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=commercial-1"></script>
+    <script src="app.js?v=commercial-2"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

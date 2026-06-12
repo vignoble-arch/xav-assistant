@@ -165,6 +165,7 @@ const el = {
   quickLists: document.querySelector("#quickLists"),
   reportsList: document.querySelector("#reportsList"),
   commercialSummary: document.querySelector("#commercialSummary"),
+  commercialOpportunities: document.querySelector("#commercialOpportunities"),
   commercialTopCustomers: document.querySelector("#commercialTopCustomers"),
   commercialRecentOrders: document.querySelector("#commercialRecentOrders"),
   requestSummary: document.querySelector("#requestSummary"),
@@ -608,10 +609,11 @@ function renderReports() {
 }
 
 function renderCommercial() {
-  if (!el.commercialSummary || !el.commercialTopCustomers || !el.commercialRecentOrders) return;
+  if (!el.commercialSummary || !el.commercialTopCustomers || !el.commercialRecentOrders || !el.commercialOpportunities) return;
   const summary = state.baqio?.summary;
   if (!summary) {
     el.commercialSummary.innerHTML = emptyState("Synchronise Baqio pour afficher le pilotage commercial.");
+    el.commercialOpportunities.innerHTML = emptyState("Aucune opportunite commerciale calculee.");
     el.commercialTopCustomers.innerHTML = emptyState("Aucun client Baqio synchronise.");
     el.commercialRecentOrders.innerHTML = emptyState("Aucune commande Baqio synchronisee.");
     return;
@@ -627,6 +629,11 @@ function renderCommercial() {
   `;
 
   const topCustomers = summary.topCustomers || [];
+  const opportunities = summary.opportunities || [];
+  el.commercialOpportunities.innerHTML = opportunities.length
+    ? opportunities.map((opportunity) => commercialOpportunityCard(opportunity)).join("")
+    : emptyState("Aucune opportunite proposee sur cet echantillon.");
+
   el.commercialTopCustomers.innerHTML = topCustomers.length
     ? topCustomers.map((customer) => commercialCustomerCard(customer)).join("")
     : emptyState("Aucun client avec commande dans l'echantillon.");
@@ -635,6 +642,21 @@ function renderCommercial() {
   el.commercialRecentOrders.innerHTML = recentOrders.length
     ? recentOrders.map((order) => commercialOrderCard(order)).join("")
     : emptyState("Aucune commande recente dans l'echantillon.");
+}
+
+function commercialOpportunityCard(opportunity) {
+  return `
+    <article class="report-card">
+      <div class="card-top">
+        <p class="card-title">${escapeHTML(opportunity.title || "Opportunite")}</p>
+        <span class="source-pill">${escapeHTML(opportunity.type || "Action")}</span>
+      </div>
+      <p class="card-meta">${escapeHTML(opportunity.detail || "")}</p>
+      <div class="card-actions">
+        <button class="item-action" type="button" onclick="commercialOpportunityToTask('${escapeHTML(opportunity.id)}')">Creer une tache</button>
+      </div>
+    </article>
+  `;
 }
 
 function commercialCustomerCard(customer) {
@@ -659,6 +681,20 @@ function commercialOrderCard(order) {
       <p class="card-meta">${escapeHTML(order.customerName || "Client inconnu")} - ${escapeHTML(order.date || "date inconnue")} - ${Number(order.bottleQuantity || 0).toFixed(0)} bouteille(s) - ${escapeHTML(order.state || "")}</p>
     </article>
   `;
+}
+
+async function commercialOpportunityToTask(id) {
+  const opportunity = (state.baqio?.summary?.opportunities || []).find((item) => item.id === id);
+  if (!opportunity) return;
+  const saved = await saveTask({
+    title: opportunity.taskTitle || opportunity.title,
+    status: "A faire",
+    priority: opportunity.priority || "Normale",
+    list: "bureau",
+    due: "",
+    notes: opportunity.detail || "",
+  });
+  if (saved) showToast("Opportunite transformee en tache.");
 }
 
 function buildAutomaticReports() {
@@ -2891,6 +2927,7 @@ window.markMailRead = markMailRead;
 window.archiveMail = archiveMail;
 window.mailToTask = mailToTask;
 window.mailToNote = mailToNote;
+window.commercialOpportunityToTask = commercialOpportunityToTask;
 window.closeFernandRequest = closeFernandRequest;
 window.reopenFernandRequest = reopenFernandRequest;
 window.archiveFernandRequest = archiveFernandRequest;

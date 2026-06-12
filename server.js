@@ -1739,8 +1739,8 @@ async function syncBaqioCommercialData(res) {
 
 async function fetchBaqioCommercialSnapshot() {
   const [customersRaw, ordersRaw] = await Promise.all([
-    baqioFetch("/customers?page=1"),
-    baqioFetch("/orders?page=1"),
+    baqioFetchPages("/customers", 3),
+    baqioFetchPages("/orders", 3),
   ]);
   const customers = Array.isArray(customersRaw) ? customersRaw.map(normalizeBaqioCustomer) : [];
   const orders = Array.isArray(ordersRaw) ? ordersRaw.map(normalizeBaqioOrder) : [];
@@ -1750,6 +1750,18 @@ async function fetchBaqioCommercialSnapshot() {
     summary: buildBaqioSummary(customers, orders),
     lastSyncedAt: new Date().toISOString(),
   };
+}
+
+async function baqioFetchPages(endpoint, maxPages = 3) {
+  const items = [];
+  for (let page = 1; page <= maxPages; page += 1) {
+    const separator = endpoint.includes("?") ? "&" : "?";
+    const payload = await baqioFetch(`${endpoint}${separator}page=${page}`);
+    if (!Array.isArray(payload) || payload.length === 0) break;
+    items.push(...payload);
+    if (payload.length < 50) break;
+  }
+  return items;
 }
 
 function normalizeBaqioCustomer(customer) {
@@ -1828,7 +1840,72 @@ function buildBaqioSummary(customers, orders) {
     recentOrders: [...orders]
       .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")))
       .slice(0, 5),
+    opportunities: buildBaqioOpportunities(customers, orders),
   };
+}
+
+function buildBaqioOpportunities(customers, orders) {
+  const orderedCustomerIds = new Set(orders.map((order) => order.customerId).filter(Boolean));
+  const byCustomer = new Map();
+  orders.forEach((order) => {
+    const key = order.customerId || order.customerName;
+    const current = byCustomer.get(key) || {
+      customerId: order.customerId,
+      customerName: order.customerName,
+      totalCents: 0,
+      orderCount: 0,
+      bottleQuantity: 0,
+      lastOrderDate: "",
+    };
+    current.totalCents += Number(order.totalCents || 0);
+    current.orderCount += 1;
+    current.bottleQuantity += Number(order.bottleQuantity || 0);
+    if (String(order.date || "") > String(current.lastOrderDate || "")) current.lastOrderDate = order.date || "";
+    byCustomer.set(key, current);
+  });
+
+  const bestCustomers = [...byCustomer.values()]
+    .sort((a, b) => b.totalCents - a.totalCents)
+    .slice(0, 3)
+    .map((customer) => ({
+      id: `best-${customer.customerId || normalizeText(customer.customerName)}`,
+      title: `Preparer une attention commerciale pour ${customer.customerName}`,
+      type: "Fidelisation",
+      priority: "Importante",
+      detail: `${formatEuroCentsServer(customer.totalCents)} de CA lu, ${customer.orderCount} commande(s), dernier achat ${customer.lastOrderDate || "date inconnue"}.`,
+      taskTitle: `Relance fidelisation : ${customer.customerName}`,
+    }));
+
+  const proProspects = customers
+    .filter((customer) => customer.type === "Pro" && customer.acceptsEmailing && !orderedCustomerIds.has(customer.id))
+    .slice(0, 3)
+    .map((customer) => ({
+      id: `pro-${customer.id}`,
+      title: `Relancer le prospect pro ${customer.name}`,
+      type: "Relance pro",
+      priority: "Normale",
+      detail: `${customer.category || "Categorie inconnue"}${customer.city ? ` - ${customer.city}` : ""}${customer.email ? ` - ${customer.email}` : ""}.`,
+      taskTitle: `Relance pro Baqio : ${customer.name}`,
+    }));
+
+  const recentBigOrders = [...orders]
+    .filter((order) => order.totalCents >= 30000)
+    .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")))
+    .slice(0, 3)
+    .map((order) => ({
+      id: `order-${order.id}`,
+      title: `Suivi apres commande ${order.name}`,
+      type: "Suivi commande",
+      priority: "Normale",
+      detail: `${order.customerName} - ${formatEuroCentsServer(order.totalCents)} - ${Number(order.bottleQuantity || 0).toFixed(0)} bouteille(s) - ${order.date || "date inconnue"}.`,
+      taskTitle: `Suivi commande Baqio : ${order.customerName}`,
+    }));
+
+  return [...bestCustomers, ...proProspects, ...recentBigOrders].slice(0, 8);
+}
+
+function formatEuroCentsServer(value) {
+  return `${Math.round(Number(value || 0) / 100).toLocaleString("fr-FR")} EUR`;
 }
 
 async function baqioFetch(endpoint, options = {}) {

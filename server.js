@@ -23,7 +23,7 @@ const AGENT_INSTRUCTIONS_FILE = path.join(DATA_DIR, "agent-instructions.json");
 const AUTO_SYNC_INTERVAL_MINUTES = Math.max(5, Number(process.env.AUTO_SYNC_INTERVAL_MINUTES || 15));
 
 const GOOGLE_SCOPES = {
-  gmail: ["https://www.googleapis.com/auth/gmail.readonly"],
+  gmail: ["https://www.googleapis.com/auth/gmail.modify"],
   calendar: ["https://www.googleapis.com/auth/calendar.events"],
   drive: ["https://www.googleapis.com/auth/drive.metadata.readonly"],
   tasks: ["https://www.googleapis.com/auth/tasks"],
@@ -384,6 +384,10 @@ const server = http.createServer(async (req, res) => {
 
     if (requestUrl.pathname === "/api/agenda/delete" && req.method === "POST") {
       return await deleteAgendaEventFromApp(req, res);
+    }
+
+    if (requestUrl.pathname === "/api/mail/action" && req.method === "POST") {
+      return await handleMailActionFromApp(req, res);
     }
 
     return serveStatic(requestUrl.pathname, res);
@@ -931,6 +935,33 @@ async function deleteAgendaEventFromApp(req, res) {
   sendJson(res, state);
 }
 
+async function handleMailActionFromApp(req, res) {
+  const body = await readBody(req);
+  const action = String(body.action || "").trim();
+  const mailId = String(body.id || "").trim();
+  const state = getAppState();
+  const mail = (state.mail || []).find((item) => item.id === mailId || item.sourceId === mailId);
+  if (!mail) return sendJson(res, { error: "Email introuvable." }, 404);
+
+  try {
+    if (mail.source === "Gmail" && mail.sourceId) {
+      if (action === "archive") {
+        await modifyGmailMessage(mail.sourceId, ["INBOX", "UNREAD"]);
+      } else if (action === "read") {
+        await modifyGmailMessage(mail.sourceId, ["UNREAD"]);
+      } else {
+        return sendJson(res, { error: "Action email inconnue." }, 400);
+      }
+    }
+  } catch (error) {
+    return sendJson(res, { error: error.message }, 409);
+  }
+
+  state.mail = (state.mail || []).filter((item) => item.id !== mail.id);
+  writeJson(STATE_FILE, state);
+  return sendJson(res, state);
+}
+
 async function fetchGmail(token, service) {
   const response = await googleFetch(token, service, "https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=8&q=newer_than:14d");
   const messages = response.messages || [];
@@ -952,10 +983,23 @@ async function fetchGmailMessage(token, service, messageId) {
   const date = headers.date ? new Date(headers.date) : null;
   return {
     id: message.id,
+    sourceId: message.id,
     title: subject,
     source: "Gmail",
+    labelIds: message.labelIds || [],
+    unread: (message.labelIds || []).includes("UNREAD"),
+    createdAt: date && !Number.isNaN(date.valueOf()) ? date.toISOString() : new Date().toISOString(),
     detail: `${from}${date && !Number.isNaN(date.valueOf()) ? ` - ${date.toLocaleDateString("fr-FR")}` : ""}${message.snippet ? ` - ${message.snippet}` : ""}`,
   };
+}
+
+async function modifyGmailMessage(messageId, removeLabelIds = []) {
+  const tokens = readJson(TOKENS_FILE, {});
+  const token = requireWritableGoogleToken(tokens.gmail, "gmail");
+  return googleFetch(token, "gmail", `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}/modify`, {
+    method: "POST",
+    body: { removeLabelIds },
+  });
 }
 
 async function fetchCalendar(token, service) {
@@ -1247,19 +1291,25 @@ async function googleFetch(token, service, url, options = {}) {
 
 function requireWritableGoogleToken(token, service) {
   if (!token?.access_token) {
-    throw new Error(service === "calendar" ? "Agenda Google n'est pas connecte." : "Google Tasks n'est pas connecte.");
+    if (service === "calendar") throw new Error("Agenda Google n'est pas connecte.");
+    if (service === "gmail") throw new Error("Gmail n'est pas connecte.");
+    throw new Error("Google Tasks n'est pas connecte.");
   }
   const scopes = String(token.scope || "").split(/\s+/).filter(Boolean);
-  const readonlyScope = service === "calendar"
-    ? "https://www.googleapis.com/auth/calendar.readonly"
-    : "https://www.googleapis.com/auth/tasks.readonly";
-  const writeScope = service === "calendar"
-    ? "https://www.googleapis.com/auth/calendar.events"
-    : "https://www.googleapis.com/auth/tasks";
+  const readonlyScope = {
+    calendar: "https://www.googleapis.com/auth/calendar.readonly",
+    tasks: "https://www.googleapis.com/auth/tasks.readonly",
+    gmail: "https://www.googleapis.com/auth/gmail.readonly",
+  }[service];
+  const writeScope = {
+    calendar: "https://www.googleapis.com/auth/calendar.events",
+    tasks: "https://www.googleapis.com/auth/tasks",
+    gmail: "https://www.googleapis.com/auth/gmail.modify",
+  }[service];
   if (scopes.includes(readonlyScope) && !scopes.includes(writeScope)) {
-    throw new Error(service === "calendar"
-      ? "Agenda est encore connecte en lecture seule. Reconnecte Agenda dans Connexions."
-      : "Google Tasks est encore connecte en lecture seule. Reconnecte Tasks dans Connexions.");
+    if (service === "calendar") throw new Error("Agenda est encore connecte en lecture seule. Reconnecte Agenda dans Connexions.");
+    if (service === "gmail") throw new Error("Gmail est encore connecte en lecture seule. Reconnecte Gmail dans Connexions.");
+    throw new Error("Google Tasks est encore connecte en lecture seule. Reconnecte Tasks dans Connexions.");
   }
   return token;
 }

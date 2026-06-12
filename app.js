@@ -571,7 +571,7 @@ function inferDateKeyFromAgendaTime(value) {
 function renderMail() {
   el.mailCount.textContent = state.mail.length;
   el.mailList.innerHTML = state.mail.length
-    ? state.mail.map((item) => externalCard(item, "mail-card")).join("")
+    ? state.mail.map(mailCard).join("")
     : emptyState("Aucun email prioritaire.");
 }
 
@@ -1133,6 +1133,24 @@ function externalCard(item, className) {
     <article class="${className}">
       <p class="card-title">${escapeHTML(item.title)}</p>
       <p class="card-meta">${escapeHTML(item.source)}${item.detail ? ` - ${escapeHTML(item.detail)}` : ""}</p>
+    </article>
+  `;
+}
+
+function mailCard(item) {
+  return `
+    <article class="mail-card">
+      <div class="card-top">
+        <p class="card-title">${escapeHTML(item.title)}</p>
+        <span class="source-pill">${item.unread ? "Non lu" : "Email"}</span>
+      </div>
+      <p class="card-meta">${escapeHTML(item.source)}${item.detail ? ` - ${escapeHTML(item.detail)}` : ""}</p>
+      <div class="card-actions">
+        <button class="item-action" type="button" onclick="markMailRead('${item.id}')">Lu</button>
+        <button class="item-action" type="button" onclick="archiveMail('${item.id}')">Archiver</button>
+        <button class="item-action" type="button" onclick="mailToTask('${item.id}')">Tache</button>
+        <button class="item-action" type="button" onclick="mailToNote('${item.id}')">Note</button>
+      </div>
     </article>
   `;
 }
@@ -1757,6 +1775,74 @@ function inboxToNote(id) {
   });
   archiveInbox(id, false);
   showToast("Inbox transformee en note.");
+  render();
+}
+
+async function markMailRead(id) {
+  await applyMailAction(id, "read", "Email marque comme lu.");
+}
+
+async function archiveMail(id) {
+  await applyMailAction(id, "archive", "Email archive.");
+}
+
+async function applyMailAction(id, action, successMessage) {
+  const mail = state.mail.find((entry) => entry.id === id);
+  if (!mail) return;
+  if (!API_ENABLED) {
+    state.mail = state.mail.filter((entry) => entry.id !== id);
+    showToast(successMessage);
+    render();
+    return;
+  }
+
+  const response = await fetch("/api/mail/action", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, action }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    showToast(data.error || "Action Gmail impossible.");
+    return;
+  }
+  state = migrateState(data);
+  showToast(successMessage);
+  render();
+}
+
+function mailToTask(id) {
+  const item = state.mail.find((entry) => entry.id === id);
+  if (!item) return;
+  state.tasks.unshift({
+    id: crypto.randomUUID(),
+    title: item.title,
+    status: "A faire",
+    priority: "Normale",
+    list: "bureau",
+    source: "Gmail",
+    due: "",
+    notes: item.detail || "",
+    sourceId: item.sourceId || item.id,
+  });
+  state.mail = state.mail.filter((entry) => entry.id !== id);
+  showToast("Email transforme en tache.");
+  render();
+}
+
+function mailToNote(id) {
+  const item = state.mail.find((entry) => entry.id === id);
+  if (!item) return;
+  state.notes.unshift({
+    id: crypto.randomUUID(),
+    title: item.title,
+    body: item.detail || item.title,
+    category: "Email",
+    source: "Gmail",
+    createdAt: new Date().toISOString(),
+  });
+  state.mail = state.mail.filter((entry) => entry.id !== id);
+  showToast("Email transforme en note.");
   render();
 }
 
@@ -2659,6 +2745,10 @@ window.inboxToTask = inboxToTask;
 window.deleteKnowledgeDocument = deleteKnowledgeDocument;
 window.inboxToNote = inboxToNote;
 window.archiveInbox = archiveInbox;
+window.markMailRead = markMailRead;
+window.archiveMail = archiveMail;
+window.mailToTask = mailToTask;
+window.mailToNote = mailToNote;
 window.closeFernandRequest = closeFernandRequest;
 window.reopenFernandRequest = reopenFernandRequest;
 window.archiveFernandRequest = archiveFernandRequest;

@@ -996,12 +996,35 @@ button:disabled {
   margin-top: 14px;
 }
 
+.agent-panel,
 .knowledge-panel {
   margin-top: 18px;
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 14px;
   background: var(--surface);
+}
+
+.agent-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.agent-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 750;
+}
+
+.agent-form select {
+  max-width: 280px;
+}
+
+.agent-form textarea {
+  min-height: 190px;
 }
 
 .knowledge-upload {

@@ -19,6 +19,7 @@ const AI_USAGE_FILE = path.join(DATA_DIR, "ai-usage.json");
 const SYNC_STATUS_FILE = path.join(DATA_DIR, "sync-status.json");
 const KNOWLEDGE_DIR = path.join(DATA_DIR, "knowledge");
 const KNOWLEDGE_FILE = path.join(DATA_DIR, "knowledge-documents.json");
+const AGENT_INSTRUCTIONS_FILE = path.join(DATA_DIR, "agent-instructions.json");
 const AUTO_SYNC_INTERVAL_MINUTES = Math.max(5, Number(process.env.AUTO_SYNC_INTERVAL_MINUTES || 15));
 
 const GOOGLE_SCOPES = {
@@ -38,6 +39,40 @@ const OPENAI_MODEL_PRICES = {
 const TASK_LISTS = ["Dettes", "Cave Expé", "vignoble", "bureau", "divers et perso"];
 
 const GOOGLE_SERVICES = ["gmail", "calendar", "drive", "tasks"];
+
+const DEFAULT_AGENT_INSTRUCTIONS = {
+  fernand: [
+    "Role: bras droit de Xavier et chef d'equipe des ouvriers IA.",
+    "Mission: comprendre la demande, choisir le bon niveau de traitement, coordonner les ouvriers si necessaire, verifier la coherence et rendre une reponse utile.",
+    "Style: concret, calme, direct, en francais. Ne pas faire de grand rapport si Xavier pose une question simple.",
+    "Regle: si une action n'a pas ete faite par l'application, ne jamais pretendre qu'elle a ete faite.",
+  ].join("\n"),
+  organisation: [
+    "Role: specialiste organisation du travail, taches, priorites et productivite.",
+    "Mission: transformer le flou en prochaines actions, prioriser, tenir compte de l'agenda, des retards et de la charge mentale.",
+    "Style: pratique, court, orientee action.",
+  ].join("\n"),
+  secretaire: [
+    "Role: secretariat, emails, echeances, dossiers clients et administratif.",
+    "Mission: reperer ce qui demande une reponse, preparer des syntheses, signaler les echeances et organiser les informations avant un appel.",
+    "Regle: ne pas dire qu'un email a ete envoye si l'envoi n'a pas ete confirme par Xavier.",
+  ].join("\n"),
+  commercial: [
+    "Role: suivi clients, relances, statistiques commerciales et offres.",
+    "Mission: distinguer professionnels et particuliers, proposer des relances selon dernier achat, preparer des pistes commerciales.",
+    "Regle: indiquer clairement que Baqio n'est pas encore connecte quand une analyse depend de Baqio.",
+  ].join("\n"),
+  coach: [
+    "Role: coach mental non medical, stress, alignement et routine du matin.",
+    "Mission: aider Xavier a retrouver de la clarte, proposer des routines simples et des strategies anti-stress inspirees de principes bouddhistes.",
+    "Style: apaisant, simple, sans diagnostic medical.",
+  ].join("\n"),
+  agenda: [
+    "Role: planning, agenda, rendez-vous et contraintes horaires.",
+    "Mission: repondre simplement aux questions de calendrier et signaler les conflits ou les fenetres utiles.",
+    "Style: tres direct quand la question est simple.",
+  ].join("\n"),
+};
 
 const CONFIG_ENV_KEYS = [
   "GOOGLE_CLIENT_ID",
@@ -287,6 +322,16 @@ const server = http.createServer(async (req, res) => {
 
     if (requestUrl.pathname === "/api/knowledge" && req.method === "DELETE") {
       return deleteKnowledgeDocument(requestUrl, res);
+    }
+
+    if (requestUrl.pathname === "/api/agents/instructions" && req.method === "GET") {
+      return sendJson(res, getAgentInstructionsStatus());
+    }
+
+    if (requestUrl.pathname === "/api/agents/instructions" && req.method === "PUT") {
+      const body = await readBody(req);
+      saveAgentInstructions(body);
+      return sendJson(res, getAgentInstructionsStatus());
     }
 
     if (requestUrl.pathname === "/api/ai/usage" && req.method === "GET") {
@@ -1267,6 +1312,7 @@ function buildAiMessages(message, mode = "quick", worker = "") {
   ]);
   const state = getAppState();
   const knowledgeContext = findRelevantKnowledge(message);
+  const agentInstructions = getAgentInstructionContext(worker || (mode === "report" ? "fernand" : "fernand"));
 
   return [
     {
@@ -1294,6 +1340,7 @@ function buildAiMessages(message, mode = "quick", worker = "") {
         "Reponds en francais, de facon concrete.",
         "Tu as une memoire courte des derniers echanges fournie dans le contexte.",
         "Si Xavier fait reference a une chose dite juste avant, utilise cette memoire.",
+        agentInstructions ? `Consignes permanentes du role: ${agentInstructions}` : "",
         knowledgeContext ? `Memoire documentaire utile: ${knowledgeContext}` : "",
         "Quand la demande ressemble a une tache, propose une prochaine action claire.",
         "Ne pretends pas avoir modifie l'agenda, les emails ou les fichiers si ce n'est pas fait par l'application.",
@@ -1303,6 +1350,42 @@ function buildAiMessages(message, mode = "quick", worker = "") {
     ...recentExchanges,
     { role: "user", content: message },
   ];
+}
+
+function getAgentInstructionsStatus() {
+  return {
+    agents: readAgentInstructions(),
+    defaults: DEFAULT_AGENT_INSTRUCTIONS,
+  };
+}
+
+function readAgentInstructions() {
+  const saved = readJson(AGENT_INSTRUCTIONS_FILE, {});
+  return Object.fromEntries(Object.entries(DEFAULT_AGENT_INSTRUCTIONS).map(([key, defaultText]) => [
+    key,
+    typeof saved[key] === "string" ? saved[key] : defaultText,
+  ]));
+}
+
+function saveAgentInstructions(body) {
+  const current = readAgentInstructions();
+  const incoming = body?.agents && typeof body.agents === "object" ? body.agents : body;
+  const next = { ...current };
+  for (const key of Object.keys(DEFAULT_AGENT_INSTRUCTIONS)) {
+    if (typeof incoming?.[key] === "string") {
+      next[key] = incoming[key].slice(0, 12000).trim();
+    }
+  }
+  writeJson(AGENT_INSTRUCTIONS_FILE, next);
+}
+
+function getAgentInstructionContext(worker) {
+  const instructions = readAgentInstructions();
+  const selected = instructions[worker] || instructions.fernand || "";
+  if (worker && worker !== "fernand" && instructions.fernand) {
+    return `Fernand: ${instructions.fernand}\nService ${worker}: ${selected}`;
+  }
+  return selected;
 }
 
 function getKnowledgeStatus() {
@@ -1871,6 +1954,9 @@ function ensureDataFiles() {
   }
   if (!fs.existsSync(KNOWLEDGE_FILE)) {
     writeJson(KNOWLEDGE_FILE, { documents: [] });
+  }
+  if (!fs.existsSync(AGENT_INSTRUCTIONS_FILE)) {
+    writeJson(AGENT_INSTRUCTIONS_FILE, DEFAULT_AGENT_INSTRUCTIONS);
   }
 }
 

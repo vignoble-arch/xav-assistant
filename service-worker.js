@@ -1,9 +1,9 @@
-const CACHE_NAME = "assistant-xavier-pwa-3";
+const CACHE_NAME = "assistant-xavier-pwa-4";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
-  "/styles.css?v=note-capture-1",
-  "/app.js?v=note-capture-1",
+  "/styles.css?v=agent-instructions-1",
+  "/app.js?v=agent-instructions-1",
   "/manifest.webmanifest?v=pwa-1",
   "/icon.svg?v=pwa-1"
 ];

@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=pwa-1" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="styles.css?v=note-capture-1" />
+    <link rel="stylesheet" href="styles.css?v=agent-instructions-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -225,6 +225,36 @@
             </div>
           </div>
           <div class="memory-summary" id="memorySummary"></div>
+          <section class="agent-panel">
+            <div class="panel-header">
+              <div>
+                <p class="section-kicker">Equipe IA</p>
+                <h2>Consignes de l'equipe</h2>
+              </div>
+              <button class="ghost-button" type="button" id="refreshAgentInstructions">Actualiser</button>
+            </div>
+            <form class="agent-form" id="agentInstructionsForm">
+              <label>
+                Role
+                <select id="agentInstructionSelect">
+                  <option value="fernand">Fernand</option>
+                  <option value="organisation">Organisation</option>
+                  <option value="secretaire">Secretaire</option>
+                  <option value="commercial">Commercial</option>
+                  <option value="coach">Coach mental</option>
+                  <option value="agenda">Agenda</option>
+                </select>
+              </label>
+              <label class="wide-field">
+                Consignes permanentes
+                <textarea id="agentInstructionText" rows="9"></textarea>
+              </label>
+              <div class="dialog-actions">
+                <button class="ghost-button" type="button" id="resetAgentInstruction">Revenir au modele</button>
+                <button class="assistant-button small" type="submit">Enregistrer</button>
+              </div>
+            </form>
+          </section>
           <section class="knowledge-panel">
             <div class="panel-header">
               <div>
@@ -428,7 +458,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=note-capture-1"></script>
+    <script src="app.js?v=agent-instructions-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

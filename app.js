@@ -132,6 +132,7 @@ let googleConfigState = null;
 let aiConfigState = null;
 let aiMemoryState = { count: 0, exchanges: [] };
 let knowledgeState = { count: 0, indexedCount: 0, pendingCount: 0, documents: [] };
+let agentInstructionsState = { agents: {}, defaults: {} };
 let aiUsageState = null;
 let morningBriefState = null;
 let syncStatusState = null;
@@ -173,6 +174,11 @@ const el = {
   knowledgeSummary: document.querySelector("#knowledgeSummary"),
   knowledgeList: document.querySelector("#knowledgeList"),
   refreshKnowledge: document.querySelector("#refreshKnowledge"),
+  agentInstructionsForm: document.querySelector("#agentInstructionsForm"),
+  agentInstructionSelect: document.querySelector("#agentInstructionSelect"),
+  agentInstructionText: document.querySelector("#agentInstructionText"),
+  refreshAgentInstructions: document.querySelector("#refreshAgentInstructions"),
+  resetAgentInstruction: document.querySelector("#resetAgentInstruction"),
   usageSummary: document.querySelector("#usageSummary"),
   usageList: document.querySelector("#usageList"),
   refreshMemory: document.querySelector("#refreshMemory"),
@@ -223,6 +229,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   await loadGoogleConfig();
   await loadAiConfig();
   await loadAiMemory();
+  await loadAgentInstructions();
   await loadKnowledge();
   await loadAiUsage();
   handleConnectionNotice();
@@ -259,6 +266,10 @@ function bindEvents() {
   el.morningNotificationTime.addEventListener("change", updateMorningNotificationTime);
   el.refreshMemory.addEventListener("click", loadAiMemory);
   el.clearMemory.addEventListener("click", clearAiMemory);
+  el.refreshAgentInstructions.addEventListener("click", loadAgentInstructions);
+  el.agentInstructionsForm.addEventListener("submit", saveAgentInstructions);
+  el.agentInstructionSelect.addEventListener("change", renderAgentInstructions);
+  el.resetAgentInstruction.addEventListener("click", resetAgentInstruction);
   el.refreshKnowledge.addEventListener("click", loadKnowledge);
   el.knowledgeUploadForm.addEventListener("submit", uploadKnowledgeDocument);
   el.refreshUsage.addEventListener("click", loadAiUsage);
@@ -309,6 +320,7 @@ function render() {
   renderLists();
   renderNotes();
   renderMemory();
+  renderAgentInstructions();
   renderKnowledge();
   renderUsage();
   renderSystemStatus();
@@ -891,6 +903,12 @@ function renderMemory() {
   el.memoryList.innerHTML = exchanges.length
     ? exchanges.map(memoryCard).join("")
     : emptyState("Aucun echange IA memorise pour l'instant.");
+}
+
+function renderAgentInstructions() {
+  if (!el.agentInstructionSelect || !el.agentInstructionText) return;
+  const key = el.agentInstructionSelect.value || "fernand";
+  el.agentInstructionText.value = agentInstructionsState?.agents?.[key] || "";
 }
 
 function renderKnowledge() {
@@ -1489,6 +1507,7 @@ function switchView(view) {
   if (view === "connections") loadConnections();
   if (view === "memory") {
     loadAiMemory();
+    loadAgentInstructions();
     loadAiUsage();
   }
 }
@@ -1955,6 +1974,50 @@ async function loadAiMemory() {
     aiMemoryState = { count: 0, exchanges: [] };
   }
   renderMemory();
+}
+
+async function loadAgentInstructions() {
+  if (!API_ENABLED) {
+    agentInstructionsState = { agents: {}, defaults: {} };
+    renderAgentInstructions();
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/agents/instructions");
+    agentInstructionsState = await response.json();
+  } catch {
+    agentInstructionsState = { agents: {}, defaults: {} };
+  }
+  renderAgentInstructions();
+}
+
+async function saveAgentInstructions(event) {
+  event.preventDefault();
+  if (!API_ENABLED) {
+    showToast("Lance d'abord le serveur local.");
+    return;
+  }
+  const key = el.agentInstructionSelect.value || "fernand";
+  const agents = {
+    ...(agentInstructionsState.agents || {}),
+    [key]: el.agentInstructionText.value.trim(),
+  };
+  const response = await fetch("/api/agents/instructions", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ agents }),
+  });
+  agentInstructionsState = await response.json();
+  renderAgentInstructions();
+  showToast("Consignes enregistrees.");
+}
+
+function resetAgentInstruction() {
+  const key = el.agentInstructionSelect.value || "fernand";
+  const defaultText = agentInstructionsState?.defaults?.[key] || "";
+  if (!defaultText) return;
+  el.agentInstructionText.value = defaultText;
 }
 
 async function loadKnowledge() {

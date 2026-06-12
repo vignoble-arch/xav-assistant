@@ -4,11 +4,14 @@ const path = require("path");
 const { URL, URLSearchParams } = require("url");
 const { randomUUID, timingSafeEqual } = require("crypto");
 
-loadEnvFile();
+const ROOT = __dirname;
+loadEnvFile(path.join(ROOT, ".env"));
 
 const PORT = Number(process.env.PORT || 4173);
-const ROOT = __dirname;
 const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(ROOT, "data");
+const RUNTIME_ENV_FILE = path.join(DATA_DIR, "runtime.env");
+loadEnvFile(RUNTIME_ENV_FILE, true);
+
 const STATE_FILE = path.join(DATA_DIR, "app-state.json");
 const TOKENS_FILE = path.join(DATA_DIR, "google-tokens.json");
 const AI_MEMORY_FILE = path.join(DATA_DIR, "ai-memory.json");
@@ -35,6 +38,22 @@ const OPENAI_MODEL_PRICES = {
 const TASK_LISTS = ["Dettes", "Cave Expé", "vignoble", "bureau", "divers et perso"];
 
 const GOOGLE_SERVICES = ["gmail", "calendar", "drive", "tasks"];
+
+const CONFIG_ENV_KEYS = [
+  "GOOGLE_CLIENT_ID",
+  "GOOGLE_CLIENT_SECRET",
+  "GOOGLE_REDIRECT_URI",
+  "PORT",
+  "DATA_DIR",
+  "ASSISTANT_USER",
+  "ASSISTANT_PASSWORD",
+  "AI_PROVIDER",
+  "AI_BASE_URL",
+  "AI_MODEL",
+  "OPENAI_API_KEY",
+  "LM_STUDIO_BASE_URL",
+  "LM_STUDIO_MODEL",
+];
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -1586,50 +1605,27 @@ function saveGoogleConfig(config) {
 }
 
 function getEnvFileValues() {
-  const envPath = path.join(__dirname, ".env");
-  if (!fs.existsSync(envPath)) return {};
-
   const values = {};
-  const lines = fs.readFileSync(envPath, "utf8").split(/\r?\n/);
-  lines.forEach((line) => {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) return;
-    const separator = trimmed.indexOf("=");
-    if (separator === -1) return;
-    const key = trimmed.slice(0, separator).trim();
-    const value = trimmed.slice(separator + 1).trim().replace(/^["']|["']$/g, "");
-    values[key] = value;
+  CONFIG_ENV_KEYS.forEach((key) => {
+    if (process.env[key] !== undefined) values[key] = process.env[key];
   });
+  readEnvFile(path.join(__dirname, ".env"), values);
+  readEnvFile(RUNTIME_ENV_FILE, values);
   return values;
 }
 
 function writeEnvFile(values) {
-  const orderedKeys = [
-    "GOOGLE_CLIENT_ID",
-    "GOOGLE_CLIENT_SECRET",
-    "GOOGLE_REDIRECT_URI",
-    "PORT",
-    "DATA_DIR",
-    "ASSISTANT_USER",
-    "ASSISTANT_PASSWORD",
-    "AI_PROVIDER",
-    "AI_BASE_URL",
-    "AI_MODEL",
-    "OPENAI_API_KEY",
-    "LM_STUDIO_BASE_URL",
-    "LM_STUDIO_MODEL",
-  ];
+  fs.mkdirSync(DATA_DIR, { recursive: true });
   const lines = [
     "# Assistant Xavier - configuration locale privee",
     "# Ne pas partager ce fichier.",
-    ...orderedKeys.map((key) => `${key}=${values[key] || ""}`),
+    ...CONFIG_ENV_KEYS.map((key) => `${key}=${values[key] || ""}`),
     "",
   ];
-  fs.writeFileSync(path.join(__dirname, ".env"), lines.join("\n"), "utf8");
+  fs.writeFileSync(RUNTIME_ENV_FILE, lines.join("\n"), "utf8");
 }
 
-function loadEnvFile() {
-  const envPath = path.join(__dirname, ".env");
+function readEnvFile(envPath, target) {
   if (!fs.existsSync(envPath)) return;
 
   const lines = fs.readFileSync(envPath, "utf8").split(/\r?\n/);
@@ -1640,7 +1636,15 @@ function loadEnvFile() {
     if (separator === -1) return;
     const key = trimmed.slice(0, separator).trim();
     const value = trimmed.slice(separator + 1).trim().replace(/^["']|["']$/g, "");
-    if (key && process.env[key] === undefined) {
+    if (key) target[key] = value;
+  });
+}
+
+function loadEnvFile(envPath, shouldOverwrite = false) {
+  const values = {};
+  readEnvFile(envPath, values);
+  Object.entries(values).forEach(([key, value]) => {
+    if (shouldOverwrite || process.env[key] === undefined) {
       process.env[key] = value;
     }
   });

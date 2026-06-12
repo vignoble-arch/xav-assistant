@@ -1,6 +1,16 @@
 {$APP_DOMAIN} {
   encode zstd gzip
-  reverse_proxy assistant:4173
+
+  handle /n8n* {
+    basic_auth {
+      {$N8N_BASIC_AUTH_USER} {$N8N_CADDY_PASSWORD_HASH}
+    }
+    reverse_proxy n8n:5678
+  }
+
+  handle {
+    reverse_proxy assistant:4173
+  }
 
   header {
     X-Content-Type-Options nosniff

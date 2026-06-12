@@ -18,6 +18,12 @@ docker run --rm \
   alpine:3.20 \
   tar -czf "/backup/qdrant-data-$STAMP.tgz" -C /data .
 
+docker run --rm \
+  -v n8n_data:/data:ro \
+  -v "$(pwd)/$BACKUP_DIR:/backup" \
+  alpine:3.20 \
+  tar -czf "/backup/n8n-data-$STAMP.tgz" -C /data .
+
 docker exec assistant-postgres \
   pg_dump -U assistant assistant_xavier > "$BACKUP_DIR/postgres-$STAMP.sql"
 

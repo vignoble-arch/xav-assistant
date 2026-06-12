@@ -47,6 +47,33 @@ services:
     volumes:
       - qdrant_data:/qdrant/storage
 
+  n8n:
+    image: n8nio/n8n:1.123.4
+    container_name: assistant-n8n
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      N8N_HOST: ${APP_DOMAIN:-vps-b6bb35e6.vps.ovh.net}
+      N8N_PROTOCOL: https
+      N8N_PATH: /n8n/
+      N8N_EDITOR_BASE_URL: https://${APP_DOMAIN:-vps-b6bb35e6.vps.ovh.net}/n8n/
+      WEBHOOK_URL: https://${APP_DOMAIN:-vps-b6bb35e6.vps.ovh.net}/n8n/
+      N8N_PORT: "5678"
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_PERSONALIZATION_ENABLED: "false"
+      N8N_SECURE_COOKIE: "true"
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "true"
+      N8N_GIT_NODE_DISABLE_BARE_REPOS: "true"
+      N8N_RUNNERS_ENABLED: "true"
+      DB_SQLITE_POOL_SIZE: "5"
+      GENERIC_TIMEZONE: Europe/Paris
+      TZ: Europe/Paris
+    volumes:
+      - n8n_data:/home/node/.n8n
+
   caddy:
     image: caddy:2-alpine
     container_name: assistant-https
@@ -64,10 +91,12 @@ services:
       - caddy_config:/config
     depends_on:
       - assistant
+      - n8n
 
 volumes:
   assistant_data:
   postgres_data:
   qdrant_data:
+  n8n_data:
   caddy_data:
   caddy_config:

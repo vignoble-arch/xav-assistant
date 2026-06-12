@@ -14,6 +14,8 @@ const TOKENS_FILE = path.join(DATA_DIR, "google-tokens.json");
 const AI_MEMORY_FILE = path.join(DATA_DIR, "ai-memory.json");
 const AI_USAGE_FILE = path.join(DATA_DIR, "ai-usage.json");
 const SYNC_STATUS_FILE = path.join(DATA_DIR, "sync-status.json");
+const KNOWLEDGE_DIR = path.join(DATA_DIR, "knowledge");
+const KNOWLEDGE_FILE = path.join(DATA_DIR, "knowledge-documents.json");
 const AUTO_SYNC_INTERVAL_MINUTES = Math.max(5, Number(process.env.AUTO_SYNC_INTERVAL_MINUTES || 15));
 
 const GOOGLE_SCOPES = {
@@ -255,6 +257,18 @@ const server = http.createServer(async (req, res) => {
     if (requestUrl.pathname === "/api/ai/memory" && req.method === "DELETE") {
       writeJson(AI_MEMORY_FILE, { exchanges: [] });
       return sendJson(res, getAiMemoryStatus());
+    }
+
+    if (requestUrl.pathname === "/api/knowledge" && req.method === "GET") {
+      return sendJson(res, getKnowledgeStatus());
+    }
+
+    if (requestUrl.pathname === "/api/knowledge/upload" && req.method === "POST") {
+      return await uploadKnowledgeDocument(req, res);
+    }
+
+    if (requestUrl.pathname === "/api/knowledge" && req.method === "DELETE") {
+      return deleteKnowledgeDocument(requestUrl, res);
     }
 
     if (requestUrl.pathname === "/api/ai/usage" && req.method === "GET") {
@@ -1096,6 +1110,7 @@ function buildAiMessages(message) {
     { role: "assistant", content: exchange.assistant },
   ]);
   const state = readJson(STATE_FILE, seedState);
+  const knowledgeContext = findRelevantKnowledge(message);
 
   return [
     {
@@ -1105,6 +1120,7 @@ function buildAiMessages(message) {
         "Reponds en francais, de facon concrete et concise.",
         "Tu as une memoire courte des derniers echanges fournie dans le contexte.",
         "Si Xavier fait reference a une chose dite juste avant, utilise cette memoire.",
+        knowledgeContext ? `Memoire documentaire utile: ${knowledgeContext}` : "",
         "Quand la demande ressemble a une tache, propose une prochaine action claire.",
         "Ne pretends pas avoir modifie l'agenda, les emails ou les fichiers si ce n'est pas fait par l'application.",
         getAiStateSummary(state),
@@ -1113,6 +1129,156 @@ function buildAiMessages(message) {
     ...recentExchanges,
     { role: "user", content: message },
   ];
+}
+
+function getKnowledgeStatus() {
+  const store = readKnowledgeStore();
+  const documents = store.documents.map((document) => ({
+    id: document.id,
+    title: document.title,
+    fileName: document.fileName,
+    mimeType: document.mimeType,
+    size: document.size,
+    status: document.status,
+    chunkCount: document.chunks.length,
+    uploadedAt: document.uploadedAt,
+    summary: document.summary,
+  })).sort((a, b) => String(b.uploadedAt).localeCompare(String(a.uploadedAt)));
+
+  return {
+    count: documents.length,
+    indexedCount: documents.filter((document) => document.status === "Indexe").length,
+    pendingCount: documents.filter((document) => document.status !== "Indexe").length,
+    documents,
+  };
+}
+
+async function uploadKnowledgeDocument(req, res) {
+  const contentType = req.headers["content-type"] || "";
+  const boundary = contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/i)?.[1] || contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/i)?.[2];
+  if (!boundary) {
+    return sendJson(res, { error: "Fichier absent ou formulaire invalide." }, 400);
+  }
+
+  const buffer = await readRawBody(req, 20 * 1024 * 1024);
+  const parts = parseMultipart(buffer, boundary);
+  const filePart = parts.find((part) => part.filename);
+  if (!filePart) {
+    return sendJson(res, { error: "Aucun fichier recu." }, 400);
+  }
+
+  const originalName = sanitizeFileName(filePart.filename);
+  const id = randomUUID();
+  const ext = path.extname(originalName).toLowerCase();
+  const storedName = `${id}${ext || ".bin"}`;
+  const storedPath = path.join(KNOWLEDGE_DIR, storedName);
+  fs.mkdirSync(KNOWLEDGE_DIR, { recursive: true });
+  fs.writeFileSync(storedPath, filePart.content);
+
+  const extractedText = extractKnowledgeText(filePart.content, originalName, filePart.contentType);
+  const chunks = extractedText ? chunkText(extractedText) : [];
+  const document = {
+    id,
+    title: path.basename(originalName, ext) || originalName,
+    fileName: originalName,
+    storedName,
+    mimeType: filePart.contentType || "application/octet-stream",
+    size: filePart.content.length,
+    status: chunks.length ? "Indexe" : "A indexer",
+    summary: chunks.length
+      ? `${chunks.length} morceau(x) prepares pour la recherche.`
+      : "Fichier conserve. Extraction automatique prevue dans une prochaine etape.",
+    chunks,
+    uploadedAt: new Date().toISOString(),
+  };
+
+  const store = readKnowledgeStore();
+  store.documents.push(document);
+  writeJson(KNOWLEDGE_FILE, store);
+
+  return sendJson(res, { ok: true, document: getKnowledgeStatus().documents.find((item) => item.id === id) });
+}
+
+function deleteKnowledgeDocument(requestUrl, res) {
+  const id = requestUrl.searchParams.get("id");
+  if (!id) return sendJson(res, { error: "Identifiant manquant." }, 400);
+
+  const store = readKnowledgeStore();
+  const document = store.documents.find((item) => item.id === id);
+  if (!document) return sendJson(res, { error: "Document introuvable." }, 404);
+
+  const nextDocuments = store.documents.filter((item) => item.id !== id);
+  const storedPath = path.join(KNOWLEDGE_DIR, document.storedName || "");
+  if (document.storedName && fs.existsSync(storedPath)) {
+    fs.unlinkSync(storedPath);
+  }
+  writeJson(KNOWLEDGE_FILE, { documents: nextDocuments });
+  return sendJson(res, { ok: true, status: getKnowledgeStatus() });
+}
+
+function readKnowledgeStore() {
+  const store = readJson(KNOWLEDGE_FILE, { documents: [] });
+  return {
+    documents: Array.isArray(store.documents) ? store.documents.map((document) => ({
+      ...document,
+      chunks: Array.isArray(document.chunks) ? document.chunks : [],
+    })) : [],
+  };
+}
+
+function extractKnowledgeText(buffer, fileName, mimeType) {
+  const ext = path.extname(fileName).toLowerCase();
+  const textLike = [
+    ".txt",
+    ".md",
+    ".markdown",
+    ".csv",
+    ".json",
+    ".html",
+    ".css",
+    ".js",
+  ].includes(ext) || String(mimeType || "").startsWith("text/");
+  if (!textLike) return "";
+  return buffer.toString("utf8").replace(/\0/g, "").trim();
+}
+
+function chunkText(text) {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (!normalized) return [];
+  const chunks = [];
+  for (let index = 0; index < normalized.length; index += 1400) {
+    chunks.push(normalized.slice(index, index + 1600));
+  }
+  return chunks.slice(0, 80);
+}
+
+function findRelevantKnowledge(message) {
+  const words = normalizeSearchWords(message).slice(0, 12);
+  if (!words.length) return "";
+  const store = readKnowledgeStore();
+  const scored = [];
+
+  for (const document of store.documents) {
+    for (const chunk of document.chunks || []) {
+      const normalized = normalizeText(chunk);
+      const score = words.reduce((count, word) => count + (normalized.includes(word) ? 1 : 0), 0);
+      if (score > 0) {
+        scored.push({ document, chunk, score });
+      }
+    }
+  }
+
+  return scored
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+    .map((item) => `[${item.document.title}] ${item.chunk.slice(0, 900)}`)
+    .join(" ");
+}
+
+function normalizeSearchWords(value) {
+  return normalizeText(value)
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length > 3);
 }
 
 function getAiStateSummary(state) {
@@ -1515,6 +1681,9 @@ function ensureDataFiles() {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
   }
+  if (!fs.existsSync(KNOWLEDGE_DIR)) {
+    fs.mkdirSync(KNOWLEDGE_DIR, { recursive: true });
+  }
   const legacyStateFile = path.join(ROOT, "app-state.json");
   const legacyTokensFile = path.join(ROOT, "google-tokens.json");
 
@@ -1543,6 +1712,9 @@ function ensureDataFiles() {
       lastTokenServices: [],
       updatedAt: "",
     });
+  }
+  if (!fs.existsSync(KNOWLEDGE_FILE)) {
+    writeJson(KNOWLEDGE_FILE, { documents: [] });
   }
 }
 
@@ -1577,6 +1749,68 @@ function readBody(req) {
       }
     });
   });
+}
+
+function readRawBody(req, limitBytes = 2_000_000) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    req.on("data", (chunk) => {
+      size += chunk.length;
+      if (size > limitBytes) {
+        req.destroy();
+        reject(new Error("Fichier trop volumineux."));
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on("end", () => {
+      resolve(Buffer.concat(chunks));
+    });
+    req.on("error", reject);
+  });
+}
+
+function parseMultipart(buffer, boundary) {
+  const delimiter = Buffer.from(`--${boundary}`);
+  const parts = [];
+  let cursor = 0;
+
+  while (cursor < buffer.length) {
+    const partStart = buffer.indexOf(delimiter, cursor);
+    if (partStart === -1) break;
+    const contentStart = partStart + delimiter.length;
+    if (buffer.slice(contentStart, contentStart + 2).toString() === "--") break;
+
+    const headerStart = buffer.slice(contentStart, contentStart + 2).toString() === "\r\n"
+      ? contentStart + 2
+      : contentStart;
+    const headerEnd = buffer.indexOf(Buffer.from("\r\n\r\n"), headerStart);
+    if (headerEnd === -1) break;
+
+    const nextPart = buffer.indexOf(delimiter, headerEnd + 4);
+    if (nextPart === -1) break;
+
+    const headers = buffer.slice(headerStart, headerEnd).toString("utf8");
+    let content = buffer.slice(headerEnd + 4, nextPart);
+    if (content.slice(-2).toString() === "\r\n") {
+      content = content.slice(0, -2);
+    }
+
+    const disposition = headers.match(/content-disposition:\s*([^\r\n]+)/i)?.[1] || "";
+    const name = disposition.match(/name="([^"]+)"/i)?.[1] || "";
+    const filename = disposition.match(/filename="([^"]*)"/i)?.[1] || "";
+    const contentType = headers.match(/content-type:\s*([^\r\n]+)/i)?.[1]?.trim() || "";
+    parts.push({ name, filename, contentType, content });
+    cursor = nextPart;
+  }
+
+  return parts;
+}
+
+function sanitizeFileName(value) {
+  const name = path.basename(String(value || "document"));
+  return name.replace(/[<>:"/\\|?*\x00-\x1F]/g, "_").slice(0, 140) || "document";
 }
 
 function sendJson(res, payload, status = 200) {

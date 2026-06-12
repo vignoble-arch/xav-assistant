@@ -122,6 +122,7 @@ let connectionState = null;
 let googleConfigState = null;
 let aiConfigState = null;
 let aiMemoryState = { count: 0, exchanges: [] };
+let knowledgeState = { count: 0, indexedCount: 0, pendingCount: 0, documents: [] };
 let aiUsageState = null;
 let morningBriefState = null;
 let syncStatusState = null;
@@ -152,6 +153,11 @@ const el = {
   notesGrid: document.querySelector("#notesGrid"),
   memorySummary: document.querySelector("#memorySummary"),
   memoryList: document.querySelector("#memoryList"),
+  knowledgeUploadForm: document.querySelector("#knowledgeUploadForm"),
+  knowledgeFile: document.querySelector("#knowledgeFile"),
+  knowledgeSummary: document.querySelector("#knowledgeSummary"),
+  knowledgeList: document.querySelector("#knowledgeList"),
+  refreshKnowledge: document.querySelector("#refreshKnowledge"),
   usageSummary: document.querySelector("#usageSummary"),
   usageList: document.querySelector("#usageList"),
   refreshMemory: document.querySelector("#refreshMemory"),
@@ -196,6 +202,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   await loadGoogleConfig();
   await loadAiConfig();
   await loadAiMemory();
+  await loadKnowledge();
   await loadAiUsage();
   handleConnectionNotice();
   startMorningNotificationLoop();
@@ -219,6 +226,8 @@ function bindEvents() {
   el.morningNotificationTime.addEventListener("change", updateMorningNotificationTime);
   el.refreshMemory.addEventListener("click", loadAiMemory);
   el.clearMemory.addEventListener("click", clearAiMemory);
+  el.refreshKnowledge.addEventListener("click", loadKnowledge);
+  el.knowledgeUploadForm.addEventListener("submit", uploadKnowledgeDocument);
   el.refreshUsage.addEventListener("click", loadAiUsage);
   document.querySelector("#resetDemo").addEventListener("click", resetDemo);
   document.querySelector("#connectAllGoogle").addEventListener("click", () => startGoogleConnection("all"));
@@ -266,6 +275,7 @@ function render() {
   renderLists();
   renderNotes();
   renderMemory();
+  renderKnowledge();
   renderUsage();
   renderSystemStatus();
   renderNotificationControls();
@@ -801,6 +811,39 @@ function renderMemory() {
   el.memoryList.innerHTML = exchanges.length
     ? exchanges.map(memoryCard).join("")
     : emptyState("Aucun echange IA memorise pour l'instant.");
+}
+
+function renderKnowledge() {
+  if (!el.knowledgeSummary || !el.knowledgeList) return;
+  const documents = knowledgeState?.documents || [];
+  el.knowledgeSummary.innerHTML = `
+    <article><strong>${knowledgeState?.count || 0}</strong><span>Documents</span></article>
+    <article><strong>${knowledgeState?.indexedCount || 0}</strong><span>Utilisables par l'IA</span></article>
+    <article><strong>${knowledgeState?.pendingCount || 0}</strong><span>En attente</span></article>
+  `;
+  el.knowledgeList.innerHTML = documents.length
+    ? documents.map(knowledgeCard).join("")
+    : emptyState("Aucun document ajoute pour l'instant.");
+}
+
+function knowledgeCard(document) {
+  const size = formatBytes(document.size || 0);
+  const uploaded = document.uploadedAt ? formatDateTime(document.uploadedAt) : "date inconnue";
+  return `
+    <article class="knowledge-card">
+      <div class="card-top">
+        <div>
+          <p class="card-title">${escapeHTML(document.title || document.fileName || "Document")}</p>
+          <p class="card-meta">${escapeHTML(document.fileName || "")} - ${size} - ${uploaded}</p>
+        </div>
+        <span class="source-pill">${escapeHTML(document.status || "Pret")}</span>
+      </div>
+      <p class="card-meta">${escapeHTML(document.summary || "")}</p>
+      <div class="card-actions">
+        <button class="item-action" type="button" onclick="deleteKnowledgeDocument('${document.id}')">Supprimer</button>
+      </div>
+    </article>
+  `;
 }
 
 function renderUsage() {
@@ -1605,6 +1648,73 @@ async function loadAiMemory() {
   renderMemory();
 }
 
+async function loadKnowledge() {
+  if (!API_ENABLED) {
+    knowledgeState = { count: 0, indexedCount: 0, pendingCount: 0, documents: [] };
+    renderKnowledge();
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/knowledge");
+    knowledgeState = await response.json();
+  } catch {
+    knowledgeState = { count: 0, indexedCount: 0, pendingCount: 0, documents: [] };
+  }
+  renderKnowledge();
+}
+
+async function uploadKnowledgeDocument(event) {
+  event.preventDefault();
+  if (!API_ENABLED) {
+    showToast("Lance d'abord le serveur local.");
+    return;
+  }
+  const file = el.knowledgeFile.files?.[0];
+  if (!file) {
+    showToast("Choisis un document a ajouter.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("document", file);
+  const submit = el.knowledgeUploadForm.querySelector("button[type='submit']");
+  submit.disabled = true;
+  submit.textContent = "Ajout...";
+  try {
+    const response = await fetch("/api/knowledge/upload", {
+      method: "POST",
+      body: formData,
+    });
+    const payload = await response.json();
+    if (!response.ok || !payload.ok) {
+      showToast(payload.error || "Document non ajoute.");
+      return;
+    }
+    el.knowledgeFile.value = "";
+    await loadKnowledge();
+    showToast("Document ajoute a la memoire.");
+  } catch {
+    showToast("Ajout du document impossible.");
+  } finally {
+    submit.disabled = false;
+    submit.textContent = "Ajouter";
+  }
+}
+
+async function deleteKnowledgeDocument(id) {
+  if (!API_ENABLED) return;
+  const response = await fetch(`/api/knowledge?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+  const payload = await response.json();
+  if (!response.ok || !payload.ok) {
+    showToast(payload.error || "Suppression impossible.");
+    return;
+  }
+  knowledgeState = payload.status;
+  renderKnowledge();
+  showToast("Document supprime.");
+}
+
 async function loadAiUsage() {
   if (!API_ENABLED) {
     aiUsageState = { today: emptyUsageSummary(), month: emptyUsageSummary(), recent: [] };
@@ -1859,6 +1969,13 @@ function formatUsd(value) {
   return `$${Number(value || 0).toFixed(4)}`;
 }
 
+function formatBytes(value) {
+  const bytes = Number(value || 0);
+  if (bytes < 1024) return `${bytes} o`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} Ko`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+}
+
 function priorityWeight(priority) {
   return { Urgente: 4, Importante: 3, Normale: 2, Faible: 1 }[priority] || 0;
 }
@@ -1894,5 +2011,6 @@ function escapeHTML(value) {
 window.completeTask = completeTask;
 window.moveTask = moveTask;
 window.inboxToTask = inboxToTask;
+window.deleteKnowledgeDocument = deleteKnowledgeDocument;
 window.inboxToNote = inboxToNote;
 window.archiveInbox = archiveInbox;

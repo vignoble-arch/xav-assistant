@@ -12,6 +12,8 @@ services:
       POSTGRES_USER: assistant
       POSTGRES_DB: assistant_xavier
       RAG_URL: http://qdrant:6333
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - assistant_data:/app/data
       - ./backups:/app/backups

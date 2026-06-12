@@ -128,6 +128,7 @@ let state = structuredClone(seedState);
 let connectionState = null;
 let googleConfigState = null;
 let aiConfigState = null;
+let baqioConfigState = null;
 let aiMemoryState = { count: 0, exchanges: [] };
 let knowledgeState = { count: 0, indexedCount: 0, pendingCount: 0, documents: [] };
 let agentInstructionsState = { agents: {}, defaults: {} };
@@ -200,6 +201,14 @@ const el = {
   aiStatusBadge: document.querySelector("#aiStatusBadge"),
   aiConnectionResult: document.querySelector("#aiConnectionResult"),
   testAiConnection: document.querySelector("#testAiConnection"),
+  baqioConfigForm: document.querySelector("#baqioConfigForm"),
+  baqioBaseUrl: document.querySelector("#baqioBaseUrl"),
+  baqioApiKey: document.querySelector("#baqioApiKey"),
+  baqioPassword: document.querySelector("#baqioPassword"),
+  baqioSecret: document.querySelector("#baqioSecret"),
+  baqioStatusBadge: document.querySelector("#baqioStatusBadge"),
+  baqioConnectionResult: document.querySelector("#baqioConnectionResult"),
+  testBaqioConnection: document.querySelector("#testBaqioConnection"),
   copyCallback: document.querySelector("#copyCallback"),
   syncAllGoogle: document.querySelector("#syncAllGoogle"),
   assistantDialog: document.querySelector("#assistantDialog"),
@@ -236,6 +245,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   await loadSystemStatus();
   await loadGoogleConfig();
   await loadAiConfig();
+  await loadBaqioConfig();
   await loadAiMemory();
   await loadAgentInstructions();
   await loadKnowledge();
@@ -290,6 +300,8 @@ function bindEvents() {
   el.aiConfigForm.addEventListener("submit", saveAiConfig);
   el.aiProvider.addEventListener("change", applyAiProviderDefaults);
   el.testAiConnection.addEventListener("click", testAiConnection);
+  el.baqioConfigForm.addEventListener("submit", saveBaqioConfig);
+  el.testBaqioConnection.addEventListener("click", testBaqioConnection);
   el.copyCallback.addEventListener("click", copyCallbackUrl);
   el.taskListFilter.addEventListener("change", renderTasks);
   el.taskSearch.addEventListener("input", renderTasks);
@@ -853,6 +865,21 @@ function renderAiConfig() {
   el.openAiApiKey.value = "";
   el.openAiApiKey.placeholder = aiConfigState?.hasOpenAiKey ? "Cle API deja enregistree" : "Coller la cle API OpenAI";
   applyAiProviderDefaults(false);
+}
+
+function renderBaqioConfig() {
+  if (!el.baqioConfigForm) return;
+  el.baqioBaseUrl.value = baqioConfigState?.baseUrl || "https://app.baqio.com/api/v1";
+  el.baqioApiKey.value = "";
+  el.baqioPassword.value = "";
+  el.baqioSecret.value = "";
+  el.baqioApiKey.placeholder = baqioConfigState?.hasApiKey ? "Cle API deja enregistree" : "Coller la cle API Baqio";
+  el.baqioPassword.placeholder = baqioConfigState?.hasPassword ? "Mot de passe deja enregistre" : "Coller le mot de passe API";
+  el.baqioSecret.placeholder = baqioConfigState?.hasSecret ? "Secret deja enregistre" : "Coller la cle secrete Baqio";
+  el.baqioStatusBadge.textContent = baqioConfigState?.ready ? "Configure" : "A verifier";
+  el.baqioConnectionResult.textContent = baqioConfigState?.ready
+    ? "Baqio est configure. Lance un test pour verifier les identifiants."
+    : "Renseigne la cle API, le mot de passe et le secret crees dans Baqio.";
 }
 
 function applyAiProviderDefaults(shouldOverwrite = true) {
@@ -2136,6 +2163,20 @@ async function loadAiConfig() {
   }
 }
 
+async function loadBaqioConfig() {
+  if (!API_ENABLED) {
+    baqioConfigState = null;
+    return;
+  }
+  try {
+    const response = await fetch("/api/config/baqio");
+    baqioConfigState = await response.json();
+    renderBaqioConfig();
+  } catch {
+    baqioConfigState = null;
+  }
+}
+
 async function loadAiMemory() {
   if (!API_ENABLED) {
     aiMemoryState = { count: 0, exchanges: [] };
@@ -2328,6 +2369,30 @@ async function saveAiConfig(event) {
   showToast("Configuration OpenAI enregistree.");
 }
 
+async function saveBaqioConfig(event) {
+  event.preventDefault();
+  if (!API_ENABLED) {
+    showToast("Lance d'abord le serveur local.");
+    return;
+  }
+
+  const payload = {
+    baseUrl: el.baqioBaseUrl.value.trim() || "https://app.baqio.com/api/v1",
+    apiKey: el.baqioApiKey.value.trim(),
+    password: el.baqioPassword.value.trim(),
+    secret: el.baqioSecret.value.trim(),
+  };
+
+  const response = await fetch("/api/config/baqio", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  baqioConfigState = await response.json();
+  renderBaqioConfig();
+  showToast(baqioConfigState.ready ? "Configuration Baqio enregistree." : "Configuration Baqio incomplete.");
+}
+
 async function testAiConnection() {
   if (!API_ENABLED) {
     showToast("Lance d'abord le serveur local.");
@@ -2355,6 +2420,30 @@ async function testAiConnection() {
     el.aiModel.value = payload.selectedModel;
   }
   showToast("OpenAI est connecte.");
+}
+
+async function testBaqioConnection() {
+  if (!API_ENABLED) {
+    showToast("Lance d'abord le serveur local.");
+    return;
+  }
+
+  await saveBaqioConfig(new Event("submit"));
+  el.baqioStatusBadge.textContent = "Test...";
+  el.baqioConnectionResult.textContent = "Verification de Baqio...";
+
+  const response = await fetch("/api/baqio/status");
+  const payload = await response.json();
+  if (!response.ok || !payload.ok) {
+    el.baqioStatusBadge.textContent = "Non connecte";
+    el.baqioConnectionResult.textContent = payload.error || "Baqio ne repond pas.";
+    showToast("Baqio non connecte.");
+    return;
+  }
+
+  el.baqioStatusBadge.textContent = "Connecte";
+  el.baqioConnectionResult.textContent = `${payload.message} ${payload.sampleCount} client(s) lus pour le test.`;
+  showToast("Baqio est connecte.");
 }
 
 async function clearAiMemory() {

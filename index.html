@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=pwa-1" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="styles.css?v=team-v2-3" />
+    <link rel="stylesheet" href="styles.css?v=baqio-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -363,6 +363,40 @@
               <p class="connection-hint" id="aiConnectionResult">Assistant Xavier utilise OpenAI API avec le modele gpt-5.4-mini.</p>
             </form>
           </section>
+          <section class="local-ai-panel">
+            <div class="panel-header">
+              <div>
+                <p class="section-kicker">Commercial</p>
+                <h2>Connexion Baqio</h2>
+              </div>
+              <span class="source-pill" id="baqioStatusBadge">A verifier</span>
+            </div>
+            <form class="oauth-form compact" id="baqioConfigForm">
+              <label class="wide-field">
+                Adresse API Baqio
+                <input id="baqioBaseUrl" type="text" autocomplete="off" placeholder="https://app.baqio.com/api/v1" />
+              </label>
+              <div class="form-grid">
+                <label>
+                  Cle API
+                  <input id="baqioApiKey" type="password" autocomplete="off" placeholder="Coller la cle API Baqio" />
+                </label>
+                <label>
+                  Mot de passe API
+                  <input id="baqioPassword" type="password" autocomplete="off" placeholder="Coller le mot de passe API" />
+                </label>
+              </div>
+              <label class="wide-field">
+                Secret
+                <input id="baqioSecret" type="password" autocomplete="off" placeholder="Coller la cle secrete Baqio" />
+              </label>
+              <div class="dialog-actions">
+                <button class="ghost-button" type="button" id="testBaqioConnection">Tester Baqio</button>
+                <button class="assistant-button small" type="submit">Enregistrer Baqio</button>
+              </div>
+              <p class="connection-hint" id="baqioConnectionResult">Baqio servira au commercial pour clients, commandes, relances et statistiques.</p>
+            </form>
+          </section>
           <div class="connections-grid" id="connectionsGrid"></div>
         </section>
       </main>
@@ -488,7 +522,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=team-v2-3"></script>
+    <script src="app.js?v=baqio-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

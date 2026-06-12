@@ -76,6 +76,10 @@ const CONFIG_ENV_KEYS = [
   "AI_BASE_URL",
   "AI_MODEL",
   "OPENAI_API_KEY",
+  "BAQIO_BASE_URL",
+  "BAQIO_API_KEY",
+  "BAQIO_PASSWORD",
+  "BAQIO_SECRET",
 ];
 
 const MIME_TYPES = {
@@ -282,6 +286,20 @@ const server = http.createServer(async (req, res) => {
       const config = await readBody(req);
       saveAiConfig(config);
       return sendJson(res, getAiConfigStatus());
+    }
+
+    if (requestUrl.pathname === "/api/config/baqio" && req.method === "GET") {
+      return sendJson(res, getBaqioConfigStatus());
+    }
+
+    if (requestUrl.pathname === "/api/config/baqio" && req.method === "PUT") {
+      const config = await readBody(req);
+      saveBaqioConfig(config);
+      return sendJson(res, getBaqioConfigStatus());
+    }
+
+    if (requestUrl.pathname === "/api/baqio/status" && req.method === "GET") {
+      return await sendBaqioStatus(res);
     }
 
     if (requestUrl.pathname === "/api/ai/status" && req.method === "GET") {
@@ -1443,6 +1461,103 @@ function saveAiConfig(config) {
   process.env.AI_BASE_URL = next.AI_BASE_URL;
   process.env.AI_MODEL = next.AI_MODEL;
   process.env.OPENAI_API_KEY = next.OPENAI_API_KEY;
+}
+
+function getBaqioConfigStatus() {
+  const config = getBaqioConfig();
+  return {
+    baseUrl: config.baseUrl,
+    hasApiKey: Boolean(config.apiKey),
+    hasPassword: Boolean(config.password),
+    hasSecret: Boolean(config.secret),
+    ready: config.ready,
+  };
+}
+
+function getBaqioConfig() {
+  const baseUrl = (process.env.BAQIO_BASE_URL || "https://app.baqio.com/api/v1").replace(/\/+$/, "");
+  const apiKey = process.env.BAQIO_API_KEY || "";
+  const password = process.env.BAQIO_PASSWORD || "";
+  const secret = process.env.BAQIO_SECRET || "";
+  return {
+    baseUrl,
+    apiKey,
+    password,
+    secret,
+    ready: Boolean(baseUrl && apiKey && password && secret),
+  };
+}
+
+function saveBaqioConfig(config) {
+  const current = getEnvFileValues();
+  const next = {
+    ...current,
+    BAQIO_BASE_URL: String(config.baseUrl || current.BAQIO_BASE_URL || "https://app.baqio.com/api/v1").trim().replace(/\/+$/, ""),
+    BAQIO_API_KEY: String(config.apiKey || current.BAQIO_API_KEY || "").trim(),
+    BAQIO_PASSWORD: String(config.password || current.BAQIO_PASSWORD || "").trim(),
+    BAQIO_SECRET: String(config.secret || current.BAQIO_SECRET || "").trim(),
+  };
+
+  writeEnvFile(next);
+  process.env.BAQIO_BASE_URL = next.BAQIO_BASE_URL;
+  process.env.BAQIO_API_KEY = next.BAQIO_API_KEY;
+  process.env.BAQIO_PASSWORD = next.BAQIO_PASSWORD;
+  process.env.BAQIO_SECRET = next.BAQIO_SECRET;
+}
+
+async function sendBaqioStatus(res) {
+  const config = getBaqioConfig();
+  if (!config.ready) {
+    return sendJson(res, {
+      ok: false,
+      ...getBaqioConfigStatus(),
+      error: "Baqio n'est pas encore configure.",
+    }, 409);
+  }
+
+  try {
+    const customers = await baqioFetch("/customers?page=1", { method: "GET" });
+    return sendJson(res, {
+      ok: true,
+      baseUrl: config.baseUrl,
+      sampleCount: Array.isArray(customers) ? customers.length : 0,
+      message: "Connexion Baqio valide.",
+    });
+  } catch (error) {
+    return sendJson(res, {
+      ok: false,
+      baseUrl: config.baseUrl,
+      error: error.message || "Baqio ne repond pas.",
+    }, 502);
+  }
+}
+
+async function baqioFetch(endpoint, options = {}) {
+  const config = getBaqioConfig();
+  const url = `${config.baseUrl}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+  const headers = {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    Authorization: `Basic ${Buffer.from(`${config.apiKey}:${config.password}`).toString("base64")}`,
+    ...(options.headers || {}),
+  };
+
+  const response = await fetch(url, { ...options, headers });
+  const text = await response.text();
+  let payload = null;
+  if (text) {
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      payload = text;
+    }
+  }
+
+  if (!response.ok) {
+    const detail = typeof payload === "string" ? payload : payload?.error || payload?.message || response.statusText;
+    throw new Error(`Baqio a refuse la demande (${response.status}) : ${detail}`);
+  }
+  return payload;
 }
 
 async function sendAiStatus(res) {

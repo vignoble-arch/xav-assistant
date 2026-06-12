@@ -218,6 +218,7 @@ function bindEvents() {
   document.querySelector("#submitAssistant").addEventListener("click", handleAssistantSubmit);
   el.askLocalAi.addEventListener("click", askLocalAi);
   document.querySelector("#assistantText").addEventListener("input", updateAssistantPreview);
+  document.querySelector("#assistantText").addEventListener("keydown", handleAssistantKeydown);
   document.querySelector("#quickForm").addEventListener("submit", handleQuickCapture);
   document.querySelector("#taskForm").addEventListener("submit", handleTaskSubmit);
   document.querySelector("#addNote").addEventListener("click", addManualNote);
@@ -894,7 +895,7 @@ function memoryCard(exchange) {
     <article class="memory-card">
       <div class="card-top">
         <p class="card-title">${escapeHTML(formatMemoryDate(exchange.createdAt))}</p>
-        <span class="source-pill">IA locale</span>
+        <span class="source-pill">IA</span>
       </div>
       <p class="memory-label">Xavier</p>
       <p class="card-meta">${escapeHTML(exchange.user || "")}</p>
@@ -1011,16 +1012,24 @@ function handleAssistantSubmit() {
   el.assistantDialog.close();
 }
 
+function handleAssistantKeydown(event) {
+  if (event.key !== "Enter") return;
+  if (event.ctrlKey || event.metaKey) return;
+  event.preventDefault();
+  askLocalAi();
+}
+
 async function askLocalAi() {
   const text = el.assistantText.value.trim();
   if (!text) return;
+  if (el.askLocalAi.disabled) return;
   if (!API_ENABLED) {
     el.assistantPreview.textContent = "Lance d'abord le serveur local de l'application.";
     return;
   }
 
   el.askLocalAi.disabled = true;
-  el.assistantPreview.textContent = "L'IA locale reflechit...";
+  el.assistantPreview.textContent = "L'IA reflechit...";
   el.assistantText.value = "";
   try {
     const response = await fetch("/api/ai/chat", {

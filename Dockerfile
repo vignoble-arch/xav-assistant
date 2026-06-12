@@ -7,7 +7,7 @@ ENV PORT=4173
 ENV DATA_DIR=/app/data
 
 COPY package.json ./
-COPY index.html app.js styles.css quick-note.html quick-note.css quick-note.js server.js manifest.webmanifest service-worker.js icon.svg ./
+COPY index.html app.js styles.css quick-note.html quick-note.css quick-note.js server.js manifest.webmanifest service-worker.js icon.svg qr-assistant-xavier.jpg ./
 
 RUN mkdir -p /app/data
 

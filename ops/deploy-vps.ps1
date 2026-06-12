@@ -28,6 +28,7 @@ $include = @(
   "quick-note.html",
   "quick-note.css",
   "quick-note.js",
+  "qr-assistant-xavier.jpg",
   "icon.svg",
   "manifest.webmanifest",
   "package.json",

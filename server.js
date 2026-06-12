@@ -202,6 +202,12 @@ const seedState = {
       summary: "Choisir hebergeur, domaine, backend et sauvegardes.",
     },
   ],
+  baqio: {
+    customers: [],
+    orders: [],
+    summary: null,
+    lastSyncedAt: null,
+  },
   requests: [],
 };
 
@@ -304,6 +310,10 @@ const server = http.createServer(async (req, res) => {
 
     if (requestUrl.pathname === "/api/baqio/status" && req.method === "GET") {
       return await sendBaqioStatus(res);
+    }
+
+    if (requestUrl.pathname === "/api/baqio/sync" && req.method === "POST") {
+      return await syncBaqioCommercialData(res);
     }
 
     if (requestUrl.pathname === "/api/ai/status" && req.method === "GET") {
@@ -668,6 +678,7 @@ function normalizeAppState(state) {
     notes: Array.isArray(state.notes) ? state.notes : structuredClone(seedState.notes),
     mail: Array.isArray(state.mail) ? state.mail : structuredClone(seedState.mail),
     reports: Array.isArray(state.reports) ? state.reports : structuredClone(seedState.reports),
+    baqio: state.baqio && typeof state.baqio === "object" ? state.baqio : structuredClone(seedState.baqio),
     requests: Array.isArray(state.requests) ? state.requests : [],
     lists: state.lists && typeof state.lists === "object" ? state.lists : structuredClone(seedState.lists),
     agenda: Array.isArray(state.agenda) ? state.agenda : structuredClone(seedState.agenda),
@@ -1699,6 +1710,125 @@ async function sendBaqioStatus(res) {
       error: error.message || "Baqio ne repond pas.",
     }, 502);
   }
+}
+
+async function syncBaqioCommercialData(res) {
+  const config = getBaqioConfig();
+  if (!config.ready) {
+    return sendJson(res, {
+      ok: false,
+      error: "Baqio n'est pas encore configure.",
+      state: getAppState(),
+    }, 409);
+  }
+
+  try {
+    const snapshot = await fetchBaqioCommercialSnapshot();
+    const state = getAppState();
+    state.baqio = snapshot;
+    writeJson(STATE_FILE, state);
+    return sendJson(res, { ok: true, baqio: snapshot, state });
+  } catch (error) {
+    return sendJson(res, {
+      ok: false,
+      error: error.message || "Synchronisation Baqio impossible.",
+      state: getAppState(),
+    }, 502);
+  }
+}
+
+async function fetchBaqioCommercialSnapshot() {
+  const [customersRaw, ordersRaw] = await Promise.all([
+    baqioFetch("/customers?page=1"),
+    baqioFetch("/orders?page=1"),
+  ]);
+  const customers = Array.isArray(customersRaw) ? customersRaw.map(normalizeBaqioCustomer) : [];
+  const orders = Array.isArray(ordersRaw) ? ordersRaw.map(normalizeBaqioOrder) : [];
+  return {
+    customers,
+    orders,
+    summary: buildBaqioSummary(customers, orders),
+    lastSyncedAt: new Date().toISOString(),
+  };
+}
+
+function normalizeBaqioCustomer(customer) {
+  const billing = customer.billing_information || {};
+  const category = customer.customer_category || {};
+  const isProfessional = Boolean(billing.company_name) || category.individual === false;
+  return {
+    id: customer.id,
+    name: customer.name || [billing.first_name, billing.last_name].filter(Boolean).join(" ") || billing.company_name || "Client sans nom",
+    email: customer.email || billing.email || "",
+    phone: billing.mobile || billing.phone || "",
+    city: billing.city || "",
+    zip: billing.zip || "",
+    category: category.name || "",
+    type: isProfessional ? "Pro" : "Particulier",
+    acceptsEmailing: Boolean(customer.accepts_emailing || customer.accepts_mailing),
+    createdAt: customer.created_at || "",
+    updatedAt: customer.updated_at || "",
+  };
+}
+
+function normalizeBaqioOrder(order) {
+  const customer = order.customer || {};
+  return {
+    id: order.id,
+    name: order.name || order.number || `Commande ${order.id}`,
+    customerId: order.customer_id || customer.id || null,
+    customerName: customer.name || "Client inconnu",
+    date: order.date || String(order.created_at || "").slice(0, 10),
+    state: order.state || "",
+    paymentStatus: order.payment_status || "",
+    totalCents: Number(order.total_price_cents || 0),
+    currency: order.total_price_currency || "EUR",
+    bottleQuantity: Number.parseFloat(order.bottle_quantity || order.quantity || "0") || 0,
+    channel: order.channel || "",
+    orderType: order.order_type || "",
+  };
+}
+
+function buildBaqioSummary(customers, orders) {
+  const proCount = customers.filter((customer) => customer.type === "Pro").length;
+  const individualCount = customers.filter((customer) => customer.type === "Particulier").length;
+  const emailingCount = customers.filter((customer) => customer.acceptsEmailing).length;
+  const totalRevenueCents = orders.reduce((sum, order) => sum + Number(order.totalCents || 0), 0);
+  const bottleQuantity = orders.reduce((sum, order) => sum + Number(order.bottleQuantity || 0), 0);
+  const byCustomer = new Map();
+
+  orders.forEach((order) => {
+    const key = order.customerId || order.customerName;
+    const current = byCustomer.get(key) || {
+      customerId: order.customerId,
+      customerName: order.customerName,
+      totalCents: 0,
+      orderCount: 0,
+      bottleQuantity: 0,
+      lastOrderDate: "",
+    };
+    current.totalCents += Number(order.totalCents || 0);
+    current.orderCount += 1;
+    current.bottleQuantity += Number(order.bottleQuantity || 0);
+    if (String(order.date || "") > String(current.lastOrderDate || "")) current.lastOrderDate = order.date || "";
+    byCustomer.set(key, current);
+  });
+
+  return {
+    customerCount: customers.length,
+    proCount,
+    individualCount,
+    emailingCount,
+    orderCount: orders.length,
+    totalRevenueCents,
+    bottleQuantity,
+    topCustomers: [...byCustomer.values()]
+      .sort((a, b) => b.totalCents - a.totalCents)
+      .slice(0, 5),
+    recentOrders: [...orders]
+      .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")))
+      .slice(0, 5),
+  };
 }
 
 async function baqioFetch(endpoint, options = {}) {

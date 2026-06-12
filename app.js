@@ -119,6 +119,12 @@ const seedState = {
       summary: "Choisir hebergeur, domaine, backend et sauvegardes.",
     },
   ],
+  baqio: {
+    customers: [],
+    orders: [],
+    summary: null,
+    lastSyncedAt: null,
+  },
   requests: [],
 };
 
@@ -208,6 +214,8 @@ const el = {
   baqioSecret: document.querySelector("#baqioSecret"),
   baqioStatusBadge: document.querySelector("#baqioStatusBadge"),
   baqioConnectionResult: document.querySelector("#baqioConnectionResult"),
+  baqioSummary: document.querySelector("#baqioSummary"),
+  syncBaqio: document.querySelector("#syncBaqio"),
   testBaqioConnection: document.querySelector("#testBaqioConnection"),
   copyCallback: document.querySelector("#copyCallback"),
   syncAllGoogle: document.querySelector("#syncAllGoogle"),
@@ -302,6 +310,7 @@ function bindEvents() {
   el.testAiConnection.addEventListener("click", testAiConnection);
   el.baqioConfigForm.addEventListener("submit", saveBaqioConfig);
   el.testBaqioConnection.addEventListener("click", testBaqioConnection);
+  el.syncBaqio.addEventListener("click", syncBaqio);
   el.copyCallback.addEventListener("click", copyCallbackUrl);
   el.taskListFilter.addEventListener("change", renderTasks);
   el.taskSearch.addEventListener("input", renderTasks);
@@ -606,8 +615,9 @@ function buildAutomaticReports() {
   const syncResults = syncStatusState?.lastResults || {};
   const todayUsage = aiUsageState?.today || emptyUsageSummary();
   const openRequests = (state.requests || []).filter((request) => !["Clos", "Archive"].includes(request.status));
+  const baqioSummary = state.baqio?.summary;
 
-  return [
+  const reports = [
     {
       id: "auto-day",
       title: "Pilotage du jour",
@@ -639,6 +649,18 @@ function buildAutomaticReports() {
       summary: `${openRequests.length} demande(s) ouverte(s), ${todayUsage.requests || 0} appel(s) IA aujourd'hui, cout estime ${formatUsd(todayUsage.estimatedCostUsd || 0)}.`,
     },
   ];
+
+  if (baqioSummary) {
+    reports.splice(3, 0, {
+      id: "auto-baqio",
+      title: "Commercial Baqio",
+      status: "Connecte",
+      progress: 80,
+      summary: `${baqioSummary.customerCount || 0} client(s) lus, ${baqioSummary.proCount || 0} pro(s), ${baqioSummary.orderCount || 0} commande(s), CA echantillon ${formatEuroCents(baqioSummary.totalRevenueCents)}.`,
+    });
+  }
+
+  return reports;
 }
 
 function renderRequests() {
@@ -880,6 +902,25 @@ function renderBaqioConfig() {
   el.baqioConnectionResult.textContent = baqioConfigState?.ready
     ? "Baqio est configure. Lance un test pour verifier les identifiants."
     : "Renseigne la cle API, le mot de passe et le secret crees dans Baqio.";
+  renderBaqioSummary();
+}
+
+function renderBaqioSummary() {
+  if (!el.baqioSummary) return;
+  const summary = state.baqio?.summary;
+  if (!summary) {
+    el.baqioSummary.innerHTML = `<p class="connection-hint">Aucune donnee commerciale synchronisee pour l'instant.</p>`;
+    return;
+  }
+  el.baqioSummary.innerHTML = `
+    <div class="knowledge-summary">
+      <article><strong>${Number(summary.customerCount || 0)}</strong><span>Clients lus</span></article>
+      <article><strong>${Number(summary.proCount || 0)}</strong><span>Pros</span></article>
+      <article><strong>${Number(summary.individualCount || 0)}</strong><span>Particuliers</span></article>
+      <article><strong>${formatEuroCents(summary.totalRevenueCents)}</strong><span>CA echantillon</span></article>
+    </div>
+    <p class="connection-hint">${Number(summary.orderCount || 0)} commande(s), ${Number(summary.bottleQuantity || 0).toFixed(0)} bouteille(s), derniere synchro ${formatDateTime(state.baqio?.lastSyncedAt)}.</p>
+  `;
 }
 
 function applyAiProviderDefaults(shouldOverwrite = true) {
@@ -2110,6 +2151,9 @@ function migrateState(saved) {
     ...item,
   }));
   migrated.reports = saved.reports || structuredClone(seedState.reports);
+  migrated.baqio = saved.baqio && typeof saved.baqio === "object"
+    ? { customers: [], orders: [], summary: null, lastSyncedAt: null, ...saved.baqio }
+    : structuredClone(seedState.baqio);
   migrated.requests = (saved.requests || []).map((request) => ({
     agents: ["Organisation", "Secretaire", "Commercial"],
     report: "",
@@ -2537,6 +2581,31 @@ async function testBaqioConnection() {
   showToast("Baqio est connecte.");
 }
 
+async function syncBaqio() {
+  if (!API_ENABLED) {
+    showToast("Lance d'abord le serveur local.");
+    return;
+  }
+
+  el.baqioStatusBadge.textContent = "Sync...";
+  el.baqioConnectionResult.textContent = "Lecture des clients et commandes Baqio...";
+  const response = await fetch("/api/baqio/sync", { method: "POST" });
+  const payload = await response.json();
+  if (!response.ok || !payload.ok) {
+    el.baqioStatusBadge.textContent = "Erreur";
+    el.baqioConnectionResult.textContent = payload.error || "Synchronisation Baqio impossible.";
+    showToast("Baqio non synchronise.");
+    return;
+  }
+
+  state = migrateState(payload.state);
+  el.baqioStatusBadge.textContent = "Synchronise";
+  el.baqioConnectionResult.textContent = "Clients et commandes Baqio synchronises en lecture seule.";
+  renderBaqioSummary();
+  renderReports();
+  showToast("Baqio synchronise.");
+}
+
 async function clearAiMemory() {
   if (!API_ENABLED) {
     showToast("Lance d'abord le serveur local.");
@@ -2695,6 +2764,14 @@ function formatDateTime(value) {
 
 function formatUsd(value) {
   return `$${Number(value || 0).toFixed(4)}`;
+}
+
+function formatEuroCents(value) {
+  return new Intl.NumberFormat("fr-FR", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 0,
+  }).format(Number(value || 0) / 100);
 }
 
 function formatBytes(value) {

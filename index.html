@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=quick-note-1" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="styles.css?v=multi-mail-1" />
+    <link rel="stylesheet" href="styles.css?v=baqio-sync-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -392,9 +392,11 @@
               </label>
               <div class="dialog-actions">
                 <button class="ghost-button" type="button" id="testBaqioConnection">Tester Baqio</button>
+                <button class="ghost-button" type="button" id="syncBaqio">Synchroniser Baqio</button>
                 <button class="assistant-button small" type="submit">Enregistrer Baqio</button>
               </div>
               <p class="connection-hint" id="baqioConnectionResult">Baqio servira au commercial pour clients, commandes, relances et statistiques.</p>
+              <div class="baqio-summary" id="baqioSummary"></div>
             </form>
           </section>
           <div class="connections-grid" id="connectionsGrid"></div>
@@ -522,7 +524,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=multi-mail-1"></script>
+    <script src="app.js?v=baqio-sync-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

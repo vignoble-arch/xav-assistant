@@ -197,15 +197,16 @@
           </div>
           <div class="task-toolbar">
             <div class="segmented-control" aria-label="Filtre temporel des taches">
-              <button class="is-active" type="button" data-task-filter="today">Aujourd'hui</button>
+              <button type="button" data-task-filter="today">Aujourd'hui</button>
               <button type="button" data-task-filter="late">En retard</button>
               <button type="button" data-task-filter="nodate">Sans date</button>
-              <button type="button" data-task-filter="all">Tout</button>
+              <button class="is-active" type="button" data-task-filter="all">Tout</button>
             </div>
             <select id="taskListFilter" aria-label="Filtrer par liste"></select>
             <input id="taskSearch" type="search" placeholder="Rechercher une tache..." autocomplete="off" />
           </div>
           <div class="task-summary" id="taskSummary"></div>
+          <p class="task-filter-note" id="taskFilterNote"></p>
           <div class="kanban" id="taskBoard"></div>
         </section>
 

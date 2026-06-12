@@ -1134,6 +1134,21 @@ button:disabled {
   font-weight: 750;
 }
 
+.task-filter-note,
+.task-more-note {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.task-more-note {
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fbfdff;
+}
+
 .memory-summary {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 180px));

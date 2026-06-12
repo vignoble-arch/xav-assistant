@@ -22,7 +22,7 @@ const DAILY_ZEN_PHRASES = [
   "Les bonnes journees commencent par une decision simple.",
   "Moins de bruit, plus de direction.",
 ];
-let currentTaskFilter = "today";
+let currentTaskFilter = "all";
 
 const seedState = {
   tasks: [
@@ -192,6 +192,7 @@ const el = {
   requestList: document.querySelector("#requestList"),
   taskBoard: document.querySelector("#taskBoard"),
   taskSummary: document.querySelector("#taskSummary"),
+  taskFilterNote: document.querySelector("#taskFilterNote"),
   taskListFilter: document.querySelector("#taskListFilter"),
   taskSearch: document.querySelector("#taskSearch"),
   fullInbox: document.querySelector("#fullInbox"),
@@ -627,6 +628,7 @@ function renderTasks() {
   renderTaskSummary();
 
   const filteredTasks = getFilteredTasks();
+  renderTaskFilterNote(filteredTasks);
   if (!filteredTasks.length) {
     el.taskBoard.innerHTML = emptyState("Aucune tache ne correspond a cette vue.");
     return;
@@ -636,14 +638,33 @@ function renderTasks() {
     .map((listName) => {
       const tasks = filteredTasks.filter((task) => taskListName(task) === listName);
       if (!tasks.length) return "";
+      const visibleTasks = tasks.slice(0, 12);
+      const hiddenCount = tasks.length - visibleTasks.length;
       return `
         <section class="task-section">
           <h3>${escapeHTML(listName)}<span class="count-pill">${tasks.length}</span></h3>
-          <div class="item-list">${tasks.map(taskCard).join("")}</div>
+          <div class="item-list">${visibleTasks.map(taskCard).join("")}</div>
+          ${hiddenCount > 0 ? `<p class="task-more-note">${hiddenCount} autre(s) tache(s) dans cette liste. Utilise la recherche ou le filtre de liste pour affiner.</p>` : ""}
         </section>
       `;
     })
     .join("");
+}
+
+function renderTaskFilterNote(filteredTasks) {
+  if (!el.taskFilterNote) return;
+  const total = state.tasks.filter((task) => task.status !== "Termine" && task.status !== "Inbox").length;
+  const labels = {
+    today: "a faire aujourd'hui ou en retard",
+    late: "en retard",
+    nodate: "sans date",
+    all: "affichee(s)",
+  };
+  const selectedList = el.taskListFilter.value || "all";
+  const listLabel = selectedList === "all" ? "" : ` dans ${selectedList}`;
+  el.taskFilterNote.textContent = currentTaskFilter === "all"
+    ? `${filteredTasks.length} tache(s) affichee(s)${listLabel}, sur ${total} tache(s) ouvertes.`
+    : `${filteredTasks.length} tache(s) ${labels[currentTaskFilter] || "affichee(s)"}${listLabel}, sur ${total} tache(s) ouvertes.`;
 }
 
 function renderTaskFilters() {

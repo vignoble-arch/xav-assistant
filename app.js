@@ -1576,6 +1576,13 @@ function priorityCard(task) {
 
 function taskCard(task) {
   const dueClass = getDueClass(task);
+  const lateActions = dueClass === "is-late"
+    ? `<div class="late-task-actions" aria-label="Actions de rattrapage">
+        <button class="item-action item-action-primary" type="button" onclick="rescheduleTask('${task.id}', 'today')">Aujourd'hui</button>
+        <button class="item-action" type="button" onclick="rescheduleTask('${task.id}', 'tomorrow')">Demain</button>
+        <button class="item-action" type="button" onclick="rescheduleTask('${task.id}', 'none')">Sans date</button>
+      </div>`
+    : "";
   return `
     <article class="task-card ${dueClass}">
       <div class="card-top">
@@ -1584,6 +1591,7 @@ function taskCard(task) {
       </div>
       <p class="card-meta">${escapeHTML(taskListName(task))} - ${escapeHTML(task.status)} - ${task.due ? formatDate(task.due) : "Sans echeance"} - ${escapeHTML(task.source || "manuel")}</p>
       ${task.notes ? `<p class="card-meta">${escapeHTML(task.notes)}</p>` : ""}
+      ${lateActions}
       <div class="card-actions">
         ${task.status !== "Termine" ? `<button class="item-action" type="button" onclick="completeTask('${task.id}')">Terminer</button>` : ""}
         ${task.status !== "En cours" && task.status !== "Termine" ? `<button class="item-action" type="button" onclick="moveTask('${task.id}', 'En cours')">Demarrer</button>` : ""}
@@ -2249,6 +2257,23 @@ async function moveTask(id, status) {
   const task = state.tasks.find((item) => item.id === id);
   if (!task) return;
   await saveTask({ ...task, status });
+}
+
+async function rescheduleTask(id, target) {
+  const task = state.tasks.find((item) => item.id === id);
+  if (!task) return;
+  const due = target === "today"
+    ? todayISO()
+    : target === "tomorrow" ? addDaysISO(1) : "";
+  const saved = await saveTask({
+    ...task,
+    due,
+    status: task.status === "En attente" ? "A faire" : task.status,
+  });
+  if (saved) {
+    const label = target === "today" ? "aujourd'hui" : target === "tomorrow" ? "demain" : "sans date";
+    showToast(`Tache reportee ${label}.`);
+  }
 }
 
 function inboxToTask(id) {
@@ -3383,6 +3408,7 @@ function formatMultiline(value) {
 
 window.completeTask = completeTask;
 window.moveTask = moveTask;
+window.rescheduleTask = rescheduleTask;
 window.openTaskForm = openTaskForm;
 window.deleteTask = deleteTask;
 window.openAgendaForm = openAgendaForm;

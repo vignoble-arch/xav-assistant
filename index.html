@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=pwa-1" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="styles.css?v=knowledge-1" />
+    <link rel="stylesheet" href="styles.css?v=note-capture-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -63,6 +63,7 @@
           </div>
           <div class="topbar-actions">
             <button class="ghost-button" type="button" id="resetDemo">Reinitialiser</button>
+            <button class="ghost-button" type="button" id="openQuickNote">Idee</button>
             <button class="assistant-button" type="button" id="openAssistant">
               <span class="bell-icon" aria-hidden="true"></span>
               Appeler l'assistant
@@ -207,7 +208,7 @@
               <p class="section-kicker">Memoire courte</p>
               <h2>Notes</h2>
             </div>
-            <button class="assistant-button small" type="button" id="addNote">Ajouter une note</button>
+            <button class="assistant-button small" type="button" id="addNote">Note rapide</button>
           </div>
           <div class="notes-grid" id="notesGrid"></div>
         </section>
@@ -363,6 +364,24 @@
       </form>
     </dialog>
 
+    <dialog class="assistant-dialog" id="quickNoteDialog">
+      <form method="dialog" class="dialog-card" id="quickNoteForm">
+        <div class="dialog-header">
+          <div>
+            <p class="section-kicker">Capture</p>
+            <h2>Note rapide</h2>
+          </div>
+          <button class="icon-button" value="cancel" aria-label="Fermer" type="submit">x</button>
+        </div>
+        <textarea id="quickNoteText" rows="7" placeholder="Ecrire ou dicter l'idee pendant qu'elle est la..."></textarea>
+        <div class="dialog-actions">
+          <button class="ghost-button" type="button" id="startQuickNoteDictation">Micro</button>
+          <button class="ghost-button" value="cancel" type="submit">Annuler</button>
+          <button class="assistant-button" id="saveQuickNote" value="default" type="button">Enregistrer</button>
+        </div>
+      </form>
+    </dialog>
+
     <dialog class="assistant-dialog" id="taskDialog">
       <form method="dialog" class="dialog-card" id="taskForm">
         <div class="dialog-header">
@@ -409,7 +428,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=knowledge-1"></script>
+    <script src="app.js?v=note-capture-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

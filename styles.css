@@ -1163,6 +1163,10 @@ button:disabled {
   line-height: 1.45;
 }
 
+.note-card p {
+  white-space: pre-line;
+}
+
 .list-card ul {
   display: grid;
   gap: 8px;

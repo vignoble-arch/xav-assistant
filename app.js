@@ -140,6 +140,9 @@ let currentAssistantMode = "quick";
 let notificationPrefs = loadNotificationPrefs();
 let morningNotificationTimer = null;
 let autoRefreshTimer = null;
+let quickNoteRecognition = null;
+let quickNoteIsListening = false;
+let quickNoteFinalTranscript = "";
 
 const el = {
   todayLabel: document.querySelector("#todayLabel"),
@@ -201,6 +204,10 @@ const el = {
   assistantModeButtons: document.querySelectorAll("[data-assistant-mode]"),
   workerMenu: document.querySelector("#workerMenu"),
   askLocalAi: document.querySelector("#askLocalAi"),
+  quickNoteDialog: document.querySelector("#quickNoteDialog"),
+  quickNoteText: document.querySelector("#quickNoteText"),
+  startQuickNoteDictation: document.querySelector("#startQuickNoteDictation"),
+  saveQuickNote: document.querySelector("#saveQuickNote"),
   taskDialog: document.querySelector("#taskDialog"),
   toast: document.querySelector("#toast"),
 };
@@ -230,6 +237,7 @@ function bindEvents() {
 
   document.querySelector("#openAssistant").addEventListener("click", openAssistant);
   document.querySelector("#openAssistantFromRequests")?.addEventListener("click", openAssistant);
+  document.querySelector("#openQuickNote").addEventListener("click", openQuickNote);
   document.querySelector("#submitAssistant").addEventListener("click", handleAssistantSubmit);
   el.askLocalAi.addEventListener("click", askLocalAi);
   document.querySelector("#assistantText").addEventListener("input", updateAssistantPreview);
@@ -243,6 +251,9 @@ function bindEvents() {
   document.querySelector("#quickForm").addEventListener("submit", handleQuickCapture);
   document.querySelector("#taskForm").addEventListener("submit", handleTaskSubmit);
   document.querySelector("#addNote").addEventListener("click", addManualNote);
+  el.saveQuickNote.addEventListener("click", saveQuickNote);
+  el.startQuickNoteDictation.addEventListener("click", toggleQuickNoteDictation);
+  el.quickNoteDialog.addEventListener("close", stopQuickNoteDictation);
   el.refreshMorningBrief.addEventListener("click", loadMorningBrief);
   el.enableMorningNotification.addEventListener("click", toggleMorningNotification);
   el.morningNotificationTime.addEventListener("change", updateMorningNotificationTime);
@@ -1373,19 +1384,99 @@ function handleTaskSubmit(event) {
 }
 
 function addManualNote() {
-  const title = prompt("Titre de la note");
-  if (!title) return;
-  const body = prompt("Contenu");
-  if (!body) return;
+  openQuickNote();
+}
+
+function openQuickNote() {
+  el.quickNoteText.value = "";
+  quickNoteFinalTranscript = "";
+  el.quickNoteDialog.showModal();
+  setTimeout(() => el.quickNoteText.focus(), 0);
+}
+
+function saveQuickNote() {
+  const body = el.quickNoteText.value.trim();
+  if (!body) {
+    showToast("Note vide.");
+    return;
+  }
   state.notes.unshift({
     id: crypto.randomUUID(),
-    title,
+    title: makeQuickNoteTitle(body),
     body,
-    category: "Manuel",
+    category: "Idee",
+    source: "note rapide",
     createdAt: new Date().toISOString(),
   });
+  stopQuickNoteDictation();
+  el.quickNoteText.value = "";
+  el.quickNoteDialog.close();
   showToast("Note ajoutee.");
   render();
+}
+
+function makeQuickNoteTitle(text) {
+  const firstLine = text.split(/\r?\n/).find((line) => line.trim()) || "Idee rapide";
+  const cleaned = firstLine.replace(/\s+/g, " ").trim();
+  return cleaned.length > 56 ? `${cleaned.slice(0, 53)}...` : cleaned;
+}
+
+function toggleQuickNoteDictation() {
+  if (quickNoteIsListening) {
+    stopQuickNoteDictation();
+    return;
+  }
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    showToast("Dictee non disponible sur ce navigateur.");
+    return;
+  }
+
+  quickNoteRecognition = new SpeechRecognition();
+  quickNoteRecognition.lang = "fr-FR";
+  quickNoteRecognition.continuous = true;
+  quickNoteRecognition.interimResults = true;
+  quickNoteFinalTranscript = el.quickNoteText.value.trim();
+
+  quickNoteRecognition.onstart = () => {
+    quickNoteIsListening = true;
+    el.startQuickNoteDictation.textContent = "Stop";
+  };
+
+  quickNoteRecognition.onresult = (event) => {
+    let sessionFinal = "";
+    let interim = "";
+    for (let index = 0; index < event.results.length; index += 1) {
+      const transcript = event.results[index][0].transcript;
+      if (event.results[index].isFinal) {
+        sessionFinal += transcript;
+      } else {
+        interim += transcript;
+      }
+    }
+    const prefix = quickNoteFinalTranscript ? `${quickNoteFinalTranscript} ` : "";
+    el.quickNoteText.value = `${prefix}${sessionFinal}${interim}`.trim();
+  };
+
+  quickNoteRecognition.onerror = () => {
+    showToast("Micro indisponible.");
+  };
+
+  quickNoteRecognition.onend = () => {
+    quickNoteIsListening = false;
+    el.startQuickNoteDictation.textContent = "Micro";
+  };
+
+  quickNoteRecognition.start();
+}
+
+function stopQuickNoteDictation() {
+  if (!quickNoteRecognition) return;
+  if (quickNoteIsListening) quickNoteRecognition.stop();
+  quickNoteRecognition = null;
+  quickNoteIsListening = false;
+  el.startQuickNoteDictation.textContent = "Micro";
 }
 
 function switchView(view) {

@@ -854,18 +854,29 @@ function applyAiProviderDefaults(shouldOverwrite = true) {
 }
 
 function connectionCard(service) {
+  const statusText = service.needsReconnect
+    ? "A reconnecter pour autoriser les modifications"
+    : service.connected ? "Connecte" : "Non connecte";
+  const statusPill = service.needsReconnect ? "A reconnecter" : service.connected ? "Actif" : "Pret";
+  const missingScopes = Array.isArray(service.missingScopes) ? service.missingScopes : [];
   return `
-    <article class="connection-card">
+    <article class="connection-card ${service.needsReconnect ? "needs-reconnect" : ""}">
       <div class="card-top">
         <div>
           <h3>${escapeHTML(service.label)}</h3>
-          <p class="card-meta">${service.connected ? "Connecte" : "Non connecte"}</p>
+          <p class="card-meta">${escapeHTML(statusText)}</p>
         </div>
-        <span class="source-pill">${service.connected ? "Actif" : "Pret"}</span>
+        <span class="source-pill">${escapeHTML(statusPill)}</span>
       </div>
+      ${service.needsReconnect ? `
+        <p class="connection-warning">Reconnecte ce service pour creer, modifier ou supprimer depuis l'app.</p>
+      ` : ""}
       <ul class="scope-list">
         ${service.scopes.map((scope) => `<li>${escapeHTML(scope.replace("https://www.googleapis.com/auth/", ""))}</li>`).join("")}
       </ul>
+      ${missingScopes.length ? `
+        <p class="connection-missing">Droit manquant : ${escapeHTML(missingScopes.map((scope) => scope.replace("https://www.googleapis.com/auth/", "")).join(", "))}</p>
+      ` : ""}
       <div class="card-actions">
         <button class="item-action" type="button" data-connect-service="${service.id}" ${service.id === "local" ? "disabled" : ""}>Connecter</button>
         <button class="item-action" type="button" data-sync-service="${service.id}" ${service.connected ? "" : "disabled"}>Synchroniser</button>

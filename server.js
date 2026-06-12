@@ -1251,14 +1251,29 @@ function getConnectionStatus() {
   return {
     googleConfigured: config.ready,
     redirectUri: config.redirectUri,
-    services: Object.keys(GOOGLE_SCOPES).map((name) => ({
-      id: name,
-      label: name === "gmail" ? "Gmail" : name === "calendar" ? "Agenda" : name === "tasks" ? "Google Tasks" : "Drive",
-      connected: Boolean(tokens[name]),
-      connectedAt: tokens[name]?.connectedAt || null,
-      scopes: GOOGLE_SCOPES[name],
-    })),
+    services: Object.keys(GOOGLE_SCOPES).map((name) => {
+      const actualScopes = parseScopeList(tokens[name]?.scope);
+      const missingScopes = GOOGLE_SCOPES[name].filter((scope) => !actualScopes.includes(scope));
+      const needsReconnect = Boolean(tokens[name]) && missingScopes.length > 0;
+      return {
+        id: name,
+        label: name === "gmail" ? "Gmail" : name === "calendar" ? "Agenda" : name === "tasks" ? "Google Tasks" : "Drive",
+        connected: Boolean(tokens[name]),
+        connectedAt: tokens[name]?.connectedAt || null,
+        scopes: GOOGLE_SCOPES[name],
+        actualScopes,
+        missingScopes,
+        needsReconnect,
+      };
+    }),
   };
+}
+
+function parseScopeList(scope) {
+  return String(scope || "")
+    .split(/\s+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function getGoogleDebugInfo() {

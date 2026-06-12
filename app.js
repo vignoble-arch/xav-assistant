@@ -5,11 +5,9 @@ const statuses = ["Inbox", "A faire", "En cours", "En attente", "Termine"];
 const TASK_LISTS = ["Dettes", "Cave Expé", "vignoble", "bureau", "divers et perso"];
 const WORKERS = [
   { key: "fernand", label: "Fernand", description: "Bras droit et rapports" },
-  { key: "agenda", label: "Agenda", description: "Rendez-vous et planning" },
-  { key: "organisation", label: "Organisation", description: "Taches et priorites" },
+  { key: "organisation", label: "Organisation", description: "Journee, agenda, taches et mental" },
   { key: "secretaire", label: "Secretaire", description: "Emails, dossiers, echeances" },
   { key: "commercial", label: "Commercial", description: "Clients, relances, Baqio" },
-  { key: "coach", label: "Coach mental", description: "Stress et routine" },
 ];
 let currentTaskFilter = "today";
 
@@ -1252,7 +1250,7 @@ function createFernandRequest(text) {
     title: summarizeRequestTitle(text),
     original: text,
     status: "Demande a traiter",
-    agents: ["Organisation", "Secretaire", "Commercial", "Coach mental"],
+    agents: ["Organisation", "Secretaire", "Commercial"],
     report: "",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -1973,7 +1971,7 @@ function migrateState(saved) {
   }));
   migrated.reports = saved.reports || structuredClone(seedState.reports);
   migrated.requests = (saved.requests || []).map((request) => ({
-    agents: ["Organisation", "Secretaire", "Commercial", "Coach mental"],
+    agents: ["Organisation", "Secretaire", "Commercial"],
     report: "",
     status: "Demande a traiter",
     createdAt: new Date().toISOString(),

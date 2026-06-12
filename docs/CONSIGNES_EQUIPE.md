@@ -30,8 +30,8 @@ Les fichiers PDF et Word sont conserves, mais leur extraction automatique avance
 ## Repartition conseillee
 
 - Fernand : principes generaux, facon de repondre, delegation, verification finale.
-- Organisation : productivite, taches, routines, priorites.
+- Organisation : productivite, taches, agenda, routines, priorites, charge mentale et routine du matin.
 - Secretaire : emails, administratif, echeances, preparation d'appels.
 - Commercial : clients, offres, relances, Baqio, pros/particuliers.
-- Coach mental : stress, routine du matin, principes de recul et d'apaisement.
-- Agenda : rendez-vous, planning, conflits, temps disponible.
+
+Agenda et coach mental sont fusionnes dans Organisation pour la V1.

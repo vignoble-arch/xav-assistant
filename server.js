@@ -48,9 +48,9 @@ const DEFAULT_AGENT_INSTRUCTIONS = {
     "Regle: si une action n'a pas ete faite par l'application, ne jamais pretendre qu'elle a ete faite.",
   ].join("\n"),
   organisation: [
-    "Role: specialiste organisation du travail, taches, priorites et productivite.",
-    "Mission: transformer le flou en prochaines actions, prioriser, tenir compte de l'agenda, des retards et de la charge mentale.",
-    "Style: pratique, court, orientee action.",
+    "Role: organisation du travail, journee, agenda, taches, productivite, routine du matin et equilibre mental.",
+    "Mission: transformer le flou en prochaines actions, prioriser, tenir compte de l'agenda, des retards, de la charge mentale et du niveau de stress.",
+    "Style: pratique, court, apaisant quand necessaire, toujours oriente action.",
   ].join("\n"),
   secretaire: [
     "Role: secretariat, emails, echeances, dossiers clients et administratif.",
@@ -61,16 +61,6 @@ const DEFAULT_AGENT_INSTRUCTIONS = {
     "Role: suivi clients, relances, statistiques commerciales et offres.",
     "Mission: distinguer professionnels et particuliers, proposer des relances selon dernier achat, preparer des pistes commerciales.",
     "Regle: indiquer clairement que Baqio n'est pas encore connecte quand une analyse depend de Baqio.",
-  ].join("\n"),
-  coach: [
-    "Role: coach mental non medical, stress, alignement et routine du matin.",
-    "Mission: aider Xavier a retrouver de la clarte, proposer des routines simples et des strategies anti-stress inspirees de principes bouddhistes.",
-    "Style: apaisant, simple, sans diagnostic medical.",
-  ].join("\n"),
-  agenda: [
-    "Role: planning, agenda, rendez-vous et contraintes horaires.",
-    "Mission: repondre simplement aux questions de calendrier et signaler les conflits ou les fenetres utiles.",
-    "Style: tres direct quand la question est simple.",
   ].join("\n"),
 };
 
@@ -1539,11 +1529,9 @@ function parseWorkerMention(rawMessage) {
 function normalizeWorkerName(value) {
   const normalized = normalizeText(value);
   if (["fernand", "chef", "brasdroit", "bras-droit"].includes(normalized)) return "fernand";
-  if (["agenda", "planning", "calendrier", "rdv"].includes(normalized)) return "agenda";
-  if (["organisation", "orga", "taches", "productivite"].includes(normalized)) return "organisation";
+  if (["agenda", "planning", "calendrier", "rdv", "coach", "mental", "stress", "organisation", "orga", "taches", "productivite"].includes(normalized)) return "organisation";
   if (["secretaire", "secretariat", "email", "emails", "admin"].includes(normalized)) return "secretaire";
   if (["commercial", "commerce", "client", "clients", "baqio"].includes(normalized)) return "commercial";
-  if (["coach", "mental", "stress"].includes(normalized)) return "coach";
   return "";
 }
 
@@ -1551,7 +1539,7 @@ function tryHandleDirectWorker(message, mode, forcedWorker = "") {
   if (mode !== "quick") return null;
   const normalized = normalizeText(message);
   const asksAgenda = /(rendez[-\s]?vous|rdv|agenda|planning|calendrier)/.test(normalized);
-  if (forcedWorker !== "agenda") return null;
+  if (forcedWorker !== "organisation") return null;
   if (!asksAgenda) return null;
 
   const state = getAppState();
@@ -1630,7 +1618,7 @@ function buildAiMessages(message, mode = "quick", worker = "") {
               "Tu es Fernand, le bras droit de Xavier et le chef d'equipe de ses assistants internes.",
               "Chaque message de Xavier est une demande-projet a traiter serieusement.",
               "Commence par reformuler la demande en une phrase courte.",
-              "Puis consulte mentalement tes services internes: Organisation du travail, Secretaire, Commercial, Coach mental.",
+              "Puis consulte mentalement tes services internes: Organisation, Secretaire, Commercial.",
               "Chaque service doit donner uniquement ce qui est utile; indique 'non concerne' si un service n'apporte rien.",
               "Ensuite, controle la coherence du travail comme chef d'equipe et rends un rapport clair a Xavier.",
               "Structure toujours la reponse avec: Reformulation, Services consultes, Rapport Fernand, Prochaines actions.",
@@ -1643,7 +1631,7 @@ function buildAiMessages(message, mode = "quick", worker = "") {
         worker && worker !== "fernand" ? `La demande est adressee au service interne: ${worker}. Reste dans ce role et repond simplement.` : "",
         "Ne dis pas que tu as envoye des emails, modifie l'agenda, appele Baqio ou change des fichiers si l'application ne l'a pas vraiment fait.",
         "Pour le commercial, distingue professionnels et particuliers, mais precise que l'API Baqio n'est pas encore connectee si la demande depend de Baqio.",
-        "Pour le mental, reste pratique, apaisant, non medical, et inspire-toi de principes bouddhistes simples sans faire de diagnostic.",
+        "Pour l'organisation, integre agenda, taches, routine, priorites et charge mentale sans faire de diagnostic medical.",
         "Reponds en francais, de facon concrete.",
         "Tu as une memoire courte des derniers echanges fournie dans le contexte.",
         "Si Xavier fait reference a une chose dite juste avant, utilise cette memoire.",

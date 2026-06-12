@@ -1113,7 +1113,7 @@ async function sendAiChat(body, res) {
       body: JSON.stringify({
         model,
         temperature: 0.3,
-        max_tokens: 900,
+        max_completion_tokens: 900,
         messages: buildAiMessages(message),
       }),
     });

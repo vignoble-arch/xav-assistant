@@ -21,6 +21,7 @@ const KNOWLEDGE_DIR = path.join(DATA_DIR, "knowledge");
 const KNOWLEDGE_FILE = path.join(DATA_DIR, "knowledge-documents.json");
 const AGENT_INSTRUCTIONS_FILE = path.join(DATA_DIR, "agent-instructions.json");
 const AUTO_SYNC_INTERVAL_MINUTES = Math.max(5, Number(process.env.AUTO_SYNC_INTERVAL_MINUTES || 15));
+const BAQIO_SYNC_MAX_PAGES = Math.max(1, Number(process.env.BAQIO_SYNC_MAX_PAGES || 10));
 
 const GOOGLE_SCOPES = {
   gmail: [
@@ -47,22 +48,26 @@ const DEFAULT_AGENT_INSTRUCTIONS = {
   fernand: [
     "Role: bras droit de Xavier et chef d'equipe des ouvriers IA.",
     "Mission: comprendre la demande, choisir le bon niveau de traitement, coordonner les ouvriers si necessaire, verifier la coherence et rendre une reponse utile.",
+    "Hierarchie: Fernand recoit les demandes de Xavier, distribue aux services specialises, controle leur travail, puis rend une synthese claire. Les services ne commandent pas Fernand.",
     "Style: concret, calme, direct, en francais. Ne pas faire de grand rapport si Xavier pose une question simple.",
     "Regle: si une action n'a pas ete faite par l'application, ne jamais pretendre qu'elle a ete faite.",
   ].join("\n"),
   organisation: [
     "Role: organisation du travail, journee, agenda, taches, productivite, routine du matin et equilibre mental.",
     "Mission: transformer le flou en prochaines actions, prioriser, tenir compte de l'agenda, des retards, de la charge mentale et du niveau de stress.",
+    "Hierarchie: quand Fernand coordonne, l'organisation lui fournit une analyse courte et actionnable. Quand Xavier appelle directement ce service avec @organisation, repondre directement dans ce role.",
     "Style: pratique, court, apaisant quand necessaire, toujours oriente action.",
   ].join("\n"),
   secretaire: [
     "Role: secretariat, emails, echeances, dossiers clients et administratif.",
     "Mission: reperer ce qui demande une reponse, preparer des syntheses, signaler les echeances et organiser les informations avant un appel.",
+    "Hierarchie: quand Fernand coordonne, le secretariat lui remonte les points administratifs utiles, risques, pieces manquantes et brouillons.",
     "Regle: ne pas dire qu'un email a ete envoye si l'envoi n'a pas ete confirme par Xavier.",
   ].join("\n"),
   commercial: [
     "Role: suivi clients, relances, statistiques commerciales et offres.",
     "Mission: utiliser les donnees Baqio synchronisees pour distinguer professionnels et particuliers, proposer des relances selon dernier achat, preparer des pistes commerciales et des brouillons d'offres.",
+    "Hierarchie: quand Fernand coordonne, le commercial fournit uniquement l'analyse client, les opportunites, les donnees de vente et les questions commerciales utiles.",
     "Regle: Baqio est lu en lecture seule. Ne jamais pretendre avoir modifie Baqio, envoye une relance ou cree une offre sans action explicite de l'application et validation de Xavier.",
   ].join("\n"),
 };
@@ -83,6 +88,7 @@ const CONFIG_ENV_KEYS = [
   "BAQIO_API_KEY",
   "BAQIO_PASSWORD",
   "BAQIO_SECRET",
+  "BAQIO_SYNC_MAX_PAGES",
 ];
 
 const MIME_TYPES = {
@@ -2128,8 +2134,8 @@ async function syncBaqioCommercialData(res) {
 
 async function fetchBaqioCommercialSnapshot() {
   const [customersRaw, ordersRaw] = await Promise.all([
-    baqioFetchPages("/customers", 3),
-    baqioFetchPages("/orders", 3),
+    baqioFetchPages("/customers", BAQIO_SYNC_MAX_PAGES),
+    baqioFetchPages("/orders", BAQIO_SYNC_MAX_PAGES),
   ]);
   const customers = Array.isArray(customersRaw) ? customersRaw.map(normalizeBaqioCustomer) : [];
   const orders = Array.isArray(ordersRaw) ? ordersRaw.map(normalizeBaqioOrder) : [];
@@ -2157,13 +2163,24 @@ function normalizeBaqioCustomer(customer) {
   const billing = customer.billing_information || {};
   const category = customer.customer_category || {};
   const isProfessional = Boolean(billing.company_name) || category.individual === false;
+  const addressLines = [
+    billing.address,
+    billing.address1,
+    billing.address_1,
+    billing.street,
+    billing.address2,
+    billing.address_2,
+  ].filter(Boolean);
   return {
     id: customer.id,
     name: customer.name || [billing.first_name, billing.last_name].filter(Boolean).join(" ") || billing.company_name || "Client sans nom",
+    companyName: billing.company_name || "",
     email: customer.email || billing.email || "",
     phone: billing.mobile || billing.phone || "",
+    address: addressLines.join(", "),
     city: billing.city || "",
     zip: billing.zip || "",
+    country: billing.country || billing.country_name || "",
     category: category.name || "",
     type: isProfessional ? "Pro" : "Particulier",
     acceptsEmailing: Boolean(customer.accepts_emailing || customer.accepts_mailing),
@@ -2516,6 +2533,7 @@ function buildAiMessages(message, mode = "quick", worker = "") {
               "Commence par reformuler la demande en une phrase courte.",
               "Puis consulte mentalement tes services internes: Organisation, Secretaire, Commercial.",
               "Chaque service doit donner uniquement ce qui est utile; indique 'non concerne' si un service n'apporte rien.",
+              "Les services peuvent se repondre entre eux uniquement pour clarifier une dependance, mais Fernand tranche et synthetise.",
               "Ensuite, controle la coherence du travail comme chef d'equipe et rends un rapport clair a Xavier.",
               "Structure toujours la reponse avec: Reformulation, Services consultes, Rapport Fernand, Prochaines actions.",
             ].join(" ")
@@ -2525,6 +2543,7 @@ function buildAiMessages(message, mode = "quick", worker = "") {
               "Si la question demande une information simple comme le prochain rendez-vous, donne simplement la reponse utile en une ou deux phrases.",
             ].join(" "),
         worker && worker !== "fernand" ? `La demande est adressee au service interne: ${worker}. Reste dans ce role et repond simplement.` : "",
+        "Hierarchie permanente: Xavier decide; Fernand coordonne; Organisation, Secretaire et Commercial sont des services specialises. Un service peut signaler qu'un autre service doit etre consulte, mais il ne parle pas a sa place.",
         "Ne dis pas que tu as envoye des emails, modifie l'agenda, appele Baqio ou change des fichiers si l'application ne l'a pas vraiment fait.",
         "Pour le commercial, utilise Baqio seulement comme base lue et synchronisee; propose des relances, brouillons et priorites, mais ne promets aucune action automatique.",
         "Pour l'organisation, integre agenda, taches, routine, priorites et charge mentale sans faire de diagnostic medical.",
@@ -2553,7 +2572,7 @@ function getCommercialAiContext(state, message, worker = "", mode = "quick") {
   const normalized = normalizeText(`${worker} ${message}`);
   const mentionsCommercial = worker === "commercial"
     || mode === "report"
-    || /(commercial|commerce|client|clients|prospect|relance|relancer|vente|ventes|commande|commandes|baqio|chiffre|ca|offre|particulier|pro\b|professionnel)/.test(normalized);
+    || /(commercial|commerce|client|clients|prospect|relance|relancer|vente|ventes|commande|commandes|baqio|chiffre|ca|offre|particulier|pro\b|professionnel|livraison|livrer|tournee|adresse|adresses|facture|factures|reglement|paiement)/.test(normalized);
   if (!mentionsCommercial) return "";
 
   const topCustomers = (summary.topCustomers || []).slice(0, 5).map((customer) =>
@@ -2565,16 +2584,94 @@ function getCommercialAiContext(state, message, worker = "", mode = "quick") {
   const opportunities = (summary.opportunities || []).slice(0, 8).map((opportunity) =>
     `${opportunity.priority || "Priorite"} - ${opportunity.title}: ${opportunity.detail}`
   );
+  const matchingCustomers = findRelevantBaqioCustomers(baqio, message).map((customer) =>
+    [
+      `${customer.name} (${customer.type})`,
+      customer.companyName ? `societe ${customer.companyName}` : "",
+      customer.address ? `adresse ${customer.address}` : "",
+      customer.zip || customer.city ? `${customer.zip || ""} ${customer.city || ""}`.trim() : "",
+      customer.email ? `email ${customer.email}` : "",
+      customer.phone ? `tel ${customer.phone}` : "",
+      `${customer.orderCount} commande(s), CA ${formatEuroCentsServer(customer.totalCents)}, dernier achat ${customer.lastOrderDate || "inconnu"}`,
+    ].filter(Boolean).join(", ")
+  );
 
   return [
     `Derniere synchronisation: ${baqio.lastSyncedAt || "inconnue"}.`,
     `${summary.customerCount || 0} client(s), dont ${summary.proCount || 0} pro(s) et ${summary.individualCount || 0} particulier(s).`,
     `${summary.orderCount || 0} commande(s), CA lu ${formatEuroCentsServer(summary.totalRevenueCents)}, ${Number(summary.bottleQuantity || 0).toFixed(0)} bouteille(s).`,
+    matchingCustomers.length ? `Clients pertinents retrouves dans Baqio: ${matchingCustomers.join(" | ")}.` : "",
     topCustomers.length ? `Meilleurs clients: ${topCustomers.join(" | ")}.` : "",
     recentOrders.length ? `Commandes recentes: ${recentOrders.join(" | ")}.` : "",
     opportunities.length ? `Opportunites calculees: ${opportunities.join(" | ")}.` : "",
     "Limite: ces donnees viennent de l'echantillon synchronise Baqio et peuvent etre incompletes; annoncer une recommandation plutot qu'une certitude si besoin.",
   ].filter(Boolean).join(" ");
+}
+
+function findRelevantBaqioCustomers(baqio, message) {
+  const customers = Array.isArray(baqio.customers) ? baqio.customers : [];
+  const orders = Array.isArray(baqio.orders) ? baqio.orders : [];
+  if (!customers.length) return [];
+
+  const words = normalizeSearchWords(message)
+    .filter((word) => !["client", "clients", "livraison", "livrer", "adresse", "adresses", "commande", "commandes", "temps", "tournee", "optimiser", "estimer"].includes(word));
+  const orderStats = buildBaqioOrderStats(orders);
+
+  const scored = customers.map((customer) => {
+    const haystack = normalizeText([
+      customer.name,
+      customer.companyName,
+      customer.email,
+      customer.phone,
+      customer.address,
+      customer.city,
+      customer.zip,
+      customer.category,
+      customer.type,
+    ].filter(Boolean).join(" "));
+    const score = words.reduce((sum, word) => {
+      if (!word) return sum;
+      if (haystack.includes(word)) return sum + (word.length > 4 ? 3 : 1);
+      return sum;
+    }, 0);
+    return { customer, score };
+  }).filter((item) => item.score > 0);
+
+  const topFromSummary = new Set((baqio.summary?.topCustomers || []).slice(0, 3).map((item) => String(item.customerId || item.customerName || "")));
+  const selected = scored.length
+    ? scored.sort((a, b) => b.score - a.score).slice(0, 8).map((item) => item.customer)
+    : customers.filter((customer) => topFromSummary.has(String(customer.id)) || topFromSummary.has(customer.name)).slice(0, 5);
+
+  return selected.map((customer) => ({
+    ...customer,
+    ...(orderStats.get(String(customer.id)) || orderStats.get(customer.name) || {
+      totalCents: 0,
+      orderCount: 0,
+      bottleQuantity: 0,
+      lastOrderDate: "",
+    }),
+  }));
+}
+
+function buildBaqioOrderStats(orders) {
+  const stats = new Map();
+  for (const order of orders) {
+    const keys = [String(order.customerId || ""), order.customerName].filter(Boolean);
+    for (const key of keys) {
+      const current = stats.get(key) || {
+        totalCents: 0,
+        orderCount: 0,
+        bottleQuantity: 0,
+        lastOrderDate: "",
+      };
+      current.totalCents += Number(order.totalCents || 0);
+      current.orderCount += 1;
+      current.bottleQuantity += Number(order.bottleQuantity || 0);
+      if (String(order.date || "") > String(current.lastOrderDate || "")) current.lastOrderDate = order.date || "";
+      stats.set(key, current);
+    }
+  }
+  return stats;
 }
 
 function getAgentInstructionsStatus() {
@@ -2816,6 +2913,7 @@ function buildMorningBrief(state) {
     date: today,
     load: loadScore >= 9 ? "chargee" : loadScore >= 5 ? "normale" : "legere",
     headline: buildMorningHeadline(lateTasks, todayTasks, agendaToday),
+    zenPhrase: chooseOrganizationZenPhrase(lateTasks, todayTasks, agendaToday, loadScore),
     stats: {
       late: lateTasks.length,
       today: todayTasks.length,
@@ -2839,6 +2937,22 @@ function buildMorningBrief(state) {
       "Garde un vrai tampon dans la journee pour l'imprevu.",
     ],
   };
+}
+
+function chooseOrganizationZenPhrase(lateTasks, todayTasks, agendaToday, loadScore) {
+  if (lateTasks.length) {
+    return "On ne rattrape pas tout d'un coup : on choisit la premiere pierre et on la pose bien.";
+  }
+  if (loadScore >= 9) {
+    return "Une journee chargee demande moins de vitesse et plus de cap.";
+  }
+  if (agendaToday.length >= 3) {
+    return "Entre deux rendez-vous, garde un vrai souffle pour redevenir disponible.";
+  }
+  if (todayTasks.length) {
+    return "La bonne priorite est celle qui rend la suite plus simple.";
+  }
+  return "Quand le calme apparait, profite-en pour clarifier avant de remplir.";
 }
 
 function buildMorningHeadline(lateTasks, todayTasks, agendaToday) {

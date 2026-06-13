@@ -1471,13 +1471,15 @@ button:disabled {
 }
 
 .note-card p,
+.note-body,
 .list-card p,
 .list-card li {
   color: var(--muted);
   line-height: 1.45;
 }
 
-.note-card p {
+.note-card p,
+.note-body {
   white-space: pre-line;
 }
 
@@ -1565,6 +1567,96 @@ textarea {
   border-radius: 8px;
   padding: 12px;
   background: #f6f1e8;
+}
+
+.assistant-thread-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.assistant-thread {
+  display: grid;
+  gap: 10px;
+  max-height: 340px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: #fbf8f1;
+}
+
+.assistant-message {
+  display: grid;
+  gap: 7px;
+  max-width: 92%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--surface);
+}
+
+.assistant-message.is-user {
+  justify-self: end;
+  border-color: #c6d9e8;
+  background: #eef7ff;
+}
+
+.assistant-message.is-error {
+  border-color: #e6b8b0;
+  background: #fff4f1;
+}
+
+.assistant-message-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.assistant-message-top strong {
+  color: var(--ink);
+}
+
+.assistant-message-body {
+  color: var(--ink);
+  font-size: 0.94rem;
+  line-height: 1.5;
+}
+
+.formatted-answer {
+  display: grid;
+  gap: 8px;
+}
+
+.formatted-answer h3,
+.formatted-answer p {
+  margin: 0;
+}
+
+.formatted-answer h3 {
+  color: var(--ink);
+  font-size: 0.98rem;
+}
+
+.formatted-answer ul,
+.formatted-answer ol {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.formatted-answer code {
+  border-radius: 6px;
+  padding: 1px 5px;
+  background: #efe8dc;
 }
 
 .assistant-mode {
@@ -1910,6 +2002,14 @@ textarea {
 
   .mail-body {
     min-height: 220px;
+  }
+
+  .assistant-thread {
+    max-height: 32vh;
+  }
+
+  .assistant-message {
+    max-width: 100%;
   }
 
   .assistant-mode {

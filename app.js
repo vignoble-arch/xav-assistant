@@ -168,6 +168,7 @@ let quickNoteIsListening = false;
 let quickNoteFinalTranscript = "";
 let currentQuickNoteEditId = "";
 let currentMailMessage = null;
+let assistantThreadMessages = [];
 
 const el = {
   todayLabel: document.querySelector("#todayLabel"),
@@ -272,6 +273,8 @@ const el = {
   copyCallback: document.querySelector("#copyCallback"),
   syncAllGoogle: document.querySelector("#syncAllGoogle"),
   assistantDialog: document.querySelector("#assistantDialog"),
+  assistantThread: document.querySelector("#assistantThread"),
+  clearAssistantThread: document.querySelector("#clearAssistantThread"),
   assistantText: document.querySelector("#assistantText"),
   assistantPreview: document.querySelector("#assistantPreview"),
   assistantModeButtons: document.querySelectorAll("[data-assistant-mode]"),
@@ -339,6 +342,7 @@ function bindEvents() {
   });
   document.querySelector("#submitAssistant").addEventListener("click", handleAssistantSubmit);
   el.askLocalAi.addEventListener("click", askLocalAi);
+  el.clearAssistantThread?.addEventListener("click", clearAssistantThread);
   document.querySelector("#assistantText").addEventListener("input", updateAssistantPreview);
   document.querySelector("#assistantText").addEventListener("keydown", handleAssistantKeydown);
   document.querySelector("#assistantText").addEventListener("blur", () => {
@@ -465,6 +469,10 @@ function applyBranding() {
 
 function renderDailyZen() {
   if (!el.dailyZen) return;
+  if (morningBriefState?.zenPhrase) {
+    el.dailyZen.textContent = morningBriefState.zenPhrase;
+    return;
+  }
   const branding = readBranding();
   const phrases = Array.isArray(branding.zenPhrases) && branding.zenPhrases.length ? branding.zenPhrases : DAILY_ZEN_PHRASES;
   const dayKey = Number(new Intl.DateTimeFormat("fr-FR", { day: "numeric" }).format(new Date())) || 1;
@@ -1146,7 +1154,7 @@ function requestCard(request) {
         <span class="source-pill">${escapeHTML(request.status || "Demande a traiter")}</span>
       </div>
       <p class="request-original">${escapeHTML(request.original || "")}</p>
-      <div class="request-report">${formatMultiline(report)}</div>
+      <div class="request-report">${formatAssistantAnswer(report)}</div>
       <div class="card-actions">
         ${request.status !== "Clos" ? `<button class="item-action" type="button" onclick="closeFernandRequest('${request.id}')">Clore</button>` : `<button class="item-action" type="button" onclick="reopenFernandRequest('${request.id}')">Rouvrir</button>`}
         <button class="item-action" type="button" onclick="archiveFernandRequest('${request.id}')">Archiver</button>
@@ -1455,7 +1463,7 @@ function noteCard(note) {
         <h3>${escapeHTML(note.title)}</h3>
         <span class="source-pill">${escapeHTML(note.category)}</span>
       </div>
-      <p>${escapeHTML(note.body)}</p>
+      <div class="note-body">${note.category === "Traitement IA" ? formatAssistantAnswer(note.body) : formatMultiline(note.body)}</div>
       <div class="card-actions note-actions">
         <button class="item-action" type="button" onclick="editNote('${note.id}')">Modifier</button>
         <button class="item-action" type="button" onclick="noteToTask('${note.id}')">Tache</button>
@@ -1696,6 +1704,7 @@ function handleQuickCapture(event) {
 
 function openAssistant() {
   el.assistantText.value = "";
+  renderAssistantThread();
   updateAssistantPreview();
   el.assistantDialog.showModal();
   setTimeout(() => el.assistantText.focus(), 0);
@@ -1711,12 +1720,16 @@ function setAssistantMode(mode) {
 
 function updateAssistantPreview() {
   renderWorkerMenu();
+  const target = getAssistantTarget(el.assistantText.value);
+  if (el.askLocalAi) {
+    el.askLocalAi.textContent = `Envoyer a ${target.label}`;
+  }
   if (currentAssistantMode === "quick") {
-    el.assistantPreview.textContent = "Question rapide : Fernand repond directement, sans creer de demande-projet.";
+    el.assistantPreview.textContent = `Question rapide : ${target.description}.`;
     return;
   }
   const parsed = parseIntent(el.assistantText.value);
-  el.assistantPreview.textContent = `Rapport Fernand : une demande-projet sera creee. ${parsed.preview}`;
+  el.assistantPreview.textContent = `Rapport Fernand : une demande-projet sera creee et Fernand coordonnera les services. ${parsed.preview}`;
 }
 
 function handleAssistantSubmit() {
@@ -1798,10 +1811,24 @@ async function askLocalAi() {
     return;
   }
 
+  const target = getAssistantTarget(text);
+  const userMessage = addAssistantThreadMessage({
+    role: "user",
+    label: "Xavier",
+    content: text,
+  });
+  const assistantMessage = addAssistantThreadMessage({
+    role: "assistant",
+    label: target.label,
+    content: currentAssistantMode === "report"
+      ? "Je lance le traitement..."
+      : "Je cherche la reponse...",
+    pending: true,
+  });
   el.askLocalAi.disabled = true;
   el.assistantPreview.textContent = currentAssistantMode === "report"
     ? "Fernand lance le traitement..."
-    : "Fernand cherche la reponse...";
+    : `${target.label} cherche la reponse...`;
   el.assistantText.value = "";
   const request = currentAssistantMode === "report" ? createFernandRequest(text) : null;
   if (request) {
@@ -1816,19 +1843,102 @@ async function askLocalAi() {
     const payload = await response.json();
     if (!response.ok) {
       el.assistantPreview.textContent = payload.error || "OpenAI ne repond pas.";
+      updateAssistantThreadMessage(assistantMessage.id, {
+        content: payload.error || "OpenAI ne repond pas.",
+        pending: false,
+        error: true,
+      });
       if (request) setFernandRequestStatus(request.id, "Erreur", payload.error || "OpenAI ne repond pas.");
       return;
     }
-    el.assistantPreview.textContent = payload.answer;
+    const routedLabel = getAssistantTarget(`@${payload.routedTo || target.key} `).label;
+    updateAssistantThreadMessage(assistantMessage.id, {
+      label: routedLabel,
+      content: payload.answer,
+      pending: false,
+    });
+    el.assistantPreview.textContent = `${routedLabel} a repondu dans le fil.`;
     if (request) completeFernandRequest(request.id, payload.answer);
     await loadAiMemory();
     await loadAiUsage();
   } catch {
     el.assistantPreview.textContent = "Impossible de joindre OpenAI pour l'instant.";
+    updateAssistantThreadMessage(assistantMessage.id, {
+      content: "Impossible de joindre OpenAI pour l'instant.",
+      pending: false,
+      error: true,
+    });
     if (request) setFernandRequestStatus(request.id, "Erreur", "Impossible de joindre OpenAI pour l'instant.");
   } finally {
     el.askLocalAi.disabled = false;
+    updateAssistantPreview();
   }
+}
+
+function addAssistantThreadMessage(message) {
+  const next = {
+    id: crypto.randomUUID(),
+    createdAt: new Date().toISOString(),
+    ...message,
+  };
+  assistantThreadMessages.push(next);
+  assistantThreadMessages = assistantThreadMessages.slice(-30);
+  renderAssistantThread();
+  return next;
+}
+
+function updateAssistantThreadMessage(id, patch) {
+  assistantThreadMessages = assistantThreadMessages.map((message) =>
+    message.id === id ? { ...message, ...patch } : message
+  );
+  renderAssistantThread();
+}
+
+function renderAssistantThread() {
+  if (!el.assistantThread) return;
+  if (!assistantThreadMessages.length) {
+    el.assistantThread.innerHTML = `<p class="empty-state">Le fil apparaitra ici pendant la discussion.</p>`;
+    return;
+  }
+  el.assistantThread.innerHTML = assistantThreadMessages.map((message) => `
+    <article class="assistant-message ${message.role === "user" ? "is-user" : "is-assistant"} ${message.error ? "is-error" : ""}">
+      <div class="assistant-message-top">
+        <strong>${escapeHTML(message.label || (message.role === "user" ? "Xavier" : "Assistant"))}</strong>
+        <span>${escapeHTML(formatDateTime(message.createdAt))}</span>
+      </div>
+      <div class="assistant-message-body">
+        ${message.role === "user" ? formatMultiline(message.content) : formatAssistantAnswer(message.content)}
+      </div>
+    </article>
+  `).join("");
+  el.assistantThread.scrollTop = el.assistantThread.scrollHeight;
+}
+
+function clearAssistantThread() {
+  assistantThreadMessages = [];
+  renderAssistantThread();
+  showToast("Nouveau fil ouvert.");
+}
+
+function getAssistantTarget(text) {
+  const match = String(text || "").trim().match(/^@([a-zA-ZÀ-ÿ]+)/);
+  const workerKey = match ? normalizeWorkerMention(match[1]) : "fernand";
+  const worker = WORKERS.find((item) => item.key === workerKey) || WORKERS[0];
+  return {
+    ...worker,
+    description: worker.key === "fernand"
+      ? "Fernand repond directement ou coordonne si necessaire"
+      : `${worker.label} repond dans son role specialise`,
+  };
+}
+
+function normalizeWorkerMention(value) {
+  const normalized = normalizeText(value);
+  if (["fernand", "chef", "brasdroit", "bras-droit"].includes(normalized)) return "fernand";
+  if (["agenda", "planning", "calendrier", "rdv", "coach", "mental", "stress", "organisation", "orga", "taches", "productivite"].includes(normalized)) return "organisation";
+  if (["secretaire", "secretariat", "email", "emails", "admin"].includes(normalized)) return "secretaire";
+  if (["commercial", "commerce", "client", "clients", "baqio"].includes(normalized)) return "commercial";
+  return "fernand";
 }
 
 function createFernandRequest(text) {
@@ -2621,6 +2731,7 @@ async function loadMorningBrief() {
     try {
       const response = await fetch("/api/morning-brief");
       morningBriefState = await response.json();
+      renderDailyZen();
       renderMorningBrief();
       return;
     } catch {
@@ -2629,6 +2740,7 @@ async function loadMorningBrief() {
   } else {
     morningBriefState = buildMorningBriefClient(state);
   }
+  renderDailyZen();
   renderMorningBrief();
 }
 
@@ -2776,6 +2888,7 @@ function buildMorningBriefClient(currentState) {
     headline: lateTasks.length
       ? `Tu as ${lateTasks.length} tache(s) en retard. Commence par reduire ce stock avant d'ajouter du nouveau.`
       : `Journee active : ${todayTasks.length} tache(s) prevue(s) et ${agenda.length} rendez-vous a surveiller.`,
+    zenPhrase: chooseOrganizationZenPhraseClient(lateTasks, todayTasks, agenda, loadScore),
     stats: {
       late: lateTasks.length,
       today: todayTasks.length,
@@ -2799,6 +2912,14 @@ function buildMorningBriefClient(currentState) {
       "Garde un vrai tampon dans la journee pour l'imprevu.",
     ],
   };
+}
+
+function chooseOrganizationZenPhraseClient(lateTasks, todayTasks, agenda, loadScore) {
+  if (lateTasks.length) return "On ne rattrape pas tout d'un coup : on choisit la premiere pierre et on la pose bien.";
+  if (loadScore >= 9) return "Une journee chargee demande moins de vitesse et plus de cap.";
+  if (agenda.length >= 3) return "Entre deux rendez-vous, garde un vrai souffle pour redevenir disponible.";
+  if (todayTasks.length) return "La bonne priorite est celle qui rend la suite plus simple.";
+  return "Quand le calme apparait, profite-en pour clarifier avant de remplir.";
 }
 
 function taskToBriefItem(task) {
@@ -3506,6 +3627,66 @@ function escapeHTML(value) {
 
 function formatMultiline(value) {
   return escapeHTML(value || "").replace(/\n/g, "<br>");
+}
+
+function formatAssistantAnswer(value) {
+  const text = String(value || "").trim();
+  if (!text) return `<p class="empty-state">Aucune reponse.</p>`;
+
+  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  const html = [];
+  let listType = "";
+
+  const closeList = () => {
+    if (listType) {
+      html.push(`</${listType}>`);
+      listType = "";
+    }
+  };
+  const openList = (type) => {
+    if (listType === type) return;
+    closeList();
+    listType = type;
+    html.push(`<${type}>`);
+  };
+  const inline = (line) => escapeHTML(line)
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/`([^`]+)`/g, "<code>$1</code>");
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) {
+      closeList();
+      continue;
+    }
+
+    const heading = line.match(/^#{1,3}\s+(.+)$/) || line.match(/^\*\*([^*]{3,80})\*\*:?\s*$/);
+    if (heading) {
+      closeList();
+      html.push(`<h3>${inline(heading[1])}</h3>`);
+      continue;
+    }
+
+    const bullet = line.match(/^[-*]\s+(.+)$/);
+    if (bullet) {
+      openList("ul");
+      html.push(`<li>${inline(bullet[1])}</li>`);
+      continue;
+    }
+
+    const numbered = line.match(/^\d+[.)]\s+(.+)$/);
+    if (numbered) {
+      openList("ol");
+      html.push(`<li>${inline(numbered[1])}</li>`);
+      continue;
+    }
+
+    closeList();
+    html.push(`<p>${inline(line)}</p>`);
+  }
+
+  closeList();
+  return `<div class="formatted-answer">${html.join("")}</div>`;
 }
 
 window.completeTask = completeTask;

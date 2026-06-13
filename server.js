@@ -56,6 +56,7 @@ const DEFAULT_AGENT_INSTRUCTIONS = {
     "Nom: Paulo.",
     "Role: organisation du travail, journee, agenda, taches, productivite, routine du matin et equilibre mental.",
     "Mission: transformer le flou en prochaines actions, prioriser, tenir compte de l'agenda, des retards, de la charge mentale et du niveau de stress.",
+    "Agenda: utiliser l'agenda Google synchronise comme source de verite. Ne pas inventer de rendez-vous ou de planning si les donnees d'agenda ne sont pas presentes dans le contexte.",
     "Hierarchie: quand Fernand coordonne, Paulo lui fournit une analyse courte et actionnable. Quand Xavier appelle directement ce service avec @paulo ou @organisation, repondre directement dans ce role.",
     "Style: pratique, court, apaisant quand necessaire, toujours oriente action.",
   ].join("\n"),
@@ -1464,10 +1465,21 @@ function findGmailAccount(tokens, mailbox = "") {
 }
 
 async function fetchCalendar(token, service) {
+  const calendarIds = getCalendarReadIds();
+  const batches = await Promise.all(calendarIds.map((calendarId) => fetchCalendarFromId(token, service, calendarId)));
+  return batches.flat()
+    .sort((a, b) => {
+      const dateA = `${a.date || ""} ${a.time || ""}`;
+      const dateB = `${b.date || ""} ${b.time || ""}`;
+      return dateA.localeCompare(dateB);
+    })
+    .slice(0, 60);
+}
+
+async function fetchCalendarFromId(token, service, calendarId) {
   const now = new Date();
   const end = new Date();
   end.setDate(now.getDate() + 30);
-  const calendarId = encodeURIComponent(getAssistantCalendarId());
   const params = new URLSearchParams({
     timeMin: now.toISOString(),
     timeMax: end.toISOString(),
@@ -1475,15 +1487,21 @@ async function fetchCalendar(token, service) {
     orderBy: "startTime",
     maxResults: "30",
   });
-  const response = await googleFetch(token, service, `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?${params}`);
+  const response = await googleFetch(token, service, `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params}`);
   return (response.items || []).map((event) => ({
-    id: event.id,
+    id: `google-calendar-${calendarId}-${event.id}`,
     sourceId: event.id,
+    sourceCalendarId: calendarId,
     date: getEventDateKey(event.start),
     time: formatEventTime(event.start),
     title: event.summary || "Evenement sans titre",
-    source: "Google Calendar",
+    source: calendarId === "primary" ? "Google Calendar - Personnel" : "Google Calendar - Assistants",
   }));
+}
+
+function getCalendarReadIds() {
+  const assistantCalendarId = getAssistantCalendarId();
+  return [...new Set(["primary", assistantCalendarId].filter(Boolean))];
 }
 
 async function fetchDriveInbox(token, service) {
@@ -1617,32 +1635,32 @@ async function getGoogleTaskListId(token, appListName) {
 async function createGoogleCalendarEvent(event) {
   const tokens = readJson(TOKENS_FILE, {});
   const token = requireWritableGoogleToken(tokens.calendar, "calendar");
-  const calendarId = encodeURIComponent(getAssistantCalendarId());
-  const saved = await googleFetch(token, "calendar", `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`, {
+  const calendarId = getAssistantCalendarId();
+  const saved = await googleFetch(token, "calendar", `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`, {
     method: "POST",
     body: calendarEventToGooglePayload(event),
   });
-  return googleEventToAppEvent(saved);
+  return googleEventToAppEvent(saved, calendarId);
 }
 
 async function updateGoogleCalendarEvent(event) {
   const tokens = readJson(TOKENS_FILE, {});
   const token = requireWritableGoogleToken(tokens.calendar, "calendar");
   const eventId = event.sourceId || event.id;
-  const calendarId = encodeURIComponent(getAssistantCalendarId());
-  const saved = await googleFetch(token, "calendar", `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${encodeURIComponent(eventId)}`, {
+  const calendarId = event.sourceCalendarId || getAssistantCalendarId();
+  const saved = await googleFetch(token, "calendar", `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`, {
     method: "PATCH",
     body: calendarEventToGooglePayload(event),
   });
-  return googleEventToAppEvent(saved);
+  return googleEventToAppEvent(saved, calendarId);
 }
 
 async function deleteGoogleCalendarEvent(event) {
   const tokens = readJson(TOKENS_FILE, {});
   const token = requireWritableGoogleToken(tokens.calendar, "calendar");
   const eventId = event.sourceId || event.id;
-  const calendarId = encodeURIComponent(getAssistantCalendarId());
-  await googleFetch(token, "calendar", `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${encodeURIComponent(eventId)}`, {
+  const calendarId = event.sourceCalendarId || getAssistantCalendarId();
+  await googleFetch(token, "calendar", `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`, {
     method: "DELETE",
   });
 }
@@ -1659,14 +1677,15 @@ function calendarEventToGooglePayload(event) {
   return payload;
 }
 
-function googleEventToAppEvent(event) {
+function googleEventToAppEvent(event, calendarId = getAssistantCalendarId()) {
   return {
-    id: event.id,
+    id: `google-calendar-${calendarId}-${event.id}`,
     sourceId: event.id,
+    sourceCalendarId: calendarId,
     title: event.summary || "Evenement sans titre",
     date: getEventDateKey(event.start),
     time: formatEventTime(event.start),
-    source: "Google Calendar",
+    source: calendarId === "primary" ? "Google Calendar - Personnel" : "Google Calendar - Assistants",
     updatedAt: event.updated || new Date().toISOString(),
   };
 }
@@ -1961,22 +1980,34 @@ async function sendGoogleCalendarDebug(res) {
     maxResults: "20",
   });
 
-  const calendarId = getAssistantCalendarId();
-  const response = await googleFetch(tokens.calendar, "calendar", `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params}`);
-  const events = response.items || [];
+  const calendarIds = getCalendarReadIds();
+  const calendarResults = await Promise.all(calendarIds.map(async (calendarId) => {
+    const response = await googleFetch(tokens.calendar, "calendar", `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params}`);
+    return {
+      calendarId,
+      events: response.items || [],
+    };
+  }));
+  const events = calendarResults.flatMap((result) => result.events.map((event) => ({ ...event, calendarId: result.calendarId })));
   const agenda = Array.isArray(state.agenda) ? state.agenda : [];
 
   return sendJson(res, {
     ok: true,
     hasCalendarToken: true,
-    assistantCalendarId: calendarId,
+    assistantCalendarId: getAssistantCalendarId(),
+    readCalendarIds: calendarIds,
     calendarTokenHasReadonlyScope: Boolean(tokens.calendar?.scope?.includes("https://www.googleapis.com/auth/calendar.readonly")),
     tokenServices: Object.keys(tokens),
     serverAgendaCount: agenda.length,
     googleEventCountNext30Days: events.length,
+    eventsByCalendar: calendarResults.map((result) => ({
+      calendarId: result.calendarId,
+      count: result.events.length,
+    })),
     sampleEvents: events.slice(0, 8).map((event) => ({
       title: event.summary || "Evenement sans titre",
       start: event.start?.dateTime || event.start?.date || "",
+      calendarId: event.calendarId,
       status: event.status || "",
     })),
   });
@@ -2477,7 +2508,7 @@ function tryHandleDirectWorker(message, mode, forcedWorker = "") {
   if (mode !== "quick") return null;
   const normalized = normalizeText(message);
   const asksAgenda = /(rendez[-\s]?vous|rdv|agenda|planning|calendrier)/.test(normalized);
-  if (forcedWorker !== "organisation") return null;
+  if (forcedWorker && !["fernand", "organisation"].includes(forcedWorker)) return null;
   if (!asksAgenda) return null;
 
   const state = getAppState();
@@ -2506,7 +2537,7 @@ function tryHandleDirectWorker(message, mode, forcedWorker = "") {
 function getNextAgendaAnswer(state) {
   const next = getUpcomingAgendaEvents(state)[0];
   if (!next) return "Je ne vois aucun rendez-vous a venir dans l'agenda synchronise.";
-  return `Ton prochain rendez-vous est : ${next.time || formatDateLabel(next.date)} - ${next.title}.`;
+  return `Ton prochain rendez-vous est : ${next.time || formatDateLabel(next.date)} - ${next.title}${next.source ? ` (${next.source})` : ""}.`;
 }
 
 function getAgendaForDateAnswer(state, dateKey, label) {
@@ -2525,6 +2556,8 @@ function getUpcomingAgendaEvents(state) {
       date: event.date || inferDateKeyFromAgendaTime(event.time) || today,
       time: event.time || "",
       title: event.title || "Evenement sans titre",
+      source: event.source || "",
+      sourceCalendarId: event.sourceCalendarId || "",
     }))
     .filter((event) => event.date >= today)
     .sort((a, b) => {
@@ -2573,6 +2606,7 @@ function buildAiMessages(message, mode = "quick", worker = "") {
         "Ne dis pas que tu as envoye des emails, modifie l'agenda, appele Baqio ou change des fichiers si l'application ne l'a pas vraiment fait.",
         "Gaspard utilise Baqio seulement comme base lue et synchronisee; il propose des relances, brouillons et priorites, mais ne promet aucune action automatique.",
         "Paulo integre agenda, taches, routine, priorites et charge mentale sans faire de diagnostic medical.",
+        "Agenda Google: l'application lit l'agenda personnel Google et l'agenda assistants. Les nouveaux evenements crees par l'application vont dans l'agenda assistants. Utilise les rendez-vous fournis dans le contexte; si aucun rendez-vous n'apparait, dis que l'agenda synchronise est vide ou pas encore synchronise, et ne fabrique jamais de planning.",
         "Reponds en francais, de facon concrete.",
         "Tu as une memoire courte des derniers echanges fournie dans le contexte.",
         "Si Xavier fait reference a une chose dite juste avant, utilise cette memoire.",
@@ -2900,14 +2934,14 @@ function getAiStateSummary(state) {
   return [
     `Contexte actuel: ${openTasks.length} taches ouvertes.`,
     urgentTasks.length ? `Taches importantes: ${urgentTasks.join("; ")}.` : "",
-    upcomingAgenda.length ? `Prochains rendez-vous: ${upcomingAgenda.join("; ")}.` : "Aucun rendez-vous connu dans l'agenda synchronise.",
+    upcomingAgenda.length ? `Agenda Google synchronise: lecture de l'agenda personnel et de l'agenda assistants. Prochains rendez-vous: ${upcomingAgenda.join("; ")}.` : "Agenda Google synchronise: aucun rendez-vous lu dans les 30 prochains jours, ou synchronisation a relancer.",
     reports.length ? `Travaux en cours: ${reports.join("; ")}.` : "",
   ].filter(Boolean).join(" ");
 }
 
 function getUpcomingAgendaItems(state) {
   return getUpcomingAgendaEvents(state)
-    .map((event) => `${event.time || event.date} - ${event.title}`);
+    .map((event) => `${event.time || event.date} - ${event.title}${event.source ? ` (${event.source})` : ""}`);
 }
 
 function buildMorningBrief(state) {

@@ -22,6 +22,7 @@ const KNOWLEDGE_FILE = path.join(DATA_DIR, "knowledge-documents.json");
 const AGENT_INSTRUCTIONS_FILE = path.join(DATA_DIR, "agent-instructions.json");
 const AUTO_SYNC_INTERVAL_MINUTES = Math.max(5, Number(process.env.AUTO_SYNC_INTERVAL_MINUTES || 15));
 const BAQIO_SYNC_MAX_PAGES = Math.max(1, Number(process.env.BAQIO_SYNC_MAX_PAGES || 10));
+const ORDER_STATUSES = ["En commande", "Prete pour expedition", "En livraison", "Expedie"];
 
 const GOOGLE_SCOPES = {
   gmail: [
@@ -94,6 +95,7 @@ const CONFIG_ENV_KEYS = [
   "BAQIO_PASSWORD",
   "BAQIO_SECRET",
   "BAQIO_SYNC_MAX_PAGES",
+  "ORDER_WEBHOOK_SECRET",
 ];
 
 const MIME_TYPES = {
@@ -222,6 +224,7 @@ const seedState = {
     summary: null,
     lastSyncedAt: null,
   },
+  orderPipeline: [],
   timeclock: {
     employees: [],
     entries: [],
@@ -346,6 +349,14 @@ const server = http.createServer(async (req, res) => {
       return await syncBaqioCommercialData(res);
     }
 
+    if (requestUrl.pathname === "/api/webhooks/orders" && req.method === "POST") {
+      return await handleOrderWebhook(req, requestUrl, res);
+    }
+
+    if (requestUrl.pathname === "/api/orders/status" && req.method === "POST") {
+      return await updateOrderPipelineStatus(req, res);
+    }
+
     if (requestUrl.pathname === "/api/ai/status" && req.method === "GET") {
       return await sendAiStatus(res);
     }
@@ -452,7 +463,8 @@ function isPublicRoute(pathname) {
     || pathname === "/pointeuse.js"
     || pathname === "/qr-pointeuse.jpg"
     || pathname === "/api/timeclock/public"
-    || pathname === "/api/timeclock/punch";
+    || pathname === "/api/timeclock/punch"
+    || pathname === "/api/webhooks/orders";
 }
 
 server.on("error", (error) => {
@@ -727,6 +739,7 @@ function normalizeAppState(state) {
     mail: Array.isArray(state.mail) ? state.mail : structuredClone(seedState.mail),
     reports: Array.isArray(state.reports) ? state.reports : structuredClone(seedState.reports),
     baqio: state.baqio && typeof state.baqio === "object" ? state.baqio : structuredClone(seedState.baqio),
+    orderPipeline: Array.isArray(state.orderPipeline) ? normalizeOrderPipeline(state.orderPipeline) : [],
     timeclock: normalizeTimeClockState(state.timeclock),
     requests: Array.isArray(state.requests) ? state.requests : [],
     lists: state.lists && typeof state.lists === "object" ? state.lists : structuredClone(seedState.lists),
@@ -2093,6 +2106,8 @@ function getBaqioConfigStatus() {
     hasApiKey: Boolean(config.apiKey),
     hasPassword: Boolean(config.password),
     hasSecret: Boolean(config.secret),
+    hasOrderWebhookSecret: Boolean(config.orderWebhookSecret),
+    orderWebhookUrl: getPublicAppUrl("/api/webhooks/orders"),
     ready: config.ready,
   };
 }
@@ -2102,11 +2117,13 @@ function getBaqioConfig() {
   const apiKey = process.env.BAQIO_API_KEY || "";
   const password = process.env.BAQIO_PASSWORD || "";
   const secret = process.env.BAQIO_SECRET || "";
+  const orderWebhookSecret = process.env.ORDER_WEBHOOK_SECRET || "";
   return {
     baseUrl,
     apiKey,
     password,
     secret,
+    orderWebhookSecret,
     ready: Boolean(baseUrl && apiKey && password && secret),
   };
 }
@@ -2119,6 +2136,7 @@ function saveBaqioConfig(config) {
     BAQIO_API_KEY: String(config.apiKey || current.BAQIO_API_KEY || "").trim(),
     BAQIO_PASSWORD: String(config.password || current.BAQIO_PASSWORD || "").trim(),
     BAQIO_SECRET: String(config.secret || current.BAQIO_SECRET || "").trim(),
+    ORDER_WEBHOOK_SECRET: String(config.orderWebhookSecret || current.ORDER_WEBHOOK_SECRET || "").trim(),
   };
 
   writeEnvFile(next);
@@ -2126,6 +2144,7 @@ function saveBaqioConfig(config) {
   process.env.BAQIO_API_KEY = next.BAQIO_API_KEY;
   process.env.BAQIO_PASSWORD = next.BAQIO_PASSWORD;
   process.env.BAQIO_SECRET = next.BAQIO_SECRET;
+  process.env.ORDER_WEBHOOK_SECRET = next.ORDER_WEBHOOK_SECRET;
 }
 
 async function sendBaqioStatus(res) {
@@ -2360,6 +2379,219 @@ function buildBaqioOpportunities(customers, orders) {
 
 function formatEuroCentsServer(value) {
   return `${Math.round(Number(value || 0) / 100).toLocaleString("fr-FR")} EUR`;
+}
+
+async function handleOrderWebhook(req, requestUrl, res) {
+  const config = getBaqioConfig();
+  const expectedSecret = String(config.orderWebhookSecret || "").trim();
+  const providedSecret = String(
+    req.headers["x-order-webhook-secret"]
+      || req.headers["x-webhook-secret"]
+      || requestUrl.searchParams.get("secret")
+      || ""
+  ).trim();
+
+  if (!expectedSecret) {
+    return sendJson(res, { error: "Webhook commandes non configure: ajoute un secret dans Connexions > Baqio." }, 409);
+  }
+  if (!safeCompare(expectedSecret, providedSecret)) {
+    return sendJson(res, { error: "Secret webhook invalide." }, 401);
+  }
+
+  const body = await readBody(req);
+  const state = getAppState();
+  const order = normalizeIncomingOrder(body);
+  const existing = state.orderPipeline.find((item) =>
+    item.sourceId && order.sourceId ? item.sourceId === order.sourceId : item.reference === order.reference
+  );
+  const now = new Date().toISOString();
+  const event = {
+    id: randomUUID(),
+    status: order.status,
+    note: body.note || body.notes || body.message || "Commande recue par webhook.",
+    source: order.source,
+    createdAt: now,
+  };
+
+  const savedOrder = existing
+    ? {
+        ...existing,
+        ...order,
+        id: existing.id,
+        createdAt: existing.createdAt,
+        updatedAt: now,
+        closedAt: order.status === "Expedie" ? (existing.closedAt || now) : "",
+        events: [...(existing.events || []), event],
+      }
+    : {
+        ...order,
+        id: randomUUID(),
+        createdAt: now,
+        updatedAt: now,
+        closedAt: order.status === "Expedie" ? now : "",
+        events: [event],
+      };
+
+  state.orderPipeline = existing
+    ? state.orderPipeline.map((item) => item.id === existing.id ? savedOrder : item)
+    : [savedOrder, ...state.orderPipeline];
+  state.requests = upsertOrderAssistantRequest(state.requests || [], savedOrder, existing ? "mise a jour" : "nouvelle");
+  writeJson(STATE_FILE, normalizeAppState(state));
+
+  return sendJson(res, {
+    ok: true,
+    order: savedOrder,
+    assistantNotice: "Commande transmise a Fernand, Gaspard, Suzette et Paulo via le suivi des demandes.",
+  });
+}
+
+async function updateOrderPipelineStatus(req, res) {
+  const body = await readBody(req);
+  const state = getAppState();
+  const id = String(body.id || "").trim();
+  const status = normalizeOrderStatus(body.status);
+  const order = state.orderPipeline.find((item) => item.id === id || item.sourceId === id || item.reference === id);
+  if (!order) return sendJson(res, { error: "Commande introuvable." }, 404);
+
+  const now = new Date().toISOString();
+  const next = {
+    ...order,
+    status,
+    updatedAt: now,
+    closedAt: status === "Expedie" ? (order.closedAt || now) : "",
+    events: [
+      ...(order.events || []),
+      {
+        id: randomUUID(),
+        status,
+        note: String(body.note || "Statut mis a jour depuis l'application.").trim(),
+        source: "Assistant Xavier",
+        createdAt: now,
+      },
+    ],
+  };
+  state.orderPipeline = state.orderPipeline.map((item) => item.id === order.id ? next : item);
+  state.requests = upsertOrderAssistantRequest(state.requests || [], next, "mise a jour");
+  writeJson(STATE_FILE, normalizeAppState(state));
+  return sendJson(res, { ok: true, order: next, state: normalizeAppState(state) });
+}
+
+function normalizeIncomingOrder(body) {
+  const customer = body.customer || body.client || {};
+  const delivery = body.delivery || body.shipping || {};
+  const address = body.address || body.deliveryAddress || delivery.address || customer.address || "";
+  const reference = String(body.reference || body.ref || body.number || body.orderNumber || body.name || body.id || "").trim();
+  const sourceId = String(body.sourceId || body.orderId || body.id || "").trim();
+  const customerName = String(
+    body.customerName
+      || body.clientName
+      || customer.name
+      || customer.companyName
+      || body.companyName
+      || "Client non renseigne"
+  ).trim();
+  const totalCents = Number(body.totalCents ?? body.total_cents ?? body.total_amount_cents ?? 0);
+  const total = body.total || body.amount || body.totalAmount || "";
+  const items = normalizeOrderItems(body.items || body.lines || body.orderItems || body.products || []);
+  return {
+    sourceId,
+    reference: reference || sourceId || `commande-${Date.now()}`,
+    status: normalizeOrderStatus(body.status || body.state || body.workflowStatus || "En commande"),
+    customerName,
+    customerEmail: String(body.customerEmail || customer.email || "").trim(),
+    customerPhone: String(body.customerPhone || customer.phone || "").trim(),
+    deliveryAddress: String(address || "").trim(),
+    deliveryCity: String(body.city || delivery.city || customer.city || "").trim(),
+    deliveryZip: String(body.zip || body.postalCode || delivery.zip || customer.zip || "").trim(),
+    deliveryDate: String(body.deliveryDate || body.shippingDate || body.expeditionDate || body.dueDate || "").slice(0, 10),
+    totalCents,
+    totalLabel: total ? String(total) : (totalCents ? formatEuroCentsServer(totalCents) : ""),
+    items,
+    raw: body,
+    source: String(body.source || "Webhook commande").trim(),
+  };
+}
+
+function normalizeOrderPipeline(orders) {
+  return orders.map((order) => ({
+    id: order.id || randomUUID(),
+    sourceId: String(order.sourceId || "").trim(),
+    reference: String(order.reference || order.name || order.id || "commande").trim(),
+    status: normalizeOrderStatus(order.status),
+    customerName: String(order.customerName || "Client non renseigne").trim(),
+    customerEmail: String(order.customerEmail || "").trim(),
+    customerPhone: String(order.customerPhone || "").trim(),
+    deliveryAddress: String(order.deliveryAddress || "").trim(),
+    deliveryCity: String(order.deliveryCity || "").trim(),
+    deliveryZip: String(order.deliveryZip || "").trim(),
+    deliveryDate: String(order.deliveryDate || "").slice(0, 10),
+    totalCents: Number(order.totalCents || 0),
+    totalLabel: String(order.totalLabel || "").trim(),
+    items: normalizeOrderItems(order.items || []),
+    raw: order.raw || {},
+    source: String(order.source || "Webhook commande").trim(),
+    createdAt: order.createdAt || new Date().toISOString(),
+    updatedAt: order.updatedAt || order.createdAt || new Date().toISOString(),
+    closedAt: normalizeOrderStatus(order.status) === "Expedie" ? (order.closedAt || order.updatedAt || new Date().toISOString()) : "",
+    events: Array.isArray(order.events) ? order.events : [],
+  }));
+}
+
+function normalizeOrderItems(items) {
+  return Array.isArray(items) ? items.slice(0, 40).map((item) => ({
+    name: String(item.name || item.title || item.productName || item.product_name || "Article").trim(),
+    quantity: Number(item.quantity || item.qty || item.count || 0),
+    sku: String(item.sku || item.reference || item.productReference || "").trim(),
+  })) : [];
+}
+
+function normalizeOrderStatus(value) {
+  const compact = normalizeText(value || "").replace(/[^a-z0-9]/g, "");
+  if (["prete", "pret", "pretepourexpedition", "pretpourexpedition", "ready", "readytoship", "aexpedier"].includes(compact)) return "Prete pour expedition";
+  if (["livraison", "enlivraison", "delivery", "outfordelivery"].includes(compact)) return "En livraison";
+  if (["expedie", "expediee", "expediees", "shipped", "done", "closed", "termine"].includes(compact)) return "Expedie";
+  return "En commande";
+}
+
+function upsertOrderAssistantRequest(requests, order, mode) {
+  const marker = `order:${order.id}`;
+  const original = [
+    `${mode === "nouvelle" ? "Nouvelle commande" : "Mise a jour commande"} ${order.reference}`,
+    `Client: ${order.customerName}`,
+    `Statut: ${order.status}`,
+    order.deliveryDate ? `Date prevue: ${order.deliveryDate}` : "",
+    order.deliveryAddress || order.deliveryCity ? `Adresse: ${[order.deliveryAddress, order.deliveryZip, order.deliveryCity].filter(Boolean).join(", ")}` : "",
+    order.items?.length ? `Articles: ${order.items.map((item) => `${item.quantity || ""} ${item.name}`.trim()).join("; ")}` : "",
+  ].filter(Boolean).join("\n");
+  const existing = requests.find((request) => request.orderId === order.id || request.marker === marker);
+  const next = {
+    ...(existing || {}),
+    id: existing?.id || randomUUID(),
+    marker,
+    orderId: order.id,
+    title: `Commande ${order.reference} - ${order.customerName}`.slice(0, 90),
+    original,
+    status: order.status === "Expedie" ? "Clos" : "Demande a traiter",
+    agents: ["Gaspard", "Suzette", "Paulo"],
+    report: existing?.report || "",
+    createdAt: existing?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  return existing
+    ? requests.map((request) => request.id === existing.id ? next : request)
+    : [next, ...requests];
+}
+
+function safeCompare(expected, provided) {
+  const expectedBuffer = Buffer.from(String(expected));
+  const providedBuffer = Buffer.from(String(provided));
+  if (expectedBuffer.length !== providedBuffer.length) return false;
+  return timingSafeEqual(expectedBuffer, providedBuffer);
+}
+
+function getPublicAppUrl(pathname = "") {
+  const base = String(process.env.APP_URL || process.env.PUBLIC_APP_URL || "https://vps-b6bb35e6.vps.ovh.net").replace(/\/+$/, "");
+  return `${base}${pathname.startsWith("/") ? pathname : `/${pathname}`}`;
 }
 
 async function baqioFetch(endpoint, options = {}) {
@@ -2761,7 +2993,8 @@ function buildFernandFinalReportMessages(originalMessage, serviceQuestion, worke
 function getCommercialAiContext(state, message, worker = "", mode = "quick") {
   const baqio = state.baqio || {};
   const summary = baqio.summary;
-  if (!summary) return "";
+  const orderPipeline = Array.isArray(state.orderPipeline) ? state.orderPipeline : [];
+  if (!summary && !orderPipeline.length) return "";
 
   const normalized = normalizeText(`${worker} ${message}`);
   const mentionsCommercial = worker === "commercial"
@@ -2769,13 +3002,28 @@ function getCommercialAiContext(state, message, worker = "", mode = "quick") {
     || /(commercial|commerce|client|clients|prospect|relance|relancer|vente|ventes|commande|commandes|baqio|chiffre|ca|offre|particulier|pro\b|professionnel|livraison|livrer|tournee|adresse|adresses|facture|factures|reglement|paiement)/.test(normalized);
   if (!mentionsCommercial) return "";
 
-  const topCustomers = (summary.topCustomers || []).slice(0, 5).map((customer) =>
+  const activeOrders = orderPipeline
+    .filter((order) => order.status !== "Expedie")
+    .slice(0, 8)
+    .map((order) => [
+      `${order.reference}: ${order.customerName}`,
+      `statut ${order.status}`,
+      order.deliveryDate ? `date ${order.deliveryDate}` : "",
+      order.deliveryAddress || order.deliveryCity ? `adresse ${[order.deliveryAddress, order.deliveryZip, order.deliveryCity].filter(Boolean).join(", ")}` : "",
+      order.items?.length ? `articles ${order.items.map((item) => `${item.quantity || ""} ${item.name}`.trim()).join("; ")}` : "",
+    ].filter(Boolean).join(", "));
+  const shippedToday = orderPipeline
+    .filter((order) => order.status === "Expedie" && String(order.closedAt || order.updatedAt || "").slice(0, 10) === todayISO())
+    .slice(0, 5)
+    .map((order) => `${order.reference}: ${order.customerName}`);
+
+  const topCustomers = (summary?.topCustomers || []).slice(0, 5).map((customer) =>
     `${customer.customerName}: ${formatEuroCentsServer(customer.totalCents)}, ${customer.orderCount} commande(s), dernier achat ${customer.lastOrderDate || "inconnu"}`
   );
-  const recentOrders = (summary.recentOrders || []).slice(0, 5).map((order) =>
+  const recentOrders = (summary?.recentOrders || []).slice(0, 5).map((order) =>
     `${order.customerName}: ${formatEuroCentsServer(order.totalCents)}, ${Number(order.bottleQuantity || 0).toFixed(0)} bouteille(s), ${order.date || "date inconnue"}`
   );
-  const opportunities = (summary.opportunities || []).slice(0, 8).map((opportunity) =>
+  const opportunities = (summary?.opportunities || []).slice(0, 8).map((opportunity) =>
     `${opportunity.priority || "Priorite"} - ${opportunity.title}: ${opportunity.detail}`
   );
   const matchingCustomers = findRelevantBaqioCustomers(baqio, message).map((customer) =>
@@ -2791,9 +3039,11 @@ function getCommercialAiContext(state, message, worker = "", mode = "quick") {
   );
 
   return [
-    `Derniere synchronisation: ${baqio.lastSyncedAt || "inconnue"}.`,
-    `${summary.customerCount || 0} client(s), dont ${summary.proCount || 0} pro(s) et ${summary.individualCount || 0} particulier(s).`,
-    `${summary.orderCount || 0} commande(s), CA lu ${formatEuroCentsServer(summary.totalRevenueCents)}, ${Number(summary.bottleQuantity || 0).toFixed(0)} bouteille(s).`,
+    activeOrders.length ? `Commandes operationnelles en cours: ${activeOrders.join(" | ")}.` : "",
+    shippedToday.length ? `Commandes expediees aujourd'hui: ${shippedToday.join(" | ")}.` : "",
+    summary ? `Derniere synchronisation: ${baqio.lastSyncedAt || "inconnue"}.` : "",
+    summary ? `${summary.customerCount || 0} client(s), dont ${summary.proCount || 0} pro(s) et ${summary.individualCount || 0} particulier(s).` : "",
+    summary ? `${summary.orderCount || 0} commande(s), CA lu ${formatEuroCentsServer(summary.totalRevenueCents)}, ${Number(summary.bottleQuantity || 0).toFixed(0)} bouteille(s).` : "",
     matchingCustomers.length ? `Clients pertinents retrouves dans Baqio: ${matchingCustomers.join(" | ")}.` : "",
     topCustomers.length ? `Meilleurs clients: ${topCustomers.join(" | ")}.` : "",
     recentOrders.length ? `Commandes recentes: ${recentOrders.join(" | ")}.` : "",
@@ -3056,6 +3306,7 @@ function normalizeSearchWords(value) {
 
 function getAiStateSummary(state) {
   const openTasks = (state.tasks || []).filter((task) => task.status !== "Termine");
+  const activeOrders = (state.orderPipeline || []).filter((order) => order.status !== "Expedie");
   const urgentTasks = openTasks
     .filter((task) => ["Urgente", "Importante"].includes(task.priority))
     .slice(0, 5)
@@ -3069,6 +3320,7 @@ function getAiStateSummary(state) {
     `Contexte actuel: ${openTasks.length} taches ouvertes.`,
     urgentTasks.length ? `Taches importantes: ${urgentTasks.join("; ")}.` : "",
     upcomingAgenda.length ? `Agenda Google synchronise: lecture de l'agenda personnel et de l'agenda assistants. Prochains rendez-vous: ${upcomingAgenda.join("; ")}.` : "Agenda Google synchronise: aucun rendez-vous lu dans les 30 prochains jours, ou synchronisation a relancer.",
+    activeOrders.length ? `Commandes en cours: ${activeOrders.slice(0, 5).map((order) => `${order.reference} - ${order.customerName} (${order.status})`).join("; ")}.` : "",
     reports.length ? `Travaux en cours: ${reports.join("; ")}.` : "",
   ].filter(Boolean).join(" ");
 }

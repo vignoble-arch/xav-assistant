@@ -1375,6 +1375,10 @@ button:disabled {
   margin-top: 14px;
 }
 
+.commercial-summary.compact {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .commercial-summary article {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1402,6 +1406,57 @@ button:disabled {
 
 .commercial-wide {
   grid-column: 1 / -1;
+}
+
+.order-card {
+  border-left: 4px solid #b8c2bd;
+}
+
+.order-card.status-en-commande {
+  border-left-color: #8aa2b0;
+}
+
+.order-card.status-prete-pour-expedition {
+  border-left-color: #c59b4a;
+}
+
+.order-card.status-en-livraison {
+  border-left-color: #5d8b72;
+}
+
+.order-card.status-expedie {
+  border-left-color: #8ca491;
+  opacity: 0.82;
+}
+
+.order-flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.order-flow span {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 5px 8px;
+  color: var(--muted);
+  background: var(--surface);
+  font-size: 0.78rem;
+}
+
+.order-flow span.is-current {
+  border-color: #597469;
+  color: #23352d;
+  background: #e8f0eb;
+  font-weight: 700;
+}
+
+.copy-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
 }
 
 .timeclock-summary {

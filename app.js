@@ -3,6 +3,7 @@ const NOTIFICATION_PREFS_KEY = "assistant-xavier-notifications-v1";
 const BRANDING_KEY = "assistant-xavier-branding-v1";
 
 const statuses = ["Inbox", "A faire", "En cours", "En attente", "Termine"];
+const ORDER_STATUSES = ["En commande", "Prete pour expedition", "En livraison", "Expedie"];
 const TASK_LISTS = ["Dettes", "Cave Expé", "vignoble", "bureau", "divers et perso"];
 const WORKERS = [
   { key: "fernand", label: "Fernand", description: "Bras droit et rapports" },
@@ -138,6 +139,7 @@ const seedState = {
     summary: null,
     lastSyncedAt: null,
   },
+  orderPipeline: [],
   timeclock: {
     employees: [],
     entries: [],
@@ -195,6 +197,8 @@ const el = {
   commercialOpportunities: document.querySelector("#commercialOpportunities"),
   commercialTopCustomers: document.querySelector("#commercialTopCustomers"),
   commercialRecentOrders: document.querySelector("#commercialRecentOrders"),
+  orderPipelineList: document.querySelector("#orderPipelineList"),
+  orderPipelineSummary: document.querySelector("#orderPipelineSummary"),
   timeclockUrl: document.querySelector("#timeclockUrl"),
   copyTimeclockUrl: document.querySelector("#copyTimeclockUrl"),
   employeeForm: document.querySelector("#employeeForm"),
@@ -265,6 +269,9 @@ const el = {
   baqioApiKey: document.querySelector("#baqioApiKey"),
   baqioPassword: document.querySelector("#baqioPassword"),
   baqioSecret: document.querySelector("#baqioSecret"),
+  orderWebhookSecret: document.querySelector("#orderWebhookSecret"),
+  orderWebhookUrl: document.querySelector("#orderWebhookUrl"),
+  copyOrderWebhookUrl: document.querySelector("#copyOrderWebhookUrl"),
   baqioStatusBadge: document.querySelector("#baqioStatusBadge"),
   baqioConnectionResult: document.querySelector("#baqioConnectionResult"),
   baqioSummary: document.querySelector("#baqioSummary"),
@@ -399,6 +406,7 @@ function bindEvents() {
   el.syncBaqioFromCommercial.addEventListener("click", syncBaqio);
   el.employeeForm?.addEventListener("submit", addEmployee);
   el.copyTimeclockUrl?.addEventListener("click", copyTimeclockUrl);
+  el.copyOrderWebhookUrl?.addEventListener("click", copyOrderWebhookUrl);
   el.copyCallback.addEventListener("click", copyCallbackUrl);
   el.taskListFilter.addEventListener("change", renderTasks);
   el.taskSearch.addEventListener("input", renderTasks);
@@ -853,6 +861,7 @@ function renderReports() {
 
 function renderCommercial() {
   if (!el.commercialSummary || !el.commercialTopCustomers || !el.commercialRecentOrders || !el.commercialOpportunities) return;
+  renderOrderPipeline();
   const summary = state.baqio?.summary;
   if (!summary) {
     el.commercialSummary.innerHTML = emptyState("Synchronise Baqio pour afficher le pilotage commercial.");
@@ -885,6 +894,79 @@ function renderCommercial() {
   el.commercialRecentOrders.innerHTML = recentOrders.length
     ? recentOrders.map((order) => commercialOrderCard(order)).join("")
     : emptyState("Aucune commande recente dans l'echantillon.");
+}
+
+function renderOrderPipeline() {
+  if (!el.orderPipelineList || !el.orderPipelineSummary) return;
+  const orders = [...(state.orderPipeline || [])].sort((a, b) => String(b.updatedAt || b.createdAt).localeCompare(String(a.updatedAt || a.createdAt)));
+  const active = orders.filter((order) => order.status !== "Expedie");
+  const counts = Object.fromEntries(ORDER_STATUSES.map((status) => [status, orders.filter((order) => order.status === status).length]));
+  el.orderPipelineSummary.innerHTML = `
+    <article><strong>${active.length}</strong><span>Actives</span></article>
+    <article><strong>${counts["En commande"] || 0}</strong><span>En commande</span></article>
+    <article><strong>${counts["Prete pour expedition"] || 0}</strong><span>Pretes</span></article>
+    <article><strong>${counts["En livraison"] || 0}</strong><span>En livraison</span></article>
+  `;
+  el.orderPipelineList.innerHTML = orders.length
+    ? orders.slice(0, 30).map(orderPipelineCard).join("")
+    : emptyState("Aucune commande operationnelle recue par webhook pour le moment.");
+}
+
+function orderPipelineCard(order) {
+  const nextStatus = nextOrderStatus(order.status);
+  const address = [order.deliveryAddress, order.deliveryZip, order.deliveryCity].filter(Boolean).join(", ");
+  const items = (order.items || []).slice(0, 4).map((item) => `${item.quantity || ""} ${item.name}`.trim()).join(" - ");
+  return `
+    <article class="order-card status-${normalizeText(order.status).replace(/\s+/g, "-")}">
+      <div class="card-top">
+        <div>
+          <p class="card-title">${escapeHTML(order.reference || "Commande")}</p>
+          <p class="card-meta">${escapeHTML(order.customerName || "Client non renseigne")} - ${escapeHTML(order.source || "Webhook")}</p>
+        </div>
+        <span class="source-pill">${escapeHTML(order.status || "En commande")}</span>
+      </div>
+      ${address ? `<p class="card-meta">${escapeHTML(address)}</p>` : ""}
+      ${order.deliveryDate ? `<p class="card-meta">Date prevue : ${escapeHTML(formatDate(order.deliveryDate))}</p>` : ""}
+      ${items ? `<p class="card-meta">${escapeHTML(items)}</p>` : ""}
+      ${order.totalLabel || order.totalCents ? `<p class="card-meta">${escapeHTML(order.totalLabel || formatEuroCents(order.totalCents))}</p>` : ""}
+      <div class="order-flow">
+        ${ORDER_STATUSES.map((status) => `<span class="${status === order.status ? "is-current" : ""}">${escapeHTML(status)}</span>`).join("")}
+      </div>
+      <div class="card-actions">
+        ${nextStatus ? `<button class="item-action item-action-primary" type="button" onclick="updateOrderStatus('${order.id}', '${nextStatus}')">Passer : ${escapeHTML(nextStatus)}</button>` : ""}
+        ${order.status !== "Expedie" ? `<button class="item-action" type="button" onclick="updateOrderStatus('${order.id}', 'Expedie')">Clore</button>` : ""}
+      </div>
+    </article>
+  `;
+}
+
+function nextOrderStatus(status) {
+  const index = ORDER_STATUSES.indexOf(status);
+  if (index < 0 || index >= ORDER_STATUSES.length - 1) return "";
+  return ORDER_STATUSES[index + 1];
+}
+
+async function updateOrderStatus(id, status) {
+  const order = (state.orderPipeline || []).find((item) => item.id === id);
+  if (!order) return;
+  order.status = status;
+  order.updatedAt = new Date().toISOString();
+  render();
+  try {
+    const response = await fetch("/api/orders/status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, status }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "Statut non modifie.");
+    state = migrateState(payload.state || state);
+    render();
+    showToast(`Commande passee en ${status}.`);
+  } catch (error) {
+    await loadState();
+    showToast(error.message || "Statut commande non modifie.");
+  }
 }
 
 function commercialOpportunityCard(opportunity) {
@@ -1044,6 +1126,12 @@ async function copyTimeclockUrl() {
   const url = el.timeclockUrl.value || `${location.origin}/pointeuse.html`;
   await navigator.clipboard.writeText(url);
   showToast("Lien pointeuse copie.");
+}
+
+async function copyOrderWebhookUrl() {
+  const url = el.orderWebhookUrl?.value || `${location.origin}/api/webhooks/orders`;
+  await navigator.clipboard.writeText(url);
+  showToast("URL webhook commandes copiee.");
 }
 
 async function commercialOpportunityToTask(id) {
@@ -1398,9 +1486,12 @@ function renderBaqioConfig() {
   el.baqioApiKey.value = "";
   el.baqioPassword.value = "";
   el.baqioSecret.value = "";
+  if (el.orderWebhookSecret) el.orderWebhookSecret.value = "";
+  if (el.orderWebhookUrl) el.orderWebhookUrl.value = baqioConfigState?.orderWebhookUrl || `${location.origin}/api/webhooks/orders`;
   el.baqioApiKey.placeholder = baqioConfigState?.hasApiKey ? "Cle API deja enregistree" : "Coller la cle API Baqio";
   el.baqioPassword.placeholder = baqioConfigState?.hasPassword ? "Mot de passe deja enregistre" : "Coller le mot de passe API";
   el.baqioSecret.placeholder = baqioConfigState?.hasSecret ? "Secret deja enregistre" : "Coller la cle secrete Baqio";
+  if (el.orderWebhookSecret) el.orderWebhookSecret.placeholder = baqioConfigState?.hasOrderWebhookSecret ? "Secret webhook deja enregistre" : "Phrase secrete pour n8n ou Baqio";
   el.baqioStatusBadge.textContent = baqioConfigState?.ready ? "Configure" : "A verifier";
   el.baqioConnectionResult.textContent = baqioConfigState?.ready
     ? "Baqio est configure. Lance un test pour verifier les identifiants."
@@ -3042,6 +3133,9 @@ function migrateState(saved) {
   migrated.baqio = saved.baqio && typeof saved.baqio === "object"
     ? { customers: [], orders: [], summary: null, lastSyncedAt: null, ...saved.baqio }
     : structuredClone(seedState.baqio);
+  migrated.orderPipeline = Array.isArray(saved.orderPipeline)
+    ? saved.orderPipeline.map(normalizeOrderPipelineItem)
+    : [];
   migrated.timeclock = saved.timeclock && typeof saved.timeclock === "object"
     ? {
         employees: Array.isArray(saved.timeclock.employees) ? saved.timeclock.employees : [],
@@ -3062,6 +3156,30 @@ function migrateState(saved) {
     workerResponses: Array.isArray(request.workerResponses) ? request.workerResponses : [],
   }));
   return migrated;
+}
+
+function normalizeOrderPipelineItem(order) {
+  return {
+    id: order.id || crypto.randomUUID(),
+    sourceId: order.sourceId || "",
+    reference: order.reference || order.name || "Commande",
+    status: ORDER_STATUSES.includes(order.status) ? order.status : "En commande",
+    customerName: order.customerName || "Client non renseigne",
+    customerEmail: order.customerEmail || "",
+    customerPhone: order.customerPhone || "",
+    deliveryAddress: order.deliveryAddress || "",
+    deliveryCity: order.deliveryCity || "",
+    deliveryZip: order.deliveryZip || "",
+    deliveryDate: order.deliveryDate || "",
+    totalCents: Number(order.totalCents || 0),
+    totalLabel: order.totalLabel || "",
+    items: Array.isArray(order.items) ? order.items : [],
+    source: order.source || "Webhook commande",
+    createdAt: order.createdAt || new Date().toISOString(),
+    updatedAt: order.updatedAt || order.createdAt || new Date().toISOString(),
+    closedAt: order.closedAt || "",
+    events: Array.isArray(order.events) ? order.events : [],
+  };
 }
 
 function formatAgentName(name) {
@@ -3424,6 +3542,7 @@ async function saveBaqioConfig(event) {
     apiKey: el.baqioApiKey.value.trim(),
     password: el.baqioPassword.value.trim(),
     secret: el.baqioSecret.value.trim(),
+    orderWebhookSecret: el.orderWebhookSecret?.value.trim() || "",
   };
 
   const response = await fetch("/api/config/baqio", {
@@ -3806,6 +3925,7 @@ window.archiveMail = archiveMail;
 window.mailToTask = mailToTask;
 window.mailToNote = mailToNote;
 window.commercialOpportunityToTask = commercialOpportunityToTask;
+window.updateOrderStatus = updateOrderStatus;
 window.toggleEmployee = toggleEmployee;
 window.deleteEmployee = deleteEmployee;
 window.closeFernandRequest = closeFernandRequest;

@@ -234,6 +234,16 @@
             <section class="panel commercial-wide">
               <div class="panel-header">
                 <div>
+                  <p class="section-kicker">Flux commandes</p>
+                  <h2>Commandes en cours</h2>
+                </div>
+              </div>
+              <div class="commercial-summary compact" id="orderPipelineSummary"></div>
+              <div class="wide-list" id="orderPipelineList"></div>
+            </section>
+            <section class="panel commercial-wide">
+              <div class="panel-header">
+                <div>
                   <p class="section-kicker">Actions</p>
                   <h2>Opportunites proposees</h2>
                 </div>
@@ -547,6 +557,17 @@
               <label class="wide-field">
                 Secret
                 <input id="baqioSecret" type="password" autocomplete="off" placeholder="Coller la cle secrete Baqio" />
+              </label>
+              <label class="wide-field">
+                Secret webhook commandes
+                <input id="orderWebhookSecret" type="password" autocomplete="off" placeholder="Phrase secrete pour n8n ou Baqio" />
+              </label>
+              <label class="wide-field">
+                URL webhook commandes
+                <div class="copy-row">
+                  <input id="orderWebhookUrl" type="text" readonly />
+                  <button class="ghost-button" type="button" id="copyOrderWebhookUrl">Copier</button>
+                </div>
               </label>
               <div class="dialog-actions">
                 <button class="ghost-button" type="button" id="testBaqioConnection">Tester Baqio</button>

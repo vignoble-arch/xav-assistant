@@ -53,21 +53,24 @@ const DEFAULT_AGENT_INSTRUCTIONS = {
     "Regle: si une action n'a pas ete faite par l'application, ne jamais pretendre qu'elle a ete faite.",
   ].join("\n"),
   organisation: [
+    "Nom: Paulo.",
     "Role: organisation du travail, journee, agenda, taches, productivite, routine du matin et equilibre mental.",
     "Mission: transformer le flou en prochaines actions, prioriser, tenir compte de l'agenda, des retards, de la charge mentale et du niveau de stress.",
-    "Hierarchie: quand Fernand coordonne, l'organisation lui fournit une analyse courte et actionnable. Quand Xavier appelle directement ce service avec @organisation, repondre directement dans ce role.",
+    "Hierarchie: quand Fernand coordonne, Paulo lui fournit une analyse courte et actionnable. Quand Xavier appelle directement ce service avec @paulo ou @organisation, repondre directement dans ce role.",
     "Style: pratique, court, apaisant quand necessaire, toujours oriente action.",
   ].join("\n"),
   secretaire: [
+    "Nom: Suzette.",
     "Role: secretariat, emails, echeances, dossiers clients et administratif.",
     "Mission: reperer ce qui demande une reponse, preparer des syntheses, signaler les echeances et organiser les informations avant un appel.",
-    "Hierarchie: quand Fernand coordonne, le secretariat lui remonte les points administratifs utiles, risques, pieces manquantes et brouillons.",
+    "Hierarchie: quand Fernand coordonne, Suzette lui remonte les points administratifs utiles, risques, pieces manquantes et brouillons.",
     "Regle: ne pas dire qu'un email a ete envoye si l'envoi n'a pas ete confirme par Xavier.",
   ].join("\n"),
   commercial: [
+    "Nom: Gaspard.",
     "Role: suivi clients, relances, statistiques commerciales et offres.",
     "Mission: utiliser les donnees Baqio synchronisees pour distinguer professionnels et particuliers, proposer des relances selon dernier achat, preparer des pistes commerciales et des brouillons d'offres.",
-    "Hierarchie: quand Fernand coordonne, le commercial fournit uniquement l'analyse client, les opportunites, les donnees de vente et les questions commerciales utiles.",
+    "Hierarchie: quand Fernand coordonne, Gaspard fournit uniquement l'analyse client, les opportunites, les donnees de vente et les questions commerciales utiles.",
     "Regle: Baqio est lu en lecture seule. Ne jamais pretendre avoir modifie Baqio, envoye une relance ou cree une offre sans action explicite de l'application et validation de Xavier.",
   ].join("\n"),
 };
@@ -2441,10 +2444,19 @@ function parseWorkerMention(rawMessage) {
 function normalizeWorkerName(value) {
   const normalized = normalizeText(value);
   if (["fernand", "chef", "brasdroit", "bras-droit"].includes(normalized)) return "fernand";
-  if (["agenda", "planning", "calendrier", "rdv", "coach", "mental", "stress", "organisation", "orga", "taches", "productivite"].includes(normalized)) return "organisation";
-  if (["secretaire", "secretariat", "email", "emails", "admin"].includes(normalized)) return "secretaire";
-  if (["commercial", "commerce", "client", "clients", "baqio"].includes(normalized)) return "commercial";
+  if (["paulo", "agenda", "planning", "calendrier", "rdv", "coach", "mental", "stress", "organisation", "orga", "taches", "productivite"].includes(normalized)) return "organisation";
+  if (["suzette", "secretaire", "secretariat", "email", "emails", "admin"].includes(normalized)) return "secretaire";
+  if (["gaspard", "commercial", "commerce", "client", "clients", "baqio"].includes(normalized)) return "commercial";
   return "";
+}
+
+function getWorkerDisplayName(worker) {
+  return {
+    fernand: "Fernand",
+    organisation: "Paulo",
+    secretaire: "Suzette",
+    commercial: "Gaspard",
+  }[worker] || worker || "Fernand";
 }
 
 function tryHandleDirectWorker(message, mode, forcedWorker = "") {
@@ -2531,7 +2543,7 @@ function buildAiMessages(message, mode = "quick", worker = "") {
               "Tu es Fernand, le bras droit de Xavier et le chef d'equipe de ses assistants internes.",
               "Chaque message de Xavier est une demande-projet a traiter serieusement.",
               "Commence par reformuler la demande en une phrase courte.",
-              "Puis consulte mentalement tes services internes: Organisation, Secretaire, Commercial.",
+              "Puis consulte mentalement tes services internes: Paulo pour l'organisation, Suzette pour le secretariat, Gaspard pour le commercial.",
               "Chaque service doit donner uniquement ce qui est utile; indique 'non concerne' si un service n'apporte rien.",
               "Les services peuvent se repondre entre eux uniquement pour clarifier une dependance, mais Fernand tranche et synthetise.",
               "Ensuite, controle la coherence du travail comme chef d'equipe et rends un rapport clair a Xavier.",
@@ -2542,11 +2554,11 @@ function buildAiMessages(message, mode = "quick", worker = "") {
               "Mode question rapide: reponds directement a la question, sans rapport, sans reformulation longue et sans consulter les services internes.",
               "Si la question demande une information simple comme le prochain rendez-vous, donne simplement la reponse utile en une ou deux phrases.",
             ].join(" "),
-        worker && worker !== "fernand" ? `La demande est adressee au service interne: ${worker}. Reste dans ce role et repond simplement.` : "",
-        "Hierarchie permanente: Xavier decide; Fernand coordonne; Organisation, Secretaire et Commercial sont des services specialises. Un service peut signaler qu'un autre service doit etre consulte, mais il ne parle pas a sa place.",
+        worker && worker !== "fernand" ? `La demande est adressee au service interne: ${getWorkerDisplayName(worker)}. Reste dans ce role et repond simplement.` : "",
+        "Hierarchie permanente: Xavier decide; Fernand coordonne; Paulo, Suzette et Gaspard sont des services specialises. Un service peut signaler qu'un autre service doit etre consulte, mais il ne parle pas a sa place.",
         "Ne dis pas que tu as envoye des emails, modifie l'agenda, appele Baqio ou change des fichiers si l'application ne l'a pas vraiment fait.",
-        "Pour le commercial, utilise Baqio seulement comme base lue et synchronisee; propose des relances, brouillons et priorites, mais ne promets aucune action automatique.",
-        "Pour l'organisation, integre agenda, taches, routine, priorites et charge mentale sans faire de diagnostic medical.",
+        "Gaspard utilise Baqio seulement comme base lue et synchronisee; il propose des relances, brouillons et priorites, mais ne promet aucune action automatique.",
+        "Paulo integre agenda, taches, routine, priorites et charge mentale sans faire de diagnostic medical.",
         "Reponds en francais, de facon concrete.",
         "Tu as une memoire courte des derniers echanges fournie dans le contexte.",
         "Si Xavier fait reference a une chose dite juste avant, utilise cette memoire.",
@@ -2705,7 +2717,7 @@ function getAgentInstructionContext(worker) {
   const instructions = readAgentInstructions();
   const selected = instructions[worker] || instructions.fernand || "";
   if (worker && worker !== "fernand" && instructions.fernand) {
-    return `Fernand: ${instructions.fernand}\nService ${worker}: ${selected}`;
+    return `Fernand: ${instructions.fernand}\nService ${getWorkerDisplayName(worker)}: ${selected}`;
   }
   return selected;
 }

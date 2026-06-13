@@ -6,9 +6,9 @@ const statuses = ["Inbox", "A faire", "En cours", "En attente", "Termine"];
 const TASK_LISTS = ["Dettes", "Cave Expé", "vignoble", "bureau", "divers et perso"];
 const WORKERS = [
   { key: "fernand", label: "Fernand", description: "Bras droit et rapports" },
-  { key: "organisation", label: "Organisation", description: "Journee, agenda, taches et mental" },
-  { key: "secretaire", label: "Secretaire", description: "Emails, dossiers, echeances" },
-  { key: "commercial", label: "Commercial", description: "Clients, relances, Baqio" },
+  { key: "organisation", label: "Paulo", description: "Organisation, agenda, taches et mental" },
+  { key: "secretaire", label: "Suzette", description: "Emails, dossiers, echeances" },
+  { key: "commercial", label: "Gaspard", description: "Clients, relances, Baqio" },
 ];
 const DAILY_ZEN_PHRASES = [
   "Une chose claire vaut mieux que dix urgences bruyantes.",
@@ -1111,7 +1111,7 @@ function buildAutomaticReports() {
   if (baqioSummary) {
     reports.splice(3, 0, {
       id: "auto-baqio",
-      title: "Commercial Baqio",
+      title: "Gaspard - Baqio",
       status: "Connecte",
       progress: 80,
       summary: `${baqioSummary.customerCount || 0} client(s) lus, ${baqioSummary.proCount || 0} pro(s), ${baqioSummary.orderCount || 0} commande(s), CA echantillon ${formatEuroCents(baqioSummary.totalRevenueCents)}.`,
@@ -1468,9 +1468,9 @@ function noteCard(note) {
         <button class="item-action" type="button" onclick="editNote('${note.id}')">Modifier</button>
         <button class="item-action" type="button" onclick="noteToTask('${note.id}')">Tache</button>
         <button class="item-action item-action-primary" type="button" onclick="processNoteWithWorker('${note.id}', 'fernand')">Fernand</button>
-        <button class="item-action" type="button" onclick="processNoteWithWorker('${note.id}', 'organisation')">Orga</button>
-        <button class="item-action" type="button" onclick="processNoteWithWorker('${note.id}', 'secretaire')">Secretaire</button>
-        <button class="item-action" type="button" onclick="processNoteWithWorker('${note.id}', 'commercial')">Commercial</button>
+        <button class="item-action" type="button" onclick="processNoteWithWorker('${note.id}', 'organisation')">Paulo</button>
+        <button class="item-action" type="button" onclick="processNoteWithWorker('${note.id}', 'secretaire')">Suzette</button>
+        <button class="item-action" type="button" onclick="processNoteWithWorker('${note.id}', 'commercial')">Gaspard</button>
         <button class="item-action" type="button" onclick="deleteNote('${note.id}')">Supprimer</button>
       </div>
     </article>
@@ -1935,9 +1935,9 @@ function getAssistantTarget(text) {
 function normalizeWorkerMention(value) {
   const normalized = normalizeText(value);
   if (["fernand", "chef", "brasdroit", "bras-droit"].includes(normalized)) return "fernand";
-  if (["agenda", "planning", "calendrier", "rdv", "coach", "mental", "stress", "organisation", "orga", "taches", "productivite"].includes(normalized)) return "organisation";
-  if (["secretaire", "secretariat", "email", "emails", "admin"].includes(normalized)) return "secretaire";
-  if (["commercial", "commerce", "client", "clients", "baqio"].includes(normalized)) return "commercial";
+  if (["paulo", "agenda", "planning", "calendrier", "rdv", "coach", "mental", "stress", "organisation", "orga", "taches", "productivite"].includes(normalized)) return "organisation";
+  if (["suzette", "secretaire", "secretariat", "email", "emails", "admin"].includes(normalized)) return "secretaire";
+  if (["gaspard", "commercial", "commerce", "client", "clients", "baqio"].includes(normalized)) return "commercial";
   return "fernand";
 }
 
@@ -1947,7 +1947,7 @@ function createFernandRequest(text) {
     title: summarizeRequestTitle(text),
     original: text,
     status: "Demande a traiter",
-    agents: ["Organisation", "Secretaire", "Commercial"],
+    agents: ["Paulo", "Suzette", "Gaspard"],
     report: "",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -2967,14 +2967,23 @@ function migrateState(saved) {
       }
     : structuredClone(seedState.timeclock);
   migrated.requests = (saved.requests || []).map((request) => ({
-    agents: ["Organisation", "Secretaire", "Commercial"],
+    agents: ["Paulo", "Suzette", "Gaspard"],
     report: "",
     status: "Demande a traiter",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     ...request,
+    agents: (request.agents || ["Paulo", "Suzette", "Gaspard"]).map(formatAgentName),
   }));
   return migrated;
+}
+
+function formatAgentName(name) {
+  const normalized = normalizeText(name || "");
+  if (normalized === "organisation" || normalized === "orga" || normalized === "paulo") return "Paulo";
+  if (normalized === "secretaire" || normalized === "secretariat" || normalized === "suzette") return "Suzette";
+  if (normalized === "commercial" || normalized === "commerce" || normalized === "gaspard") return "Gaspard";
+  return name || "Fernand";
 }
 
 function taskListName(task) {

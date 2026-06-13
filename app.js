@@ -251,6 +251,7 @@ const el = {
   googleClientId: document.querySelector("#googleClientId"),
   googleClientSecret: document.querySelector("#googleClientSecret"),
   googleRedirectUri: document.querySelector("#googleRedirectUri"),
+  assistantCalendarId: document.querySelector("#assistantCalendarId"),
   aiConfigForm: document.querySelector("#aiConfigForm"),
   aiProvider: document.querySelector("#aiProvider"),
   aiBaseUrl: document.querySelector("#aiBaseUrl"),
@@ -1335,6 +1336,9 @@ function renderGoogleConfig() {
   el.googleClientSecret.value = "";
   el.googleClientSecret.placeholder = googleConfigState.hasClientSecret ? "Secret deja enregistre" : "Coller le secret OAuth";
   el.googleRedirectUri.value = googleConfigState.redirectUri || googleConfigState.requiredCallback || "";
+  if (el.assistantCalendarId) {
+    el.assistantCalendarId.value = googleConfigState.assistantCalendarId || "primary";
+  }
 }
 
 function renderAiConfig() {
@@ -3288,6 +3292,7 @@ async function saveGoogleConfig(event) {
     clientId: el.googleClientId.value.trim(),
     clientSecret: el.googleClientSecret.value.trim(),
     redirectUri: el.googleRedirectUri.value.trim(),
+    assistantCalendarId: el.assistantCalendarId?.value.trim() || "primary",
   };
 
   const response = await fetch("/api/config/google", {

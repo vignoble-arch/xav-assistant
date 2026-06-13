@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=quick-note-1" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="styles.css?v=assistant-names-1" />
+    <link rel="stylesheet" href="styles.css?v=assistant-calendar-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -476,6 +476,10 @@
               URL callback OAuth
               <input id="googleRedirectUri" type="text" autocomplete="off" />
             </label>
+            <label class="wide-field">
+              ID agenda assistants
+              <input id="assistantCalendarId" type="text" autocomplete="off" placeholder="primary ou identifiant de l'agenda dedie" />
+            </label>
             <div class="dialog-actions">
               <button class="ghost-button" type="button" id="copyCallback">Copier le callback</button>
               <button class="assistant-button small" type="submit">Enregistrer la configuration</button>
@@ -725,7 +729,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=assistant-names-1"></script>
+    <script src="app.js?v=assistant-calendar-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

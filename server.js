@@ -79,6 +79,7 @@ const CONFIG_ENV_KEYS = [
   "GOOGLE_CLIENT_ID",
   "GOOGLE_CLIENT_SECRET",
   "GOOGLE_REDIRECT_URI",
+  "ASSISTANT_CALENDAR_ID",
   "PORT",
   "DATA_DIR",
   "ASSISTANT_USER",
@@ -1466,6 +1467,7 @@ async function fetchCalendar(token, service) {
   const now = new Date();
   const end = new Date();
   end.setDate(now.getDate() + 30);
+  const calendarId = encodeURIComponent(getAssistantCalendarId());
   const params = new URLSearchParams({
     timeMin: now.toISOString(),
     timeMax: end.toISOString(),
@@ -1473,7 +1475,7 @@ async function fetchCalendar(token, service) {
     orderBy: "startTime",
     maxResults: "30",
   });
-  const response = await googleFetch(token, service, `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`);
+  const response = await googleFetch(token, service, `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?${params}`);
   return (response.items || []).map((event) => ({
     id: event.id,
     sourceId: event.id,
@@ -1615,7 +1617,8 @@ async function getGoogleTaskListId(token, appListName) {
 async function createGoogleCalendarEvent(event) {
   const tokens = readJson(TOKENS_FILE, {});
   const token = requireWritableGoogleToken(tokens.calendar, "calendar");
-  const saved = await googleFetch(token, "calendar", "https://www.googleapis.com/calendar/v3/calendars/primary/events", {
+  const calendarId = encodeURIComponent(getAssistantCalendarId());
+  const saved = await googleFetch(token, "calendar", `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`, {
     method: "POST",
     body: calendarEventToGooglePayload(event),
   });
@@ -1626,7 +1629,8 @@ async function updateGoogleCalendarEvent(event) {
   const tokens = readJson(TOKENS_FILE, {});
   const token = requireWritableGoogleToken(tokens.calendar, "calendar");
   const eventId = event.sourceId || event.id;
-  const saved = await googleFetch(token, "calendar", `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`, {
+  const calendarId = encodeURIComponent(getAssistantCalendarId());
+  const saved = await googleFetch(token, "calendar", `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${encodeURIComponent(eventId)}`, {
     method: "PATCH",
     body: calendarEventToGooglePayload(event),
   });
@@ -1637,7 +1641,8 @@ async function deleteGoogleCalendarEvent(event) {
   const tokens = readJson(TOKENS_FILE, {});
   const token = requireWritableGoogleToken(tokens.calendar, "calendar");
   const eventId = event.sourceId || event.id;
-  await googleFetch(token, "calendar", `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`, {
+  const calendarId = encodeURIComponent(getAssistantCalendarId());
+  await googleFetch(token, "calendar", `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${encodeURIComponent(eventId)}`, {
     method: "DELETE",
   });
 }
@@ -1956,13 +1961,15 @@ async function sendGoogleCalendarDebug(res) {
     maxResults: "20",
   });
 
-  const response = await googleFetch(tokens.calendar, "calendar", `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`);
+  const calendarId = getAssistantCalendarId();
+  const response = await googleFetch(tokens.calendar, "calendar", `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params}`);
   const events = response.items || [];
   const agenda = Array.isArray(state.agenda) ? state.agenda : [];
 
   return sendJson(res, {
     ok: true,
     hasCalendarToken: true,
+    assistantCalendarId: calendarId,
     calendarTokenHasReadonlyScope: Boolean(tokens.calendar?.scope?.includes("https://www.googleapis.com/auth/calendar.readonly")),
     tokenServices: Object.keys(tokens),
     serverAgendaCount: agenda.length,
@@ -1981,6 +1988,7 @@ function getGoogleConfigStatus() {
     clientId: config.clientId,
     hasClientSecret: Boolean(config.clientSecret),
     redirectUri: config.redirectUri,
+    assistantCalendarId: config.assistantCalendarId,
     ready: config.ready,
     requiredCallback: config.redirectUri,
   };
@@ -1990,12 +1998,18 @@ function getGoogleConfig() {
   const clientId = process.env.GOOGLE_CLIENT_ID || "";
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "";
   const redirectUri = process.env.GOOGLE_REDIRECT_URI || `http://127.0.0.1:${PORT}/auth/google/callback`;
+  const assistantCalendarId = getAssistantCalendarId();
   return {
     clientId,
     clientSecret,
     redirectUri,
+    assistantCalendarId,
     ready: Boolean(clientId && clientSecret && redirectUri),
   };
+}
+
+function getAssistantCalendarId() {
+  return String(process.env.ASSISTANT_CALENDAR_ID || "primary").trim() || "primary";
 }
 
 function getAiConfigStatus() {
@@ -3157,6 +3171,7 @@ function saveGoogleConfig(config) {
     GOOGLE_CLIENT_ID: String(config.clientId || "").trim(),
     GOOGLE_CLIENT_SECRET: String(config.clientSecret || current.GOOGLE_CLIENT_SECRET || "").trim(),
     GOOGLE_REDIRECT_URI: String(config.redirectUri || getGoogleConfig().redirectUri).trim(),
+    ASSISTANT_CALENDAR_ID: String(config.assistantCalendarId || current.ASSISTANT_CALENDAR_ID || "primary").trim() || "primary",
     PORT: String(PORT),
   };
 
@@ -3164,6 +3179,7 @@ function saveGoogleConfig(config) {
   process.env.GOOGLE_CLIENT_ID = next.GOOGLE_CLIENT_ID;
   process.env.GOOGLE_CLIENT_SECRET = next.GOOGLE_CLIENT_SECRET;
   process.env.GOOGLE_REDIRECT_URI = next.GOOGLE_REDIRECT_URI;
+  process.env.ASSISTANT_CALENDAR_ID = next.ASSISTANT_CALENDAR_ID;
 }
 
 function getEnvFileValues() {

@@ -2442,37 +2442,112 @@ async function sendAiChat(body, res) {
       }, 409);
     }
 
-    const headers = { "Content-Type": "application/json" };
-    headers.Authorization = `Bearer ${process.env.OPENAI_API_KEY}`;
-
-    const response = await fetch(`${config.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        model,
-        temperature: 0.3,
-        max_completion_tokens: 900,
-        messages: buildAiMessages(message, mode, routed.worker),
-      }),
-    });
-
-    if (!response.ok) {
-      const detail = await response.text();
+    if (mode === "report" && !routed.worker) {
+      const workflow = await runFernandTeamWorkflow(message, config, model);
+      rememberAiExchange(message, workflow.finalReport);
       return sendJson(res, {
-        error: `OpenAI a refuse la demande: ${detail}`,
-      }, 502);
+        ok: true,
+        model,
+        mode,
+        routedTo: "fernand",
+        answer: workflow.finalReport,
+        workflow,
+      });
     }
 
-    const payload = await response.json();
-    const answer = payload.choices?.[0]?.message?.content?.trim() || "Je n'ai pas recu de reponse du modele.";
-    recordAiUsage(model, payload.usage, config.provider);
+    const { answer } = await callAiChatCompletion(config, model, buildAiMessages(message, mode, routed.worker));
     rememberAiExchange(message, answer);
     return sendJson(res, { ok: true, model, mode, routedTo: routed.worker || "fernand", answer });
-  } catch {
+  } catch (error) {
     return sendJson(res, {
-      error: "OpenAI ne repond pas encore. Verifie la configuration API.",
+      error: error.message || "OpenAI ne repond pas encore. Verifie la configuration API.",
     }, 503);
   }
+}
+
+async function callAiChatCompletion(config, model, messages, maxCompletionTokens = 900) {
+  const headers = { "Content-Type": "application/json" };
+  headers.Authorization = `Bearer ${process.env.OPENAI_API_KEY}`;
+
+  const response = await fetch(`${config.baseUrl}/chat/completions`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      model,
+      temperature: 0.3,
+      max_completion_tokens: maxCompletionTokens,
+      messages,
+    }),
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(`OpenAI a refuse la demande: ${detail}`);
+  }
+
+  const payload = await response.json();
+  const answer = payload.choices?.[0]?.message?.content?.trim() || "Je n'ai pas recu de reponse du modele.";
+  recordAiUsage(model, payload.usage, config.provider);
+  return { answer, payload };
+}
+
+async function runFernandTeamWorkflow(message, config, model) {
+  const serviceQuestion = buildFernandServiceQuestion(message);
+  const managerBrief = [
+    `Demande originale de Xavier: ${message}`,
+    `Question de Fernand aux services: ${serviceQuestion}`,
+  ].join("\n\n");
+  const workers = getReportWorkers(message);
+  const workerResponses = [];
+
+  for (const worker of workers) {
+    const { answer } = await callAiChatCompletion(
+      config,
+      model,
+      buildWorkerConsultationMessages(message, worker.key, serviceQuestion),
+      650
+    );
+    workerResponses.push({
+      worker: worker.key,
+      label: worker.label,
+      serviceQuestion,
+      answer,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
+  const { answer: finalReport } = await callAiChatCompletion(
+    config,
+    model,
+    buildFernandFinalReportMessages(message, serviceQuestion, workerResponses),
+    1100
+  );
+
+  return {
+    managerBrief,
+    serviceQuestion,
+    workerResponses,
+    finalReport,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function getReportWorkers() {
+  return [
+    { key: "organisation", label: "Paulo" },
+    { key: "secretaire", label: "Suzette" },
+    { key: "commercial", label: "Gaspard" },
+  ];
+}
+
+function buildFernandServiceQuestion(message) {
+  return [
+    "Fernand transmet cette demande de Xavier aux services concernes.",
+    `Demande de Xavier: ${message}`,
+    "Reponds dans ton role uniquement.",
+    "Dis clairement si tu es concerne ou non.",
+    "Donne les points utiles, les risques, les informations manquantes et les prochaines actions que Fernand doit prendre en compte.",
+  ].join("\n");
 }
 
 function parseWorkerMention(rawMessage) {
@@ -2621,6 +2696,65 @@ function buildAiMessages(message, mode = "quick", worker = "") {
     },
     ...recentExchanges,
     { role: "user", content: message },
+  ];
+}
+
+function buildWorkerConsultationMessages(originalMessage, worker, serviceQuestion) {
+  const state = getAppState();
+  const knowledgeContext = findRelevantKnowledge(originalMessage);
+  const agentInstructions = getAgentInstructionContext(worker);
+  const commercialContext = getCommercialAiContext(state, originalMessage, worker, "report");
+
+  return [
+    {
+      role: "system",
+      content: [
+        `Tu es ${getWorkerDisplayName(worker)}, service interne de l'equipe de Xavier.`,
+        "Tu reponds a la fois a Fernand et a Xavier: Xavier doit pouvoir verifier que tu as compris la question de Fernand.",
+        "Commence par un court en-tete 'Question de Fernand comprise' puis reformule en une phrase la question que Fernand t'a posee.",
+        "Ensuite reponds dans ton role uniquement. Si ton service n'est pas concerne, dis-le clairement et explique en une phrase pourquoi.",
+        "Ne promets aucune action reelle si l'application ne l'a pas faite.",
+        "Structure ta reponse avec: Ce que j'ai compris, Reponse du service, Points a transmettre a Fernand.",
+        "Reste concis: 8 a 14 lignes maximum.",
+        agentInstructions ? `Consignes permanentes du role: ${agentInstructions}` : "",
+        knowledgeContext ? `Memoire documentaire utile: ${knowledgeContext}` : "",
+        commercialContext ? `Contexte commercial Baqio synchronise: ${commercialContext}` : "",
+        getAiStateSummary(state),
+      ].filter(Boolean).join(" "),
+    },
+    { role: "user", content: serviceQuestion },
+  ];
+}
+
+function buildFernandFinalReportMessages(originalMessage, serviceQuestion, workerResponses) {
+  const state = getAppState();
+  const services = workerResponses.map((response) => [
+    `Service: ${response.label}`,
+    `Question recue: ${response.serviceQuestion}`,
+    `Reponse: ${response.answer}`,
+  ].join("\n")).join("\n\n---\n\n");
+
+  return [
+    {
+      role: "system",
+      content: [
+        "Tu es Fernand, bras droit de Xavier et chef d'equipe.",
+        "Tu as envoye une question aux services internes et tu as recu leurs reponses.",
+        "Ton role est de verifier la coherence, corriger les malentendus, signaler les limites, puis rendre une synthese claire a Xavier.",
+        "N'invente pas d'action executee. Si un service n'est pas concerne, ne force pas son avis.",
+        "Structure avec: Controle de comprehension, Synthese des services, Decision Fernand, Prochaines actions.",
+        "Le rapport final doit etre lisible et actionnable.",
+        getAiStateSummary(state),
+      ].join(" "),
+    },
+    {
+      role: "user",
+      content: [
+        `Demande originale de Xavier:\n${originalMessage}`,
+        `Question envoyee par Fernand aux services:\n${serviceQuestion}`,
+        `Reponses des services:\n${services}`,
+      ].join("\n\n"),
+    },
   ];
 }
 

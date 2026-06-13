@@ -1145,6 +1145,7 @@ function requestCard(request) {
   const statusClass = normalizeText(request.status || "").replace(/\s+/g, "-");
   const agents = request.agents?.length ? request.agents.join(", ") : "Fernand";
   const report = request.report || "Fernand n'a pas encore rendu son rapport.";
+  const workflow = requestWorkflowHtml(request);
   return `
     <article class="request-card status-${escapeHTML(statusClass)}">
       <div class="card-top">
@@ -1155,11 +1156,51 @@ function requestCard(request) {
         <span class="source-pill">${escapeHTML(request.status || "Demande a traiter")}</span>
       </div>
       <p class="request-original">${escapeHTML(request.original || "")}</p>
+      ${workflow}
       <div class="request-report">${formatAssistantAnswer(report)}</div>
       <div class="card-actions">
         ${request.status !== "Clos" ? `<button class="item-action" type="button" onclick="closeFernandRequest('${request.id}')">Clore</button>` : `<button class="item-action" type="button" onclick="reopenFernandRequest('${request.id}')">Rouvrir</button>`}
         <button class="item-action" type="button" onclick="archiveFernandRequest('${request.id}')">Archiver</button>
       </div>
+    </article>
+  `;
+}
+
+function requestWorkflowHtml(request) {
+  const workerResponses = Array.isArray(request.workerResponses) ? request.workerResponses : [];
+  if (!request.fernandBrief && !request.serviceQuestion && !workerResponses.length) return "";
+  return `
+    <div class="request-workflow">
+      ${request.fernandBrief ? `
+        <article class="request-brief">
+          <strong>Brief Fernand</strong>
+          <div>${formatAssistantAnswer(request.fernandBrief)}</div>
+        </article>
+      ` : ""}
+      ${request.serviceQuestion ? `
+        <article class="request-brief">
+          <strong>Question envoyee aux services</strong>
+          <div>${formatAssistantAnswer(request.serviceQuestion)}</div>
+        </article>
+      ` : ""}
+      ${workerResponses.length ? `
+        <div class="worker-response-list">
+          ${workerResponses.map(workerResponseCard).join("")}
+        </div>
+      ` : ""}
+    </div>
+  `;
+}
+
+function workerResponseCard(response) {
+  return `
+    <article class="worker-response-card">
+      <div class="card-top">
+        <strong>${escapeHTML(response.label || getWorkerLabel(response.worker))}</strong>
+        <span class="source-pill">Service</span>
+      </div>
+      ${response.serviceQuestion ? `<p class="worker-question">${escapeHTML(response.serviceQuestion)}</p>` : ""}
+      <div class="worker-answer">${formatAssistantAnswer(response.answer || "Pas encore de reponse.")}</div>
     </article>
   `;
 }
@@ -1856,13 +1897,34 @@ async function askLocalAi() {
       return;
     }
     const routedLabel = getAssistantTarget(`@${payload.routedTo || target.key} `).label;
-    updateAssistantThreadMessage(assistantMessage.id, {
-      label: routedLabel,
-      content: payload.answer,
-      pending: false,
-    });
-    el.assistantPreview.textContent = `${routedLabel} a repondu dans le fil.`;
-    if (request) completeFernandRequest(request.id, payload.answer);
+    if (payload.workflow) {
+      updateAssistantThreadMessage(assistantMessage.id, {
+        label: "Fernand - lancement",
+        content: payload.workflow.managerBrief || "Fernand a transmis la demande aux services.",
+        pending: false,
+      });
+      (payload.workflow.workerResponses || []).forEach((response) => {
+        addAssistantThreadMessage({
+          role: "assistant",
+          label: response.label || getWorkerLabel(response.worker),
+          content: formatWorkerResponseForThread(response),
+        });
+      });
+      addAssistantThreadMessage({
+        role: "assistant",
+        label: "Fernand - synthese",
+        content: payload.answer,
+      });
+      el.assistantPreview.textContent = "Fernand et les services ont repondu dans le fil.";
+    } else {
+      updateAssistantThreadMessage(assistantMessage.id, {
+        label: routedLabel,
+        content: payload.answer,
+        pending: false,
+      });
+      el.assistantPreview.textContent = `${routedLabel} a repondu dans le fil.`;
+    }
+    if (request) completeFernandRequest(request.id, payload.answer, payload.workflow);
     await loadAiMemory();
     await loadAiUsage();
   } catch {
@@ -1924,6 +1986,13 @@ function clearAssistantThread() {
   showToast("Nouveau fil ouvert.");
 }
 
+function formatWorkerResponseForThread(response) {
+  return [
+    response.serviceQuestion ? `Question de Fernand:\n${response.serviceQuestion}` : "",
+    response.answer || "",
+  ].filter(Boolean).join("\n\n");
+}
+
 function getAssistantTarget(text) {
   const match = String(text || "").trim().match(/^@([a-zA-ZÀ-ÿ]+)/);
   const workerKey = match ? normalizeWorkerMention(match[1]) : "fernand";
@@ -1953,6 +2022,9 @@ function createFernandRequest(text) {
     status: "Demande a traiter",
     agents: ["Paulo", "Suzette", "Gaspard"],
     report: "",
+    fernandBrief: "",
+    serviceQuestion: "",
+    workerResponses: [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -1970,11 +2042,17 @@ function setFernandRequestStatus(id, status, report) {
   render();
 }
 
-function completeFernandRequest(id, report) {
+function completeFernandRequest(id, report, workflow) {
   const request = (state.requests || []).find((item) => item.id === id);
   if (!request) return;
   request.status = "A valider";
   request.report = report;
+  if (workflow) {
+    request.fernandBrief = workflow.managerBrief || "";
+    request.serviceQuestion = workflow.serviceQuestion || "";
+    request.workerResponses = Array.isArray(workflow.workerResponses) ? workflow.workerResponses : [];
+    request.workflow = workflow;
+  }
   request.updatedAt = new Date().toISOString();
   render();
   showToast("Rapport Fernand pret a valider.");
@@ -2973,11 +3051,15 @@ function migrateState(saved) {
   migrated.requests = (saved.requests || []).map((request) => ({
     agents: ["Paulo", "Suzette", "Gaspard"],
     report: "",
+    fernandBrief: "",
+    serviceQuestion: "",
+    workerResponses: [],
     status: "Demande a traiter",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     ...request,
     agents: (request.agents || ["Paulo", "Suzette", "Gaspard"]).map(formatAgentName),
+    workerResponses: Array.isArray(request.workerResponses) ? request.workerResponses : [],
   }));
   return migrated;
 }

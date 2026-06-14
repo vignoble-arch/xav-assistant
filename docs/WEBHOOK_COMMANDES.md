@@ -4,11 +4,29 @@
 
 Recevoir les commandes au fil de l'eau depuis n8n, Baqio ou un autre outil, puis les mettre dans le suivi operationnel des assistants.
 
-## URL
+## URL conseillee avec n8n
+
+Pour Baqio, utiliser n8n comme sas de securite :
+
+```text
+https://vps-b6bb35e6.vps.ovh.net/n8n/webhook/baqio-commandes
+```
+
+Ajouter l'en-tete :
+
+```text
+x-order-webhook-secret: VOTRE_SECRET
+```
+
+n8n verifie ce secret, normalise la commande, puis transmet a Assistant Xavier en interne.
+
+## URL directe de l'application
 
 ```text
 https://vps-b6bb35e6.vps.ovh.net/api/webhooks/orders
 ```
+
+Cette URL reste disponible pour un test direct ou un outil qui ne passe pas par n8n.
 
 ## Securite
 

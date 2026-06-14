@@ -1,6 +1,16 @@
 {$APP_DOMAIN} {
   encode zstd gzip
 
+  handle /n8n/webhook* {
+    uri strip_prefix /n8n
+    reverse_proxy n8n:5678
+  }
+
+  handle /n8n/webhook-test* {
+    uri strip_prefix /n8n
+    reverse_proxy n8n:5678
+  }
+
   handle_path /n8n* {
     basic_auth {
       {$N8N_BASIC_AUTH_USER} {$N8N_CADDY_PASSWORD_HASH}

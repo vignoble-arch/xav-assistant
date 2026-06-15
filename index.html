@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=quick-note-1" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="styles.css?v=flux-1" />
+    <link rel="stylesheet" href="styles.css?v=flux-2" />
   </head>
   <body>
     <div class="app-shell">
@@ -31,6 +31,7 @@
           <button class="nav-item is-active" type="button" data-view="dashboard">Vue du jour</button>
           <button class="nav-item" type="button" data-view="organization">Organisation</button>
           <button class="nav-item" type="button" data-view="inspire">Inspire</button>
+          <button class="nav-item" type="button" data-view="expire">Expire</button>
           <button class="nav-item" type="button" data-view="requests">Demandes</button>
           <button class="nav-item" type="button" data-view="tasks">Taches</button>
           <button class="nav-item" type="button" data-view="inbox">Inbox</button>
@@ -468,6 +469,162 @@
           </div>
         </section>
 
+        <section class="expire-view" data-panel="expire" hidden aria-label="Expire flux sortants tresorerie compta">
+          <div class="expire-background" aria-hidden="true"></div>
+          <div class="expire-content">
+            <header class="expire-header">
+              <button class="expire-round-button" type="button" aria-label="Menu Expire">
+                <span></span>
+                <span></span>
+                <span></span>
+              </button>
+              <div class="expire-brandmark">
+                <img src="art-mas-logo.png" alt="Vignoble Art Mas" />
+                <p>EXPIRE</p>
+                <span>Cr&eacute;ances &agrave; payer. Compta. Tr&eacute;sorerie.</span>
+              </div>
+              <button class="expire-avatar" type="button" aria-label="Profil domaine">
+                <img src="art-mas-logo.png" alt="" />
+              </button>
+            </header>
+
+            <article class="expire-advice-card">
+              <strong aria-hidden="true">&ldquo;</strong>
+              <div>
+                <p>Laisse sortir ce qui doit circuler, mais garde la tr&eacute;sorerie sous contr&ocirc;le.</p>
+                <span>&mdash; Muriel</span>
+              </div>
+            </article>
+
+            <section class="expire-summary" aria-label="Sorties du jour">
+              <article>
+                <span>&Agrave; payer aujourd'hui</span>
+                <strong>3 420&euro;</strong>
+                <p>4 cr&eacute;ances &agrave; traiter</p>
+              </article>
+              <article>
+                <span>Cette semaine</span>
+                <strong>8 950&euro;</strong>
+                <p>Sorties planifi&eacute;es</p>
+              </article>
+              <article>
+                <span>Tr&eacute;sorerie dispo</span>
+                <strong>24 300&euro;</strong>
+                <p>Apr&egrave;s sorties pr&eacute;vues</p>
+              </article>
+              <article>
+                <span>Urgences</span>
+                <strong>5</strong>
+                <p>&Agrave; regarder sans attendre</p>
+              </article>
+            </section>
+
+            <div class="expire-main-grid">
+              <section class="expire-panel expire-payables-panel">
+                <div class="expire-panel-header">
+                  <div>
+                    <span>Cr&eacute;ances &agrave; payer</span>
+                    <h2>&Eacute;ch&eacute;ances et sorties &agrave; venir</h2>
+                  </div>
+                  <button type="button">Voir tout</button>
+                </div>
+                <div class="expire-payables-list">
+                  <article class="expire-payable is-urgent">
+                    <time>Aujourd'hui</time>
+                    <div><strong>Bouteilles du Sud</strong><span>Acompte fournisseur</span></div>
+                    <b>1 240&euro;</b>
+                    <em>Urgent</em>
+                  </article>
+                  <article class="expire-payable is-planned">
+                    <time>Aujourd'hui</time>
+                    <div><strong>Transport Martin</strong><span>Livraison hebdo</span></div>
+                    <b>380&euro;</b>
+                    <em>Pr&eacute;vu</em>
+                  </article>
+                  <article class="expire-payable is-fixed">
+                    <time>Demain</time>
+                    <div><strong>Capsules &amp; Co</strong><span>Capsules s&eacute;rie ros&eacute;</span></div>
+                    <b>640&euro;</b>
+                    <em>Fixe</em>
+                  </article>
+                  <article class="expire-payable is-important">
+                    <time>27 juin</time>
+                    <div><strong>Loyer entrep&ocirc;t</strong><span>Mensualit&eacute;</span></div>
+                    <b>1 550&euro;</b>
+                    <em>Important</em>
+                  </article>
+                  <article class="expire-payable is-planned">
+                    <time>29 juin</time>
+                    <div><strong>Mutuelle &eacute;quipe</strong><span>Personnel</span></div>
+                    <b>420&euro;</b>
+                    <em>Pr&eacute;vu</em>
+                  </article>
+                  <article class="expire-payable is-urgent">
+                    <time>30 juin</time>
+                    <div><strong>TVA</strong><span>&Eacute;ch&eacute;ance d&eacute;clarative</span></div>
+                    <b>3 200&euro;</b>
+                    <em>Important</em>
+                  </article>
+                </div>
+              </section>
+
+              <aside class="expire-side-stack">
+                <section class="expire-panel expire-cash-panel">
+                  <div class="expire-panel-header">
+                    <div>
+                      <span>Tr&eacute;sorerie</span>
+                      <h2>Lecture simple des flux sortants</h2>
+                    </div>
+                  </div>
+                  <div class="expire-cash-amount">
+                    <span>Solde pr&eacute;visionnel</span>
+                    <strong>24 300&euro;</strong>
+                    <p>La semaine est tendue jeudi / vendredi.</p>
+                  </div>
+                  <div class="expire-cash-chart" aria-label="Mini courbe hebdomadaire">
+                    <i style="--h: 35%"></i>
+                    <i style="--h: 28%"></i>
+                    <i style="--h: 46%"></i>
+                    <i style="--h: 38%"></i>
+                    <i style="--h: 58%"></i>
+                    <i style="--h: 51%"></i>
+                    <i style="--h: 72%"></i>
+                  </div>
+                </section>
+
+                <section class="expire-panel expire-accounting-panel">
+                  <div class="expire-panel-header">
+                    <div>
+                      <span>Compta</span>
+                      <h2>Charges, d&eacute;clarations, fournisseurs</h2>
+                    </div>
+                  </div>
+                  <div class="expire-mini-kpis">
+                    <article><strong>18</strong><span>factures fournisseurs</span></article>
+                    <article><strong>6</strong><span>&eacute;critures &agrave; valider</span></article>
+                    <article><strong>2</strong><span>d&eacute;clarations</span></article>
+                  </div>
+                  <div class="expire-checklist">
+                    <label><input type="checkbox" checked /> V&eacute;rifier la TVA de juin</label>
+                    <label><input type="checkbox" /> Valider les factures fournisseurs</label>
+                    <label><input type="checkbox" /> Pr&eacute;parer l'export comptable</label>
+                    <label><input type="checkbox" checked /> Contr&ocirc;ler les pr&eacute;l&egrave;vements</label>
+                  </div>
+                </section>
+              </aside>
+            </div>
+
+            <section class="expire-actions" aria-label="Actions rapides Expire">
+              <button type="button"><span>Nouvelle note</span><small>Ajouter une sortie</small></button>
+              <button type="button"><span>Programmer</span><small>Planifier un paiement</small></button>
+              <button type="button"><span>Payer</span><small>Marquer comme trait&eacute;</small></button>
+              <button type="button"><span>Demander &agrave; Muriel</span><small>Prioriser les sorties</small></button>
+            </section>
+
+            <p class="expire-footer-line">Expire. Les sorties restent fluides quand les &eacute;ch&eacute;ances sont visibles.</p>
+          </div>
+        </section>
+
         <section class="management-view" data-panel="requests" hidden>
           <div class="view-header">
             <div>
@@ -889,6 +1046,9 @@
       <button type="button" data-mobile-view="inspire">
         <span>Inspire</span>
       </button>
+      <button type="button" data-mobile-view="expire">
+        <span>Expire</span>
+      </button>
       <button type="button" data-mobile-view="tasks">
         <span>Taches</span>
       </button>
@@ -1052,7 +1212,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=flux-1"></script>
+    <script src="app.js?v=flux-2"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

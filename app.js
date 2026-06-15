@@ -1,6 +1,7 @@
 const STORAGE_KEY = "assistant-xavier-v01";
 const NOTIFICATION_PREFS_KEY = "assistant-xavier-notifications-v1";
 const BRANDING_KEY = "assistant-xavier-branding-v1";
+const UNDO_ACTION_WINDOW_MS = 20000;
 
 const statuses = ["Inbox", "A faire", "En cours", "En attente", "Termine"];
 const ORDER_STATUSES = ["En commande", "Prete pour expedition", "En livraison", "Expedie"];
@@ -1518,10 +1519,10 @@ function getPlanningItems() {
 function planningItem(item) {
   const badge = item.type === "task" ? "Tache" : "Agenda";
   const actions = item.type === "task"
-    ? `<button class="item-action item-action-primary" type="button" onclick="completeTask('${item.id}')">OK</button>
+    ? `<button class="item-action item-action-primary" type="button" onclick="completePlanningTask('${item.id}')">OK</button>
        <button class="item-action" type="button" onclick="openTaskForm('${item.id}')">Modifier</button>`
     : `<button class="item-action" type="button" onclick="openAgendaForm('${item.id}')">Modifier</button>
-       ${item.completed ? `<button class="item-action item-action-primary" type="button" onclick="unmarkAgendaDone('${item.id}')">Fait</button>` : `<button class="item-action item-action-primary" type="button" onclick="markAgendaDone('${item.id}')">OK</button>`}
+       ${item.completed ? `<button class="item-action item-action-primary" type="button" onclick="unmarkAgendaDone('${item.id}')">Fait</button>` : `<button class="item-action item-action-primary" type="button" onclick="markPlanningAgendaDone('${item.id}')">OK</button>`}
        <button class="item-action" type="button" onclick="deleteAgendaEvent('${item.id}')">Supprimer</button>`;
   return `
     <article class="timeline-item ${item.type === "task" ? "is-task" : "is-event"} ${item.completed ? "is-done" : ""}">
@@ -3585,6 +3586,21 @@ function markAgendaDone(id) {
   showToast("Evenement marque OK.");
 }
 
+function markPlanningAgendaDone(id) {
+  const event = (state.agenda || []).find((item) => item.id === id);
+  if (!event) return;
+  const wasCompleted = isAgendaEventCompleted(id);
+  markAgendaDone(id);
+  showToast("Evenement marque OK. Annulation possible pendant 20 s.", {
+    actionLabel: "Annuler",
+    duration: UNDO_ACTION_WINDOW_MS,
+    onAction: () => {
+      if (!wasCompleted) unmarkAgendaDone(id);
+      showToast("Action annulee.");
+    },
+  });
+}
+
 function unmarkAgendaDone(id) {
   state.completedAgendaEvents = (state.completedAgendaEvents || []).filter((item) => item !== id);
   saveState();
@@ -3818,13 +3834,35 @@ function switchView(view) {
 }
 
 async function completeTask(id) {
-  await moveTask(id, "Termine");
+  return moveTask(id, "Termine");
+}
+
+async function completePlanningTask(id) {
+  const task = state.tasks.find((item) => item.id === id);
+  if (!task) return;
+  const previousTask = { ...task };
+  const saved = await saveTask({ ...task, status: "Termine" });
+  if (!saved) return;
+  showToast("Tache marquee OK. Annulation possible pendant 20 s.", {
+    actionLabel: "Annuler",
+    duration: UNDO_ACTION_WINDOW_MS,
+    onAction: async () => {
+      const current = state.tasks.find((item) => item.id === id);
+      if (!current) return;
+      await saveTask({
+        ...current,
+        ...previousTask,
+        status: previousTask.status || "A faire",
+      });
+      showToast("Action annulee.");
+    },
+  });
 }
 
 async function moveTask(id, status) {
   const task = state.tasks.find((item) => item.id === id);
   if (!task) return;
-  await saveTask({ ...task, status });
+  return saveTask({ ...task, status });
 }
 
 async function moveTaskToList(id, list) {
@@ -5092,11 +5130,26 @@ function handleConnectionNotice() {
   history.replaceState({}, document.title, location.pathname);
 }
 
-function showToast(message) {
-  el.toast.textContent = message;
+function showToast(message, options = {}) {
+  const duration = Number(options.duration || 2200);
+  el.toast.classList.toggle("has-action", Boolean(options.actionLabel && options.onAction));
+  el.toast.innerHTML = `<span>${escapeHTML(message)}</span>`;
+  if (options.actionLabel && options.onAction) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = options.actionLabel;
+    button.addEventListener("click", () => {
+      clearTimeout(showToast.timer);
+      el.toast.classList.remove("is-visible", "has-action");
+      options.onAction();
+    }, { once: true });
+    el.toast.append(button);
+  }
   el.toast.classList.add("is-visible");
   clearTimeout(showToast.timer);
-  showToast.timer = setTimeout(() => el.toast.classList.remove("is-visible"), 2200);
+  showToast.timer = setTimeout(() => {
+    el.toast.classList.remove("is-visible", "has-action");
+  }, duration);
 }
 
 function emptyState(message) {
@@ -5275,6 +5328,7 @@ function formatAssistantAnswer(value) {
 }
 
 window.completeTask = completeTask;
+window.completePlanningTask = completePlanningTask;
 window.moveTask = moveTask;
 window.moveTaskToList = moveTaskToList;
 window.rescheduleTask = rescheduleTask;
@@ -5283,6 +5337,7 @@ window.deleteTask = deleteTask;
 window.openAgendaForm = openAgendaForm;
 window.deleteAgendaEvent = deleteAgendaEvent;
 window.markAgendaDone = markAgendaDone;
+window.markPlanningAgendaDone = markPlanningAgendaDone;
 window.unmarkAgendaDone = unmarkAgendaDone;
 window.inboxToTask = inboxToTask;
 window.deleteKnowledgeDocument = deleteKnowledgeDocument;

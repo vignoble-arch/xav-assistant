@@ -2591,6 +2591,24 @@ textarea {
   pointer-events: none;
 }
 
+.toast.has-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  pointer-events: auto;
+}
+
+.toast button {
+  border: 1px solid rgba(255, 253, 248, 0.45);
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #242923;
+  background: #fffdf8;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 .toast.is-visible {
   transform: translateY(0);
   opacity: 1;

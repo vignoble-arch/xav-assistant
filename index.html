@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=quick-note-1" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="styles.css?v=comptoir-1" />
+    <link rel="stylesheet" href="styles.css?v=flux-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -30,7 +30,7 @@
         <nav class="nav-list">
           <button class="nav-item is-active" type="button" data-view="dashboard">Vue du jour</button>
           <button class="nav-item" type="button" data-view="organization">Organisation</button>
-          <button class="nav-item" type="button" data-view="comptoir">Comptoir</button>
+          <button class="nav-item" type="button" data-view="inspire">Inspire</button>
           <button class="nav-item" type="button" data-view="requests">Demandes</button>
           <button class="nav-item" type="button" data-view="tasks">Taches</button>
           <button class="nav-item" type="button" data-view="inbox">Inbox</button>
@@ -200,74 +200,116 @@
             <article class="respire-zen-card">
               <strong aria-hidden="true">&ldquo;</strong>
               <div>
-                <p>Une seule chose &agrave; la fois.</p>
-                <p>M&ecirc;me la vigne grandit jour apr&egrave;s jour.</p>
-                <span>&mdash; Principe bouddhiste</span>
+                <p>Je vois ma journ&eacute;e sans me sentir &eacute;cras&eacute; par elle.</p>
+                <p>Les respirations font partie du travail.</p>
+                <span>&mdash; La Cloche</span>
               </div>
               <i aria-hidden="true"></i>
             </article>
 
-            <div class="respire-mandala" aria-label="Tableau organisation">
-              <article class="respire-petal respire-petal-drop">
-                <div class="respire-petal-icon respire-icon-leaf" aria-hidden="true"></div>
-                <h2>&Agrave; DEPOSER</h2>
-                <p>Vide ton esprit</p>
-                <div class="respire-note-box">
-                  <span>Ecris, dicte ou colle ici...</span>
-                  <b class="respire-mic" aria-hidden="true"></b>
-                </div>
-                <div class="respire-chip-row">
-                  <span>Idee</span>
-                  <span>Tache</span>
-                  <span>Pensee</span>
-                  <span>Inquietude</span>
-                </div>
-                <small>Tout deposer. On s'occupe du reste.</small>
-              </article>
+            <div class="respire-day-layout">
+              <div class="respire-mind-zone">
+                <div class="respire-mandala" aria-label="Tableau organisation">
+                  <article class="respire-petal respire-petal-drop">
+                    <div class="respire-petal-icon respire-icon-leaf" aria-hidden="true"></div>
+                    <h2>&Agrave; DEPOSER</h2>
+                    <p>Vide ton esprit</p>
+                    <div class="respire-note-box">
+                      <span>Ecris, dicte ou colle ici...</span>
+                      <b class="respire-mic" aria-hidden="true"></b>
+                    </div>
+                    <div class="respire-chip-row">
+                      <span>Idee</span>
+                      <span>Tache</span>
+                      <span>Pensee</span>
+                      <span>Inquietude</span>
+                    </div>
+                    <small>Tout deposer. On s'occupe du reste.</small>
+                  </article>
 
-              <article class="respire-petal respire-petal-clarify">
-                <div class="respire-petal-icon respire-icon-circle" aria-hidden="true"></div>
-                <h2>&Agrave; CLARIFIER</h2>
-                <p>Trier, decider, alleger</p>
-                <div class="respire-action-list">
-                  <button type="button">Transformer en tache <span>&rsaquo;</span></button>
-                  <button type="button">Planifier <span>&rsaquo;</span></button>
-                  <button type="button">Deleguer <span>&rsaquo;</span></button>
-                  <button type="button">Mettre en attente <span>&rsaquo;</span></button>
-                  <button type="button">A supprimer <span>&rsaquo;</span></button>
+                  <article class="respire-petal respire-petal-clarify">
+                    <div class="respire-petal-icon respire-icon-circle" aria-hidden="true"></div>
+                    <h2>&Agrave; CLARIFIER</h2>
+                    <p>Trier, decider, alleger</p>
+                    <div class="respire-action-list">
+                      <button type="button">Transformer en tache <span>&rsaquo;</span></button>
+                      <button type="button">Planifier <span>&rsaquo;</span></button>
+                      <button type="button">Deleguer <span>&rsaquo;</span></button>
+                      <button type="button">Mettre en attente <span>&rsaquo;</span></button>
+                      <button type="button">A supprimer <span>&rsaquo;</span></button>
+                    </div>
+                  </article>
+
+                  <button class="respire-bell" type="button" aria-label="La Cloche, organiser la journee">
+                    <span aria-hidden="true"></span>
+                    <strong>LA CLOCHE</strong>
+                    <small>Organiser<br />ma journ&eacute;e</small>
+                  </button>
+
+                  <article class="respire-petal respire-petal-do">
+                    <div class="respire-petal-icon respire-icon-grape" aria-hidden="true"></div>
+                    <h2>&Agrave; FAIRE</h2>
+                    <p>Tes 3 priorit&eacute;s du jour</p>
+                    <ol class="respire-priority-list">
+                      <li><b>01</b><span>Preparer degustation clients</span><em>Essentiel</em></li>
+                      <li><b>02</b><span>Suivi elevage cuve N&deg;12</span><em>Utile</em></li>
+                      <li><b>03</b><span>Repondre aux emails</span><em>Bonus</em></li>
+                    </ol>
+                    <button class="respire-link-button" type="button">+ Ajouter une priorite</button>
+                  </article>
+
+                  <article class="respire-petal respire-petal-keep">
+                    <div class="respire-petal-icon respire-icon-book" aria-hidden="true"></div>
+                    <h2>&Agrave; GARDER</h2>
+                    <p>Notes, idees et ressources</p>
+                    <div class="respire-folder-list">
+                      <button type="button"><span>Mes notes</span><b>12</b></button>
+                      <button type="button"><span>Idees</span><b>7</b></button>
+                      <button type="button"><span>Ressources</span><b>5</b></button>
+                      <button type="button"><span>Archives</span><b>3</b></button>
+                    </div>
+                    <button class="respire-link-button" type="button">+ Voir tout</button>
+                  </article>
                 </div>
-              </article>
+              </div>
 
-              <button class="respire-bell" type="button" aria-label="La Cloche, discuter avec l'assistant">
-                <span aria-hidden="true"></span>
-                <strong>LA CLOCHE</strong>
-                <small>Discuter avec<br />l'assistant</small>
-              </button>
-
-              <article class="respire-petal respire-petal-do">
-                <div class="respire-petal-icon respire-icon-grape" aria-hidden="true"></div>
-                <h2>&Agrave; FAIRE</h2>
-                <p>Tes 3 priorit&eacute;s du jour</p>
-                <ol class="respire-priority-list">
-                  <li><b>01</b><span>Preparer degustation clients</span><em>Essentiel</em></li>
-                  <li><b>02</b><span>Suivi elevage cuve N&deg;12</span><em>Utile</em></li>
-                  <li><b>03</b><span>Repondre aux emails</span><em>Bonus</em></li>
-                </ol>
-                <button class="respire-link-button" type="button">+ Ajouter une priorite</button>
-              </article>
-
-              <article class="respire-petal respire-petal-keep">
-                <div class="respire-petal-icon respire-icon-book" aria-hidden="true"></div>
-                <h2>&Agrave; GARDER</h2>
-                <p>Notes, idees et ressources</p>
-                <div class="respire-folder-list">
-                  <button type="button"><span>Mes notes</span><b>12</b></button>
-                  <button type="button"><span>Idees</span><b>7</b></button>
-                  <button type="button"><span>Ressources</span><b>5</b></button>
-                  <button type="button"><span>Archives</span><b>3</b></button>
+              <aside class="respire-agenda-panel" aria-label="Ma journee">
+                <div class="respire-agenda-header">
+                  <div>
+                    <span>Ma journ&eacute;e</span>
+                    <h2>Timeline douce</h2>
+                  </div>
+                  <strong>6/10</strong>
                 </div>
-                <button class="respire-link-button" type="button">+ Voir tout</button>
-              </article>
+                <div class="respire-timeline">
+                  <article class="respire-agenda-item is-priority">
+                    <time>09:00</time>
+                    <div><strong>Pr&eacute;parer d&eacute;gustation clients</strong><span>Priorit&eacute; du matin</span></div>
+                  </article>
+                  <article class="respire-agenda-item is-meeting">
+                    <time>10:30</time>
+                    <div><strong>Rendez-vous fournisseur</strong><span>Moment fixe</span></div>
+                  </article>
+                  <article class="respire-agenda-item is-pause">
+                    <time>13:00</time>
+                    <div><strong>Pause respiration</strong><span>Visible, volontaire, non n&eacute;gociable</span></div>
+                  </article>
+                  <article class="respire-agenda-item is-task">
+                    <time>14:30</time>
+                    <div><strong>Suivi cuve N&deg;12</strong><span>T&acirc;che &agrave; placer calmement</span></div>
+                  </article>
+                  <article class="respire-agenda-item is-important">
+                    <time>16:30</time>
+                    <div><strong>Relance client chaude</strong><span>Fort impact, ton doux</span></div>
+                  </article>
+                </div>
+                <div class="respire-ai-actions" aria-label="Actions organisation journee">
+                  <button type="button">Organiser ma journ&eacute;e</button>
+                  <button type="button">Trouver un cr&eacute;neau calme</button>
+                  <button type="button">All&eacute;ger ma journ&eacute;e</button>
+                  <button type="button">Cr&eacute;er une pause</button>
+                </div>
+              </aside>
             </div>
 
             <section class="respire-day-panel" aria-label="Informations du jour">
@@ -286,8 +328,8 @@
               <article>
                 <span>Charge de travail</span>
                 <div class="respire-gauge" aria-hidden="true"><b>6/10</b></div>
-                <strong>Moderee</strong>
-                <p>Charge equilibree. Pense a faire des pauses.</p>
+                <strong>Mod&eacute;r&eacute;e</strong>
+                <p>Calcul&eacute;e avec les t&acirc;ches, rendez-vous et respirations.</p>
               </article>
             </section>
 
@@ -302,26 +344,26 @@
           </div>
         </section>
 
-        <section class="comptoir-view" data-panel="comptoir" hidden aria-label="Comptoir secretariat commerce">
-          <div class="comptoir-background" aria-hidden="true"></div>
-          <div class="comptoir-content">
-            <header class="comptoir-header">
-              <button class="comptoir-round-button" type="button" aria-label="Menu comptoir">
+        <section class="inspire-view" data-panel="inspire" hidden aria-label="Inspire flux entrants">
+          <div class="inspire-background" aria-hidden="true"></div>
+          <div class="inspire-content">
+            <header class="inspire-header">
+              <button class="inspire-round-button" type="button" aria-label="Menu Inspire">
                 <span></span>
                 <span></span>
                 <span></span>
               </button>
-              <div class="comptoir-brandmark">
+              <div class="inspire-brandmark">
                 <img src="art-mas-logo.png" alt="Vignoble Art Mas" />
-                <p>COMPTOIR</p>
-                <span>Ton commerce. Tes clients. Ton rythme.</span>
+                <p>INSPIRE</p>
+                <span>Tes flux entrants. Tes clients. Ton rythme.</span>
               </div>
-              <button class="comptoir-avatar" type="button" aria-label="Profil domaine">
+              <button class="inspire-avatar" type="button" aria-label="Profil domaine">
                 <img src="art-mas-logo.png" alt="" />
               </button>
             </header>
 
-            <article class="comptoir-advice-card">
+            <article class="inspire-advice-card">
               <strong aria-hidden="true">&ldquo;</strong>
               <div>
                 <p>Commence par les commandes pr&ecirc;tes, puis les clients chauds.</p>
@@ -331,13 +373,13 @@
               <i aria-hidden="true"></i>
             </article>
 
-            <div class="comptoir-mandala" aria-label="Tableau secretariat commerce">
-              <article class="comptoir-card comptoir-mail-card" aria-label="Voir les emails a repondre">
-                <div class="comptoir-card-icon comptoir-icon-mail" aria-hidden="true"></div>
+            <div class="inspire-mandala" aria-label="Tableau secretariat commerce">
+              <article class="inspire-card inspire-mail-card" aria-label="Voir les emails a repondre">
+                <div class="inspire-card-icon inspire-icon-mail" aria-hidden="true"></div>
                 <h2>COURRIER</h2>
                 <p>Emails &amp; r&eacute;ponses IA</p>
-                <div class="comptoir-main-metric"><strong>12</strong><span>&agrave; r&eacute;pondre</span></div>
-                <div class="comptoir-stat-grid">
+                <div class="inspire-main-metric"><strong>12</strong><span>&agrave; r&eacute;pondre</span></div>
+                <div class="inspire-stat-grid">
                   <span><b>3</b> urgents</span>
                   <span><b>5</b> r&eacute;ponses pr&ecirc;tes</span>
                   <span><b>7</b> en attente</span>
@@ -346,12 +388,12 @@
                 <small>Les messages importants remontent seuls.</small>
               </article>
 
-              <article class="comptoir-card comptoir-orders-card" aria-label="Voir les commandes">
-                <div class="comptoir-card-icon comptoir-icon-box" aria-hidden="true"></div>
+              <article class="inspire-card inspire-orders-card" aria-label="Voir les commandes">
+                <div class="inspire-card-icon inspire-icon-box" aria-hidden="true"></div>
                 <h2>COMMANDES</h2>
                 <p>Suivi &amp; pr&eacute;paration</p>
-                <div class="comptoir-main-metric"><strong>8</strong><span>en cours</span></div>
-                <div class="comptoir-progress-list">
+                <div class="inspire-main-metric"><strong>8</strong><span>en cours</span></div>
+                <div class="inspire-progress-list">
                   <span><b>3</b> &agrave; pr&eacute;parer</span>
                   <span><b>2</b> pr&ecirc;tes &agrave; exp&eacute;dier</span>
                   <span><b>1</b> paiement manquant</span>
@@ -359,18 +401,18 @@
                 <small>Chaque commande avance d'un geste.</small>
               </article>
 
-              <button class="comptoir-muriel" type="button" aria-label="Ouvrir Muriel, assistant commerce">
+              <button class="inspire-muriel" type="button" aria-label="Ouvrir Muriel, assistant commerce">
                 <span aria-hidden="true"></span>
                 <strong>MURIEL</strong>
                 <small>Assistant<br />commerce</small>
               </button>
 
-              <article class="comptoir-card comptoir-business-card" aria-label="Voir les affaires et relances">
-                <div class="comptoir-card-icon comptoir-icon-brief" aria-hidden="true"></div>
+              <article class="inspire-card inspire-business-card" aria-label="Voir les affaires et relances">
+                <div class="inspire-card-icon inspire-icon-brief" aria-hidden="true"></div>
                 <h2>AFFAIRES</h2>
                 <p>Devis, relances &amp; opportunit&eacute;s</p>
-                <div class="comptoir-main-metric"><strong>4</strong><span>devis ouverts</span></div>
-                <div class="comptoir-progress-list">
+                <div class="inspire-main-metric"><strong>4</strong><span>devis ouverts</span></div>
+                <div class="inspire-progress-list">
                   <span><b>6</b> relances &agrave; faire</span>
                   <span><b>2</b> clients chauds</span>
                   <span><b>3</b> rendez-vous</span>
@@ -378,13 +420,13 @@
                 <small>Les belles affaires murissent, certaines doivent &ecirc;tre cueillies.</small>
               </article>
 
-              <article class="comptoir-card comptoir-revenue-card" aria-label="Voir le detail du chiffre d'affaires">
-                <div class="comptoir-card-icon comptoir-icon-chart" aria-hidden="true"></div>
+              <article class="inspire-card inspire-revenue-card" aria-label="Voir le detail du chiffre d'affaires">
+                <div class="inspire-card-icon inspire-icon-chart" aria-hidden="true"></div>
                 <h2>CHIFFRES</h2>
                 <p>Pilotage &amp; performance</p>
-                <div class="comptoir-main-metric"><strong>24 850&euro;</strong><span>CA du mois</span></div>
-                <div class="comptoir-gauge" aria-hidden="true"><b>68%</b></div>
-                <div class="comptoir-stat-grid">
+                <div class="inspire-main-metric"><strong>24 850&euro;</strong><span>CA du mois</span></div>
+                <div class="inspire-gauge" aria-hidden="true"><b>68%</b></div>
+                <div class="inspire-stat-grid">
                   <span><b>186&euro;</b> panier moyen</span>
                   <span><b>3</b> paiements en attente</span>
                 </div>
@@ -392,7 +434,7 @@
               </article>
             </div>
 
-            <section class="comptoir-today-panel" aria-label="Aujourd'hui au comptoir">
+            <section class="inspire-today-panel" aria-label="Aujourd'hui dans Inspire">
               <article>
                 <span>Encaissements</span>
                 <strong>2 450&euro;</strong>
@@ -415,14 +457,14 @@
               </article>
             </section>
 
-            <section class="comptoir-quick-actions" aria-label="Actions rapides comptoir">
-              <button type="button"><b class="comptoir-small-mail"></b><span>R&eacute;diger un email</span><small>Muriel pr&eacute;pare</small></button>
-              <button type="button"><b class="comptoir-small-quote"></b><span>Cr&eacute;er un devis</span><small>Prix et client</small></button>
-              <button type="button"><b class="comptoir-small-order"></b><span>Nouvelle commande</span><small>Suivi direct</small></button>
-              <button type="button"><b class="comptoir-small-client"></b><span>Relancer un client</span><small>Avec douceur</small></button>
+            <section class="inspire-quick-actions" aria-label="Actions rapides Inspire">
+              <button type="button"><b class="inspire-small-mail"></b><span>R&eacute;diger un email</span><small>Muriel pr&eacute;pare</small></button>
+              <button type="button"><b class="inspire-small-quote"></b><span>Cr&eacute;er un devis</span><small>Prix et client</small></button>
+              <button type="button"><b class="inspire-small-order"></b><span>Nouvelle commande</span><small>Suivi direct</small></button>
+              <button type="button"><b class="inspire-small-client"></b><span>Relancer un client</span><small>Avec douceur</small></button>
             </section>
 
-            <p class="comptoir-footer-line">R&eacute;pondre. Vendre. Relancer. Suivre. Encaisser avec clart&eacute;.</p>
+            <p class="inspire-footer-line">Recevoir. Comprendre. R&eacute;pondre. Relancer. Transformer avec clart&eacute;.</p>
           </div>
         </section>
 
@@ -844,8 +886,8 @@
       <button type="button" data-mobile-view="organization">
         <span>Zen</span>
       </button>
-      <button type="button" data-mobile-view="comptoir">
-        <span>Cptoir</span>
+      <button type="button" data-mobile-view="inspire">
+        <span>Inspire</span>
       </button>
       <button type="button" data-mobile-view="tasks">
         <span>Taches</span>
@@ -952,7 +994,7 @@
             <select id="taskCategory">
               <option>bureau</option>
               <option>vignoble</option>
-              <option>Cave Expé</option>
+              <option>Cave ExpÃ©</option>
               <option>Dettes</option>
               <option>divers et perso</option>
             </select>
@@ -1010,7 +1052,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=comptoir-1"></script>
+    <script src="app.js?v=flux-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
@@ -1020,3 +1062,4 @@
     </script>
   </body>
 </html>
+

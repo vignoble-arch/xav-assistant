@@ -1848,6 +1848,752 @@ textarea {
   display: none;
 }
 
+.respire-view {
+  position: relative;
+  min-height: calc(100vh - 56px);
+  overflow: hidden;
+  border-radius: 28px;
+  color: #292522;
+  background:
+    linear-gradient(120deg, rgba(246, 241, 232, 0.62), rgba(255, 253, 248, 0.74)),
+    radial-gradient(ellipse at 12% 46%, rgba(128, 151, 103, 0.28), transparent 34%),
+    radial-gradient(ellipse at 86% 20%, rgba(216, 194, 122, 0.25), transparent 28%),
+    linear-gradient(145deg, #d7d0bf 0%, #f6f1e8 42%, #dce2cf 100%);
+  box-shadow: var(--shadow);
+}
+
+.respire-background {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(255, 253, 248, 0.28), rgba(246, 241, 232, 0.82)),
+    repeating-linear-gradient(132deg, rgba(94, 109, 75, 0.13) 0 1px, transparent 1px 22px);
+}
+
+.respire-background::before,
+.respire-background::after {
+  position: absolute;
+  content: "";
+  pointer-events: none;
+}
+
+.respire-background::before {
+  right: -20px;
+  top: -36px;
+  width: 270px;
+  height: 270px;
+  opacity: 0.5;
+  background:
+    radial-gradient(ellipse at 50% 15%, rgba(72, 88, 48, 0.48) 0 18%, transparent 19%),
+    radial-gradient(ellipse at 26% 40%, rgba(72, 88, 48, 0.42) 0 18%, transparent 19%),
+    radial-gradient(ellipse at 70% 44%, rgba(72, 88, 48, 0.38) 0 18%, transparent 19%),
+    linear-gradient(110deg, transparent 48%, rgba(72, 88, 48, 0.35) 49% 51%, transparent 52%);
+  transform: rotate(-18deg);
+}
+
+.respire-background::after {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 34%;
+  background:
+    repeating-linear-gradient(168deg, rgba(70, 89, 58, 0.22) 0 2px, transparent 2px 26px),
+    linear-gradient(180deg, transparent, rgba(112, 91, 68, 0.13));
+  clip-path: polygon(0 54%, 14% 44%, 27% 56%, 42% 36%, 58% 52%, 73% 34%, 88% 48%, 100% 30%, 100% 100%, 0 100%);
+  opacity: 0.48;
+}
+
+.respire-content {
+  position: relative;
+  display: grid;
+  gap: 22px;
+  min-height: inherit;
+  padding: 28px clamp(18px, 3vw, 44px) 30px;
+}
+
+.respire-header {
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr) 62px;
+  align-items: start;
+  gap: 16px;
+}
+
+.respire-round-button,
+.respire-avatar {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: 50%;
+  background: rgba(255, 253, 248, 0.78);
+  box-shadow: 0 10px 26px rgba(64, 44, 32, 0.14);
+  backdrop-filter: blur(16px);
+}
+
+.respire-round-button {
+  gap: 4px;
+  align-content: center;
+}
+
+.respire-round-button span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  border-radius: 99px;
+  background: #292522;
+}
+
+.respire-avatar {
+  padding: 8px;
+}
+
+.respire-avatar img,
+.respire-brandmark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.respire-brandmark {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.respire-brandmark img {
+  width: 42px;
+  height: 42px;
+  mix-blend-mode: multiply;
+}
+
+.respire-brandmark p {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2rem, 4vw, 3.75rem);
+  line-height: 0.9;
+  letter-spacing: 0.22em;
+}
+
+.respire-brandmark span {
+  color: #494039;
+  font-size: clamp(0.86rem, 1.4vw, 1.08rem);
+  letter-spacing: 0.08em;
+}
+
+.respire-zen-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 150px;
+  align-items: center;
+  gap: 22px;
+  width: min(620px, 82%);
+  min-height: 118px;
+  margin: -2px auto -8px;
+  padding: 24px 34px;
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  border-radius: 28px;
+  background: rgba(255, 253, 248, 0.76);
+  box-shadow: 0 16px 40px rgba(64, 44, 32, 0.1);
+  backdrop-filter: blur(18px);
+}
+
+.respire-zen-card strong {
+  color: #8a6179;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 3.4rem;
+  line-height: 1;
+}
+
+.respire-zen-card p,
+.respire-zen-card span {
+  margin: 0;
+}
+
+.respire-zen-card p {
+  font-size: clamp(1rem, 1.55vw, 1.28rem);
+  line-height: 1.45;
+}
+
+.respire-zen-card span {
+  display: block;
+  margin-top: 12px;
+  color: #7c716a;
+  font-size: 0.88rem;
+}
+
+.respire-zen-card i {
+  display: block;
+  height: 70px;
+  opacity: 0.24;
+  background:
+    repeating-linear-gradient(168deg, #6f775d 0 1px, transparent 1px 12px),
+    linear-gradient(160deg, transparent 0 40%, #6f775d 41% 42%, transparent 43%);
+  clip-path: polygon(0 76%, 12% 58%, 26% 66%, 40% 42%, 56% 58%, 70% 35%, 86% 50%, 100% 22%, 100% 100%, 0 100%);
+}
+
+.respire-mandala {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  gap: 18px;
+  width: min(1120px, 100%);
+  margin: 0 auto;
+}
+
+.respire-petal {
+  position: relative;
+  display: grid;
+  align-content: start;
+  min-height: 300px;
+  padding: clamp(24px, 3vw, 44px);
+  border: 6px solid rgba(255, 255, 255, 0.58);
+  box-shadow:
+    0 20px 50px rgba(70, 50, 30, 0.12),
+    inset 0 1px 8px rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(14px);
+}
+
+.respire-petal h2,
+.respire-petal p {
+  margin: 0;
+  text-align: center;
+}
+
+.respire-petal h2 {
+  margin-top: 10px;
+  font-size: clamp(1rem, 1.8vw, 1.42rem);
+  font-weight: 500;
+  letter-spacing: 0.18em;
+}
+
+.respire-petal p {
+  margin-top: 8px;
+  color: #514941;
+}
+
+.respire-petal small {
+  margin-top: 18px;
+  color: #7c716a;
+}
+
+.respire-petal-drop {
+  border-radius: 34% 48% 38% 18% / 18% 32% 56% 42%;
+  background: rgba(231, 235, 216, 0.84);
+}
+
+.respire-petal-clarify {
+  border-radius: 48% 34% 18% 38% / 32% 18% 42% 56%;
+  background: rgba(243, 228, 209, 0.86);
+}
+
+.respire-petal-do {
+  border-radius: 18% 38% 48% 34% / 56% 42% 18% 32%;
+  background: rgba(231, 213, 226, 0.84);
+}
+
+.respire-petal-keep {
+  border-radius: 38% 18% 34% 48% / 42% 56% 32% 18%;
+  background: rgba(228, 229, 211, 0.84);
+}
+
+.respire-petal-icon {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  margin: 0 auto;
+  color: #7c6e46;
+}
+
+.respire-icon-leaf::before,
+.respire-icon-leaf::after {
+  position: absolute;
+  content: "";
+}
+
+.respire-icon-leaf::before {
+  inset: 4px 9px 7px 6px;
+  border: 2px solid currentColor;
+  border-left-color: transparent;
+  border-bottom-color: transparent;
+  border-radius: 90% 0 90% 0;
+  transform: rotate(-18deg);
+}
+
+.respire-icon-leaf::after {
+  left: 17px;
+  top: 7px;
+  width: 2px;
+  height: 24px;
+  border-radius: 99px;
+  background: currentColor;
+  transform: rotate(34deg);
+}
+
+.respire-icon-circle::before,
+.respire-icon-circle::after {
+  position: absolute;
+  content: "";
+  inset: 5px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+}
+
+.respire-icon-circle::after {
+  inset: 1px 8px;
+  border-color: transparent currentColor transparent transparent;
+}
+
+.respire-icon-grape {
+  background:
+    radial-gradient(circle at 50% 14%, currentColor 0 3px, transparent 4px),
+    radial-gradient(circle at 38% 34%, currentColor 0 4px, transparent 5px),
+    radial-gradient(circle at 62% 34%, currentColor 0 4px, transparent 5px),
+    radial-gradient(circle at 50% 54%, currentColor 0 4px, transparent 5px),
+    radial-gradient(circle at 38% 74%, currentColor 0 4px, transparent 5px),
+    radial-gradient(circle at 62% 74%, currentColor 0 4px, transparent 5px);
+}
+
+.respire-icon-book::before,
+.respire-icon-book::after {
+  position: absolute;
+  top: 5px;
+  bottom: 4px;
+  width: 14px;
+  content: "";
+  border: 2px solid currentColor;
+  border-radius: 5px 2px 2px 5px;
+}
+
+.respire-icon-book::before {
+  left: 2px;
+}
+
+.respire-icon-book::after {
+  right: 2px;
+  border-radius: 2px 5px 5px 2px;
+}
+
+.respire-note-box {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 106px;
+  margin-top: 22px;
+  padding: 20px;
+  border: 1px solid rgba(112, 91, 68, 0.12);
+  border-radius: 16px;
+  background: rgba(255, 253, 248, 0.74);
+  box-shadow: 0 12px 30px rgba(70, 50, 30, 0.09);
+  color: #9a9188;
+}
+
+.respire-mic,
+.respire-scan,
+.respire-camera,
+.respire-small-bell {
+  position: relative;
+  display: inline-block;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  color: #8a6179;
+}
+
+.respire-mic::before {
+  position: absolute;
+  left: 8px;
+  top: 2px;
+  width: 10px;
+  height: 16px;
+  content: "";
+  border: 2px solid currentColor;
+  border-radius: 9px;
+}
+
+.respire-mic::after {
+  position: absolute;
+  left: 4px;
+  bottom: 2px;
+  width: 18px;
+  height: 12px;
+  content: "";
+  border: solid currentColor;
+  border-width: 0 2px 2px;
+  border-radius: 0 0 12px 12px;
+}
+
+.respire-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.respire-chip-row span {
+  min-height: 38px;
+  border: 1px solid rgba(112, 91, 68, 0.1);
+  border-radius: 14px;
+  padding: 9px 14px;
+  background: rgba(255, 253, 248, 0.55);
+  color: #514941;
+}
+
+.respire-action-list,
+.respire-folder-list {
+  display: grid;
+  margin-top: 22px;
+  border: 1px solid rgba(112, 91, 68, 0.12);
+  border-radius: 16px;
+  overflow: hidden;
+  background: rgba(255, 253, 248, 0.48);
+}
+
+.respire-action-list button,
+.respire-folder-list button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  border: 0;
+  border-bottom: 1px solid rgba(112, 91, 68, 0.12);
+  padding: 0 16px;
+  color: #514941;
+  background: transparent;
+  text-align: left;
+}
+
+.respire-action-list button:last-child,
+.respire-folder-list button:last-child {
+  border-bottom: 0;
+}
+
+.respire-folder-list b {
+  display: grid;
+  min-width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid rgba(112, 91, 68, 0.16);
+  border-radius: 50%;
+  color: #7c716a;
+  font-size: 0.8rem;
+}
+
+.respire-priority-list {
+  display: grid;
+  gap: 10px;
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.respire-priority-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 50px;
+  border-radius: 14px;
+  padding: 0 14px;
+  background: rgba(255, 253, 248, 0.56);
+  box-shadow: inset 0 0 0 1px rgba(112, 91, 68, 0.08);
+}
+
+.respire-priority-list b {
+  color: #8a6179;
+  font-size: 1.12rem;
+}
+
+.respire-priority-list em {
+  border: 1px solid rgba(112, 91, 68, 0.14);
+  border-radius: 999px;
+  padding: 5px 10px;
+  color: #514941;
+  font-size: 0.75rem;
+  font-style: normal;
+}
+
+.respire-link-button {
+  width: fit-content;
+  min-height: 38px;
+  margin: 18px auto 0;
+  border: 0;
+  color: #6b5f54;
+  background: transparent;
+}
+
+.respire-bell {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 3;
+  display: grid;
+  width: 150px;
+  height: 150px;
+  place-items: center;
+  border: 6px solid rgba(255, 255, 255, 0.58);
+  border-radius: 50%;
+  color: #fffdf8;
+  background: radial-gradient(circle, #8a6179 0%, #5b3a50 100%);
+  box-shadow:
+    0 18px 45px rgba(63, 38, 53, 0.28),
+    inset 0 2px 10px rgba(255, 255, 255, 0.25);
+  transform: translate(-50%, -50%);
+  animation: respireBell 3.8s ease-in-out infinite;
+}
+
+.respire-bell span {
+  position: relative;
+  width: 30px;
+  height: 30px;
+}
+
+.respire-bell span::before {
+  position: absolute;
+  inset: 5px 5px 3px;
+  content: "";
+  border-radius: 14px 14px 8px 8px;
+  background: #fffdf8;
+}
+
+.respire-bell span::after {
+  position: absolute;
+  left: 12px;
+  bottom: 0;
+  width: 8px;
+  height: 8px;
+  content: "";
+  border-radius: 50%;
+  background: #fffdf8;
+}
+
+.respire-bell strong {
+  margin-top: -6px;
+  font-size: 1rem;
+  letter-spacing: 0.12em;
+}
+
+.respire-bell small {
+  margin-top: -12px;
+  color: rgba(255, 253, 248, 0.82);
+  line-height: 1.25;
+}
+
+@keyframes respireBell {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  50% {
+    transform: translate(-50%, -50%) scale(1.025);
+  }
+}
+
+.respire-day-panel {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: min(1120px, 100%);
+  margin: 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 28px;
+  background: rgba(255, 253, 248, 0.72);
+  box-shadow: 0 16px 40px rgba(64, 44, 32, 0.1);
+  backdrop-filter: blur(18px);
+}
+
+.respire-day-panel article {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 16px;
+  min-height: 132px;
+  padding: 24px;
+  border-right: 1px solid rgba(112, 91, 68, 0.14);
+}
+
+.respire-day-panel article:last-child {
+  border-right: 0;
+}
+
+.respire-day-panel span {
+  grid-column: 1 / -1;
+  color: #514941;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.respire-day-panel strong {
+  align-self: end;
+}
+
+.respire-day-panel p {
+  grid-column: 2;
+  margin: 0;
+  color: #6b5f54;
+  font-size: 0.9rem;
+}
+
+.respire-moon,
+.respire-weather,
+.respire-gauge {
+  grid-row: span 2;
+  width: 70px;
+  height: 70px;
+}
+
+.respire-moon {
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 34% 38%, #f5f1e7 0 34%, transparent 35%),
+    radial-gradient(circle at 42% 45%, #4d4a47 0 62%, #26231f 63%);
+  box-shadow: inset -8px 2px 14px rgba(255, 255, 255, 0.34);
+}
+
+.respire-weather {
+  position: relative;
+}
+
+.respire-weather::before {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  width: 34px;
+  height: 34px;
+  content: "";
+  border-radius: 50%;
+  background: #e5a83f;
+  box-shadow: 0 0 0 9px rgba(229, 168, 63, 0.2);
+}
+
+.respire-weather::after {
+  position: absolute;
+  right: 8px;
+  bottom: 12px;
+  width: 42px;
+  height: 22px;
+  content: "";
+  border-radius: 18px;
+  background: #c8ced0;
+  box-shadow: -18px 2px 0 #d9ddde;
+}
+
+.respire-gauge {
+  display: grid;
+  place-items: end center;
+  border-radius: 70px 70px 10px 10px;
+  background: conic-gradient(from 270deg, #8fa37e 0 38%, #d8b56d 38% 62%, #8a6179 62% 72%, transparent 72% 100%);
+  -webkit-mask: radial-gradient(circle at 50% 88%, transparent 0 38%, #000 39%);
+  mask: radial-gradient(circle at 50% 88%, transparent 0 38%, #000 39%);
+}
+
+.respire-gauge b {
+  margin-bottom: 8px;
+  color: #292522;
+  font-size: 1rem;
+}
+
+.respire-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  width: min(980px, 100%);
+  margin: 0 auto;
+}
+
+.respire-quick-actions button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px 12px;
+  min-height: 68px;
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  border-radius: 18px;
+  padding: 12px 16px;
+  background: rgba(255, 253, 248, 0.72);
+  box-shadow: 0 12px 26px rgba(64, 44, 32, 0.1);
+  color: #292522;
+  text-align: left;
+}
+
+.respire-quick-actions b {
+  grid-row: span 2;
+  align-self: center;
+}
+
+.respire-quick-actions span {
+  font-weight: 800;
+}
+
+.respire-quick-actions small {
+  color: #7c716a;
+}
+
+.respire-scan::before,
+.respire-scan::after,
+.respire-camera::before,
+.respire-camera::after,
+.respire-small-bell::before,
+.respire-small-bell::after {
+  position: absolute;
+  content: "";
+}
+
+.respire-scan::before {
+  inset: 4px;
+  border: solid currentColor;
+  border-width: 2px 0;
+}
+
+.respire-scan::after {
+  inset: 0;
+  border: solid currentColor;
+  border-width: 0 2px;
+}
+
+.respire-camera::before {
+  inset: 7px 3px 4px;
+  border: 2px solid currentColor;
+  border-radius: 5px;
+}
+
+.respire-camera::after {
+  left: 10px;
+  top: 10px;
+  width: 8px;
+  height: 8px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+}
+
+.respire-small-bell::before {
+  inset: 5px 7px 4px;
+  border-radius: 12px 12px 7px 7px;
+  background: currentColor;
+}
+
+.respire-small-bell::after {
+  left: 11px;
+  bottom: 1px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.respire-footer-line {
+  margin: -2px 0 0;
+  color: #8a6179;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.05rem, 2vw, 1.42rem);
+  text-align: center;
+}
+
+body[data-active-view="organization"] .topbar,
+body[data-active-view="organization"] .quick-capture {
+  display: none;
+}
+
 [hidden] {
   display: none !important;
 }
@@ -1867,6 +2613,25 @@ textarea {
   .notes-grid,
   .list-columns {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .respire-content {
+    gap: 18px;
+    padding: 22px;
+  }
+
+  .respire-petal {
+    min-height: 270px;
+    padding: 28px;
+  }
+
+  .respire-bell {
+    width: 132px;
+    height: 132px;
+  }
+
+  .respire-day-panel article {
+    padding: 18px;
   }
 }
 
@@ -2041,6 +2806,213 @@ textarea {
     gap: 12px;
   }
 
+  .respire-view {
+    min-height: calc(100dvh - 112px);
+    border-radius: 18px;
+  }
+
+  .respire-content {
+    gap: 14px;
+    padding: 14px 12px 18px;
+  }
+
+  .respire-header {
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    gap: 8px;
+  }
+
+  .respire-round-button,
+  .respire-avatar {
+    width: 42px;
+    height: 42px;
+  }
+
+  .respire-round-button span {
+    width: 18px;
+  }
+
+  .respire-brandmark img {
+    width: 28px;
+    height: 28px;
+  }
+
+  .respire-brandmark p {
+    font-size: 1.58rem;
+    letter-spacing: 0.18em;
+  }
+
+  .respire-brandmark span {
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    text-align: center;
+  }
+
+  .respire-zen-card {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px;
+    width: 100%;
+    min-height: 96px;
+    margin: 0;
+    padding: 16px;
+    border-radius: 18px;
+  }
+
+  .respire-zen-card strong {
+    font-size: 2rem;
+  }
+
+  .respire-zen-card p {
+    font-size: 0.86rem;
+  }
+
+  .respire-zen-card span {
+    margin-top: 6px;
+    font-size: 0.72rem;
+  }
+
+  .respire-zen-card i {
+    display: none;
+  }
+
+  .respire-mandala {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .respire-petal {
+    min-height: 152px;
+    border-width: 4px;
+    padding: 18px 12px;
+  }
+
+  .respire-petal h2 {
+    margin-top: 8px;
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+  }
+
+  .respire-petal p {
+    font-size: 0.72rem;
+  }
+
+  .respire-petal-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .respire-note-box,
+  .respire-chip-row,
+  .respire-action-list,
+  .respire-folder-list,
+  .respire-link-button,
+  .respire-petal small {
+    display: none;
+  }
+
+  .respire-priority-list {
+    gap: 6px;
+    margin-top: 12px;
+  }
+
+  .respire-priority-list li {
+    grid-template-columns: auto minmax(0, 1fr);
+    min-height: 30px;
+    gap: 8px;
+    padding: 0 8px;
+    font-size: 0.72rem;
+  }
+
+  .respire-priority-list li:nth-child(n+3),
+  .respire-priority-list em {
+    display: none;
+  }
+
+  .respire-bell {
+    width: 104px;
+    height: 104px;
+    border-width: 5px;
+  }
+
+  .respire-bell span {
+    width: 22px;
+    height: 22px;
+  }
+
+  .respire-bell strong {
+    font-size: 0.76rem;
+  }
+
+  .respire-bell small {
+    display: none;
+  }
+
+  .respire-day-panel {
+    grid-template-columns: repeat(3, minmax(120px, 1fr));
+    overflow-x: auto;
+    border-radius: 18px;
+    scrollbar-width: none;
+  }
+
+  .respire-day-panel::-webkit-scrollbar {
+    display: none;
+  }
+
+  .respire-day-panel article {
+    grid-template-columns: 42px minmax(0, 1fr);
+    min-height: 104px;
+    padding: 12px;
+  }
+
+  .respire-day-panel span {
+    font-size: 0.58rem;
+  }
+
+  .respire-day-panel p {
+    font-size: 0.68rem;
+  }
+
+  .respire-moon,
+  .respire-weather,
+  .respire-gauge {
+    width: 42px;
+    height: 42px;
+  }
+
+  .respire-weather::before {
+    width: 20px;
+    height: 20px;
+    box-shadow: 0 0 0 6px rgba(229, 168, 63, 0.2);
+  }
+
+  .respire-weather::after {
+    right: 4px;
+    bottom: 8px;
+    width: 26px;
+    height: 14px;
+    box-shadow: -10px 2px 0 #d9ddde;
+  }
+
+  .respire-quick-actions {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    width: 100%;
+    scrollbar-width: none;
+  }
+
+  .respire-quick-actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .respire-quick-actions button {
+    flex: 0 0 210px;
+    min-height: 62px;
+  }
+
+  .respire-footer-line {
+    font-size: 0.98rem;
+  }
+
   .panel,
   .priority-band,
   .management-view {
@@ -2119,7 +3091,7 @@ textarea {
     left: 10px;
     z-index: 10;
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 6px;
     padding: 8px;
     border: 1px solid rgba(36, 41, 35, 0.12);

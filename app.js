@@ -2619,6 +2619,7 @@ function stopQuickNoteDictation() {
 }
 
 function switchView(view) {
+  document.body.dataset.activeView = view;
   document.querySelectorAll(".nav-item").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.view === view);
   });

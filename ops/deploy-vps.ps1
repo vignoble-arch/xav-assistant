@@ -33,6 +33,7 @@ $include = @(
   "pointeuse.js",
   "qr-assistant-xavier.jpg",
   "qr-pointeuse.jpg",
+  "art-mas-logo.png",
   "icon.svg",
   "manifest.webmanifest",
   "package.json",

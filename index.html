@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=quick-note-1" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="styles.css?v=assistant-calendar-1" />
+    <link rel="stylesheet" href="styles.css?v=respire-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -29,6 +29,7 @@
 
         <nav class="nav-list">
           <button class="nav-item is-active" type="button" data-view="dashboard">Vue du jour</button>
+          <button class="nav-item" type="button" data-view="organization">Organisation</button>
           <button class="nav-item" type="button" data-view="requests">Demandes</button>
           <button class="nav-item" type="button" data-view="tasks">Taches</button>
           <button class="nav-item" type="button" data-view="inbox">Inbox</button>
@@ -174,6 +175,130 @@
             </div>
             <div class="reports-list" id="reportsList"></div>
           </section>
+        </section>
+
+        <section class="respire-view" data-panel="organization" hidden aria-label="Organisation du travail Respire">
+          <div class="respire-background" aria-hidden="true"></div>
+          <div class="respire-content">
+            <header class="respire-header">
+              <button class="respire-round-button" type="button" aria-label="Menu organisation">
+                <span></span>
+                <span></span>
+                <span></span>
+              </button>
+              <div class="respire-brandmark">
+                <img src="art-mas-logo.png" alt="Vignoble Art Mas" />
+                <p>RESPIRE</p>
+                <span>Ton espace. Ton rythme. Ton vin.</span>
+              </div>
+              <button class="respire-avatar" type="button" aria-label="Profil domaine">
+                <img src="art-mas-logo.png" alt="" />
+              </button>
+            </header>
+
+            <article class="respire-zen-card">
+              <strong aria-hidden="true">&ldquo;</strong>
+              <div>
+                <p>Une seule chose &agrave; la fois.</p>
+                <p>M&ecirc;me la vigne grandit jour apr&egrave;s jour.</p>
+                <span>&mdash; Principe bouddhiste</span>
+              </div>
+              <i aria-hidden="true"></i>
+            </article>
+
+            <div class="respire-mandala" aria-label="Tableau organisation">
+              <article class="respire-petal respire-petal-drop">
+                <div class="respire-petal-icon respire-icon-leaf" aria-hidden="true"></div>
+                <h2>&Agrave; DEPOSER</h2>
+                <p>Vide ton esprit</p>
+                <div class="respire-note-box">
+                  <span>Ecris, dicte ou colle ici...</span>
+                  <b class="respire-mic" aria-hidden="true"></b>
+                </div>
+                <div class="respire-chip-row">
+                  <span>Idee</span>
+                  <span>Tache</span>
+                  <span>Pensee</span>
+                  <span>Inquietude</span>
+                </div>
+                <small>Tout deposer. On s'occupe du reste.</small>
+              </article>
+
+              <article class="respire-petal respire-petal-clarify">
+                <div class="respire-petal-icon respire-icon-circle" aria-hidden="true"></div>
+                <h2>&Agrave; CLARIFIER</h2>
+                <p>Trier, decider, alleger</p>
+                <div class="respire-action-list">
+                  <button type="button">Transformer en tache <span>&rsaquo;</span></button>
+                  <button type="button">Planifier <span>&rsaquo;</span></button>
+                  <button type="button">Deleguer <span>&rsaquo;</span></button>
+                  <button type="button">Mettre en attente <span>&rsaquo;</span></button>
+                  <button type="button">A supprimer <span>&rsaquo;</span></button>
+                </div>
+              </article>
+
+              <button class="respire-bell" type="button" aria-label="La Cloche, discuter avec l'assistant">
+                <span aria-hidden="true"></span>
+                <strong>LA CLOCHE</strong>
+                <small>Discuter avec<br />l'assistant</small>
+              </button>
+
+              <article class="respire-petal respire-petal-do">
+                <div class="respire-petal-icon respire-icon-grape" aria-hidden="true"></div>
+                <h2>&Agrave; FAIRE</h2>
+                <p>Tes 3 priorit&eacute;s du jour</p>
+                <ol class="respire-priority-list">
+                  <li><b>01</b><span>Preparer degustation clients</span><em>Essentiel</em></li>
+                  <li><b>02</b><span>Suivi elevage cuve N&deg;12</span><em>Utile</em></li>
+                  <li><b>03</b><span>Repondre aux emails</span><em>Bonus</em></li>
+                </ol>
+                <button class="respire-link-button" type="button">+ Ajouter une priorite</button>
+              </article>
+
+              <article class="respire-petal respire-petal-keep">
+                <div class="respire-petal-icon respire-icon-book" aria-hidden="true"></div>
+                <h2>&Agrave; GARDER</h2>
+                <p>Notes, idees et ressources</p>
+                <div class="respire-folder-list">
+                  <button type="button"><span>Mes notes</span><b>12</b></button>
+                  <button type="button"><span>Idees</span><b>7</b></button>
+                  <button type="button"><span>Ressources</span><b>5</b></button>
+                  <button type="button"><span>Archives</span><b>3</b></button>
+                </div>
+                <button class="respire-link-button" type="button">+ Voir tout</button>
+              </article>
+            </div>
+
+            <section class="respire-day-panel" aria-label="Informations du jour">
+              <article>
+                <span>Phase de lune</span>
+                <div class="respire-moon" aria-hidden="true"></div>
+                <strong>Lune croissante</strong>
+                <p>Energie en croissance, ideal pour initier.</p>
+              </article>
+              <article>
+                <span>Meteo</span>
+                <div class="respire-weather" aria-hidden="true"></div>
+                <strong>21&deg;C</strong>
+                <p>Ensoleille. Risque de pluie faible : 10%.</p>
+              </article>
+              <article>
+                <span>Charge de travail</span>
+                <div class="respire-gauge" aria-hidden="true"><b>6/10</b></div>
+                <strong>Moderee</strong>
+                <p>Charge equilibree. Pense a faire des pauses.</p>
+              </article>
+            </section>
+
+            <section class="respire-quick-actions" aria-label="Actions rapides">
+              <button type="button"><b class="respire-mic"></b><span>Dicter une note</span><small>Parle, je note</small></button>
+              <button type="button"><b class="respire-scan"></b><span>Scanner etiquette</span><small>Numerise et garde</small></button>
+              <button type="button"><b class="respire-camera"></b><span>Photo de vigne</span><small>Note et archive</small></button>
+              <button type="button"><b class="respire-small-bell"></b><span>Rappels doux</span><small>Je te guide</small></button>
+            </section>
+
+            <p class="respire-footer-line">Respire. Trie. Priorise. Cree. Deguste le temps.</p>
+          </div>
         </section>
 
         <section class="management-view" data-panel="requests" hidden>
@@ -591,6 +716,9 @@
       <button class="is-active" type="button" data-mobile-view="dashboard">
         <span>Jour</span>
       </button>
+      <button type="button" data-mobile-view="organization">
+        <span>Respire</span>
+      </button>
       <button type="button" data-mobile-view="tasks">
         <span>Taches</span>
       </button>
@@ -754,7 +882,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=assistant-calendar-1"></script>
+    <script src="app.js?v=respire-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

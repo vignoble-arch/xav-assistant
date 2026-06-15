@@ -269,6 +269,7 @@ const el = {
   baqioApiKey: document.querySelector("#baqioApiKey"),
   baqioPassword: document.querySelector("#baqioPassword"),
   baqioSecret: document.querySelector("#baqioSecret"),
+  baqioSyncMaxPages: document.querySelector("#baqioSyncMaxPages"),
   orderWebhookSecret: document.querySelector("#orderWebhookSecret"),
   orderWebhookUrl: document.querySelector("#orderWebhookUrl"),
   copyOrderWebhookUrl: document.querySelector("#copyOrderWebhookUrl"),
@@ -1486,6 +1487,7 @@ function renderBaqioConfig() {
   el.baqioApiKey.value = "";
   el.baqioPassword.value = "";
   el.baqioSecret.value = "";
+  if (el.baqioSyncMaxPages) el.baqioSyncMaxPages.value = baqioConfigState?.syncMaxPages || 30;
   if (el.orderWebhookSecret) el.orderWebhookSecret.value = "";
   if (el.orderWebhookUrl) el.orderWebhookUrl.value = baqioConfigState?.orderWebhookUrl || `${location.origin}/api/webhooks/orders`;
   el.baqioApiKey.placeholder = baqioConfigState?.hasApiKey ? "Cle API deja enregistree" : "Coller la cle API Baqio";
@@ -3542,6 +3544,7 @@ async function saveBaqioConfig(event) {
     apiKey: el.baqioApiKey.value.trim(),
     password: el.baqioPassword.value.trim(),
     secret: el.baqioSecret.value.trim(),
+    syncMaxPages: Number(el.baqioSyncMaxPages?.value || 30),
     orderWebhookSecret: el.orderWebhookSecret?.value.trim() || "",
   };
 

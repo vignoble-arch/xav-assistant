@@ -53,6 +53,17 @@ V1 :
 - preparer la lecture clients et commandes ;
 - alimenter l'agent commercial avec les derniers achats, categories client et relances possibles.
 
+## Profondeur de synchronisation
+
+L'application peut regler le nombre de pages Baqio a lire.
+
+- 1 page = environ 50 lignes.
+- 10 pages = environ 500 clients et 500 commandes.
+- 30 pages = environ 1500 clients et 1500 commandes.
+- Maximum prevu dans l'application : 200 pages.
+
+Le reglage se fait dans Connexions > Baqio > Pages a synchroniser.
+
 Etape suivante :
 
 - importer les clients en lecture seule ;

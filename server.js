@@ -21,7 +21,7 @@ const KNOWLEDGE_DIR = path.join(DATA_DIR, "knowledge");
 const KNOWLEDGE_FILE = path.join(DATA_DIR, "knowledge-documents.json");
 const AGENT_INSTRUCTIONS_FILE = path.join(DATA_DIR, "agent-instructions.json");
 const AUTO_SYNC_INTERVAL_MINUTES = Math.max(5, Number(process.env.AUTO_SYNC_INTERVAL_MINUTES || 15));
-const BAQIO_SYNC_MAX_PAGES = Math.max(1, Number(process.env.BAQIO_SYNC_MAX_PAGES || 10));
+const DEFAULT_BAQIO_SYNC_MAX_PAGES = 30;
 const ORDER_STATUSES = ["En commande", "Prete pour expedition", "En livraison", "Expedie"];
 
 const GOOGLE_SCOPES = {
@@ -2103,6 +2103,7 @@ function getBaqioConfigStatus() {
   const config = getBaqioConfig();
   return {
     baseUrl: config.baseUrl,
+    syncMaxPages: config.syncMaxPages,
     hasApiKey: Boolean(config.apiKey),
     hasPassword: Boolean(config.password),
     hasSecret: Boolean(config.secret),
@@ -2118,14 +2119,21 @@ function getBaqioConfig() {
   const password = process.env.BAQIO_PASSWORD || "";
   const secret = process.env.BAQIO_SECRET || "";
   const orderWebhookSecret = process.env.ORDER_WEBHOOK_SECRET || "";
+  const syncMaxPages = getBaqioSyncMaxPages();
   return {
     baseUrl,
     apiKey,
     password,
     secret,
     orderWebhookSecret,
+    syncMaxPages,
     ready: Boolean(baseUrl && apiKey && password && secret),
   };
+}
+
+function getBaqioSyncMaxPages() {
+  const value = Number(process.env.BAQIO_SYNC_MAX_PAGES || DEFAULT_BAQIO_SYNC_MAX_PAGES);
+  return Math.min(200, Math.max(1, Number.isFinite(value) ? Math.round(value) : DEFAULT_BAQIO_SYNC_MAX_PAGES));
 }
 
 function saveBaqioConfig(config) {
@@ -2136,6 +2144,7 @@ function saveBaqioConfig(config) {
     BAQIO_API_KEY: String(config.apiKey || current.BAQIO_API_KEY || "").trim(),
     BAQIO_PASSWORD: String(config.password || current.BAQIO_PASSWORD || "").trim(),
     BAQIO_SECRET: String(config.secret || current.BAQIO_SECRET || "").trim(),
+    BAQIO_SYNC_MAX_PAGES: String(getBaqioSyncMaxPagesFromConfig(config.syncMaxPages || current.BAQIO_SYNC_MAX_PAGES)),
     ORDER_WEBHOOK_SECRET: String(config.orderWebhookSecret || current.ORDER_WEBHOOK_SECRET || "").trim(),
   };
 
@@ -2144,7 +2153,13 @@ function saveBaqioConfig(config) {
   process.env.BAQIO_API_KEY = next.BAQIO_API_KEY;
   process.env.BAQIO_PASSWORD = next.BAQIO_PASSWORD;
   process.env.BAQIO_SECRET = next.BAQIO_SECRET;
+  process.env.BAQIO_SYNC_MAX_PAGES = next.BAQIO_SYNC_MAX_PAGES;
   process.env.ORDER_WEBHOOK_SECRET = next.ORDER_WEBHOOK_SECRET;
+}
+
+function getBaqioSyncMaxPagesFromConfig(value) {
+  const parsed = Number(value || DEFAULT_BAQIO_SYNC_MAX_PAGES);
+  return Math.min(200, Math.max(1, Number.isFinite(parsed) ? Math.round(parsed) : DEFAULT_BAQIO_SYNC_MAX_PAGES));
 }
 
 async function sendBaqioStatus(res) {
@@ -2201,8 +2216,8 @@ async function syncBaqioCommercialData(res) {
 
 async function fetchBaqioCommercialSnapshot() {
   const [customersRaw, ordersRaw] = await Promise.all([
-    baqioFetchPages("/customers", BAQIO_SYNC_MAX_PAGES),
-    baqioFetchPages("/orders", BAQIO_SYNC_MAX_PAGES),
+    baqioFetchPages("/customers", getBaqioSyncMaxPages()),
+    baqioFetchPages("/orders", getBaqioSyncMaxPages()),
   ]);
   const customers = Array.isArray(customersRaw) ? customersRaw.map(normalizeBaqioCustomer) : [];
   const orders = Array.isArray(ordersRaw) ? ordersRaw.map(normalizeBaqioOrder) : [];

@@ -2252,6 +2252,18 @@ button:disabled {
   background: #fffdf8;
 }
 
+.clarify-task-card {
+  border-color: rgba(85, 116, 100, 0.24);
+  background:
+    linear-gradient(90deg, rgba(231, 239, 233, 0.78), rgba(255, 253, 248, 0.92)),
+    #fffdf8;
+}
+
+.clarify-task-card .clarify-routing {
+  border-color: rgba(49, 93, 125, 0.16);
+  background: var(--blue-soft);
+}
+
 .clarify-routing {
   display: flex;
   align-items: center;

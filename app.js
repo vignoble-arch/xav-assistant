@@ -3049,16 +3049,25 @@ function renderClarifyNotesPicker() {
     button.classList.toggle("is-active", button.dataset.clarifyFilter === currentClarifyNoteFilter);
   });
 
-  const notes = getClarifyNoteCandidates(currentClarifyNoteFilter);
-  if (!notes.length) {
-    el.clarifyNotesList.innerHTML = emptyState("Aucune note dans cette categorie.");
+  const items = getClarifyCandidates(currentClarifyNoteFilter);
+  if (!items.length) {
+    el.clarifyNotesList.innerHTML = emptyState("Aucune note ou tache sans date dans cette categorie.");
     return;
   }
 
-  el.clarifyNotesList.innerHTML = notes.map(clarifyNoteCard).join("");
+  el.clarifyNotesList.innerHTML = items.map((item) => item.kind === "task" ? clarifyTaskCard(item.data) : clarifyNoteCard(item.data)).join("");
   el.clarifyNotesList.querySelectorAll("[data-clarify-note-action]").forEach((button) => {
     button.addEventListener("click", () => handleClarifyNoteAction(button.dataset.clarifyNoteId, button.dataset.clarifyNoteAction));
   });
+  el.clarifyNotesList.querySelectorAll("[data-clarify-task-action]").forEach((button) => {
+    button.addEventListener("click", () => handleClarifyTaskAction(button.dataset.clarifyTaskId, button.dataset.clarifyTaskAction));
+  });
+}
+
+function getClarifyCandidates(filter = "active") {
+  const notes = getClarifyNoteCandidates(filter).map((note) => ({ kind: "note", data: note, date: note.updatedAt || note.createdAt || "" }));
+  const tasks = getClarifyTaskCandidates(filter).map((task) => ({ kind: "task", data: task, date: task.updatedAt || task.createdAt || "" }));
+  return [...tasks, ...notes].sort((a, b) => String(b.date).localeCompare(String(a.date)));
 }
 
 function getClarifyNoteCandidates(filter = "active") {
@@ -3074,6 +3083,15 @@ function getClarifyNoteCandidates(filter = "active") {
       return !category.includes("archive") && !category.includes("attente") && note.category !== "Traitement IA";
     })
     .sort((a, b) => String(b.updatedAt || b.createdAt || "").localeCompare(String(a.updatedAt || a.createdAt || "")));
+}
+
+function getClarifyTaskCandidates(filter = "active") {
+  if (!["active", "all", "waiting"].includes(filter)) return [];
+  return [...(state.tasks || [])]
+    .filter((task) => task.status !== "Termine" && task.status !== "Inbox")
+    .filter((task) => !task.due)
+    .filter((task) => filter !== "waiting" || task.status === "En attente")
+    .sort(sortTasksForFocus);
 }
 
 function clarifyNoteCard(note) {
@@ -3105,6 +3123,33 @@ function clarifyNoteCard(note) {
         <button class="item-action" type="button" data-clarify-note-id="${escapeHTML(note.id)}" data-clarify-note-action="waiting">Attente</button>
         <button class="item-action" type="button" data-clarify-note-id="${escapeHTML(note.id)}" data-clarify-note-action="archive">Archive</button>
         <button class="item-action" type="button" data-clarify-note-id="${escapeHTML(note.id)}" data-clarify-note-action="delete">Supprimer</button>
+      </div>
+    </article>
+  `;
+}
+
+function clarifyTaskCard(task) {
+  const list = taskListName(task);
+  return `
+    <article class="clarify-note-card clarify-task-card">
+      <div class="card-top">
+        <div>
+          <p class="card-title">${escapeHTML(task.title || "Tache sans titre")}</p>
+          <p class="card-meta">Tache sans date - ${escapeHTML(list)} - ${escapeHTML(task.status || "A faire")}</p>
+        </div>
+        ${priorityTag(effectivePriority(task))}
+      </div>
+      ${task.notes ? `<p class="card-meta">${escapeHTML(task.notes)}</p>` : ""}
+      <div class="clarify-routing">
+        <span>A clarifier</span>
+        <b>Ajouter une date ou une destination</b>
+      </div>
+      <div class="card-actions clarify-note-actions">
+        <button class="item-action item-action-primary" type="button" data-clarify-task-id="${escapeHTML(task.id)}" data-clarify-task-action="plan">Planifier</button>
+        <button class="item-action" type="button" data-clarify-task-id="${escapeHTML(task.id)}" data-clarify-task-action="respire">Priorite Respire</button>
+        <button class="item-action" type="button" data-clarify-task-id="${escapeHTML(task.id)}" data-clarify-task-action="start">Demarrer</button>
+        <button class="item-action" type="button" data-clarify-task-id="${escapeHTML(task.id)}" data-clarify-task-action="waiting">Attente</button>
+        <button class="item-action" type="button" data-clarify-task-id="${escapeHTML(task.id)}" data-clarify-task-action="edit">Modifier</button>
       </div>
     </article>
   `;
@@ -3156,6 +3201,34 @@ async function handleClarifyNoteAction(id, action) {
   if (action === "delete") {
     el.clarifyNotesDialog?.close();
     deleteNote(id);
+  }
+}
+
+async function handleClarifyTaskAction(id, action) {
+  const task = state.tasks.find((item) => item.id === id);
+  if (!task) return;
+  if (action === "plan" || action === "edit") {
+    el.clarifyNotesDialog?.close();
+    openTaskForm(id);
+    if (action === "plan") setTimeout(() => document.querySelector("#taskDue")?.focus(), 0);
+    return;
+  }
+  if (action === "respire") {
+    const saved = await saveTask({ ...task, list: "Respire", status: task.status === "En attente" ? "A faire" : task.status });
+    if (saved) {
+      showToast("Tache ajoutee aux priorites Respire.");
+      renderClarifyNotesPicker();
+    }
+    return;
+  }
+  if (action === "start") {
+    const saved = await saveTask({ ...task, status: "En cours" });
+    if (saved) renderClarifyNotesPicker();
+    return;
+  }
+  if (action === "waiting") {
+    const saved = await saveTask({ ...task, status: "En attente" });
+    if (saved) renderClarifyNotesPicker();
   }
 }
 

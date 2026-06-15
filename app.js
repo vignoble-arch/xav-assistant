@@ -705,7 +705,8 @@ function getOpenTasksByList(listName) {
 
 function taskInlineDetails(task) {
   const parts = [];
-  if (task.due) parts.push(formatDate(task.due));
+  if (task.due) parts.push(`${formatDate(task.due)}${task.plannedTime ? ` a ${task.plannedTime}` : ""}`);
+  else if (task.plannedTime) parts.push(`A ${task.plannedTime}`);
   if (taskEffortLine(task)) parts.push(taskEffortLine(task));
   if (task.notes) parts.push(task.notes);
   return parts.join(" - ");
@@ -1463,6 +1464,9 @@ function sortTasksForFocus(a, b) {
   const dateA = a.due || "9999-12-31";
   const dateB = b.due || "9999-12-31";
   if (dateA !== dateB) return dateA.localeCompare(dateB);
+  const timeA = normalizePlanningTime(a.plannedTime) || "99:99";
+  const timeB = normalizePlanningTime(b.plannedTime) || "99:99";
+  if (timeA !== timeB) return timeA.localeCompare(timeB);
   const priority = priorityWeight(effectivePriority(b)) - priorityWeight(effectivePriority(a));
   if (priority) return priority;
   return taskListName(a).localeCompare(taskListName(b), "fr");
@@ -1483,7 +1487,8 @@ function getPlanningItems() {
     id: event.id,
     title: event.title,
     dateKey: event.date || inferDateKeyFromAgendaTime(event.time) || today,
-    time: event.time || "",
+    time: normalizePlanningTime(event.time) || "Journee",
+    sortTime: normalizePlanningTime(event.time) || "00:00",
     meta: event.source || "Agenda",
   }));
 
@@ -1494,18 +1499,20 @@ function getPlanningItems() {
       id: task.id,
       title: task.title,
       dateKey: task.due,
-      time: formatDate(task.due),
-      meta: `${taskListName(task)} - ${task.source || "manuel"}`,
+      time: normalizePlanningTime(task.plannedTime) || "A placer",
+      sortTime: normalizePlanningTime(task.plannedTime) || "99:99",
+      meta: `${formatDate(task.due)} - ${taskListName(task)} - ${task.source || "manuel"}`,
     }));
 
   return [...calendarItems, ...taskItems]
     .filter((item) => item.dateKey <= maxDate)
     .sort((a, b) => {
       if (a.dateKey !== b.dateKey) return a.dateKey.localeCompare(b.dateKey);
+      if (a.sortTime !== b.sortTime) return String(a.sortTime).localeCompare(String(b.sortTime), "fr");
       if (a.type !== b.type) return a.type === "event" ? -1 : 1;
-      return String(a.time).localeCompare(String(b.time), "fr");
+      return String(a.title).localeCompare(String(b.title), "fr");
     })
-    .slice(0, 12);
+    .slice(0, 20);
 }
 
 function planningItem(item) {
@@ -2534,13 +2541,14 @@ function memoryCard(exchange) {
 
 function priorityCard(task) {
   const effort = taskEffortLine(task);
+  const dueLabel = task.due ? `${formatDate(task.due)}${task.plannedTime ? ` a ${task.plannedTime}` : ""}` : "Sans echeance";
   return `
     <article class="priority-card">
       <div class="card-top">
         <p class="card-title">${escapeHTML(task.title)}</p>
         ${priorityTag(effectivePriority(task))}
       </div>
-      <p class="card-meta">${escapeHTML(taskListName(task))} - ${formatDate(task.due)} - ${escapeHTML(task.source)}</p>
+      <p class="card-meta">${escapeHTML(taskListName(task))} - ${escapeHTML(dueLabel)} - ${escapeHTML(task.source)}</p>
       ${effort ? `<p class="card-meta task-effort-line">${escapeHTML(effort)}</p>` : ""}
       <div class="card-actions">
         <button class="item-action" type="button" onclick="completeTask('${task.id}')">Terminer</button>
@@ -2554,6 +2562,7 @@ function priorityCard(task) {
 function taskCard(task) {
   const dueClass = getDueClass(task);
   const effort = taskEffortLine(task);
+  const dueLabel = task.due ? `${formatDate(task.due)}${task.plannedTime ? ` a ${task.plannedTime}` : ""}` : "Sans echeance";
   const lateActions = dueClass === "is-late"
     ? `<div class="late-task-actions" aria-label="Actions de rattrapage">
         <button class="item-action item-action-primary" type="button" onclick="rescheduleTask('${task.id}', 'today')">Aujourd'hui</button>
@@ -2567,7 +2576,7 @@ function taskCard(task) {
         <p class="card-title">${escapeHTML(task.title)}</p>
         ${priorityTag(effectivePriority(task))}
       </div>
-      <p class="card-meta">${escapeHTML(taskListName(task))} - ${escapeHTML(task.status)} - ${task.due ? formatDate(task.due) : "Sans echeance"} - ${escapeHTML(task.source || "manuel")}</p>
+      <p class="card-meta">${escapeHTML(taskListName(task))} - ${escapeHTML(task.status)} - ${escapeHTML(dueLabel)} - ${escapeHTML(task.source || "manuel")}</p>
       ${effort ? `<p class="card-meta task-effort-line">${escapeHTML(effort)}</p>` : ""}
       ${task.notes ? `<p class="card-meta">${escapeHTML(task.notes)}</p>` : ""}
       ${lateActions}
@@ -3113,6 +3122,7 @@ function openTaskForm(id = "", options = {}) {
   document.querySelector("#taskCategory").value = task ? taskListName(task) : options.list || "bureau";
   document.querySelector("#taskPriority").value = task?.priority || "Normale";
   document.querySelector("#taskDue").value = task?.due || "";
+  document.querySelector("#taskPlannedTime").value = normalizePlanningTime(task?.plannedTime || "");
   document.querySelector("#taskEstimatedMinutes").value = task?.estimatedMinutes || "";
   document.querySelector("#taskMentalLoad").value = task?.mentalLoad || "";
   document.querySelector("#taskPhysicalLoad").value = task?.physicalLoad || "";
@@ -3574,6 +3584,7 @@ async function handleTaskSubmit(event) {
     priority: document.querySelector("#taskPriority").value,
     list: document.querySelector("#taskCategory").value,
     due: document.querySelector("#taskDue").value || "",
+    plannedTime: normalizePlanningTime(document.querySelector("#taskPlannedTime").value || ""),
     estimatedMinutes: Number(document.querySelector("#taskEstimatedMinutes").value || 0),
     mentalLoad: Number(document.querySelector("#taskMentalLoad").value || 0),
     physicalLoad: Number(document.querySelector("#taskPhysicalLoad").value || 0),
@@ -4310,9 +4321,9 @@ function buildMorningBriefClient(currentState) {
   const tomorrowTasks = openTasks.filter((task) => task.due === tomorrow).sort(sortTasksForFocus);
   const noDateTasks = openTasks.filter((task) => !task.due).sort(sortTasksForFocus);
   const agenda = getPlanningItems()
-    .filter((item) => item.type === "event" && item.dateKey === today)
+    .filter((item) => item.dateKey === today)
     .slice(0, 6)
-    .map((item) => ({ title: item.title, time: item.time || "Aujourd'hui" }));
+    .map((item) => ({ title: item.title, time: item.time || "Aujourd'hui", type: item.type }));
   const priorities = [...lateTasks, ...todayTasks, ...noDateTasks]
     .filter(uniqueByTaskId())
     .sort(sortTasksForFocus)
@@ -4368,6 +4379,7 @@ function taskToBriefItem(task) {
     list: taskListName(task),
     priority: task.priority || "Normale",
     due: task.due || "",
+    plannedTime: normalizePlanningTime(task.plannedTime),
     estimatedMinutes: normalizePositiveInteger(task.estimatedMinutes),
     mentalLoad: normalizeTaskLoad(task.mentalLoad),
     physicalLoad: normalizeTaskLoad(task.physicalLoad),
@@ -4384,6 +4396,15 @@ function normalizeTaskLoad(value) {
   const number = Number(value || 0);
   if (!Number.isFinite(number) || number <= 0) return 0;
   return Math.max(1, Math.min(5, Math.round(number)));
+}
+
+function normalizePlanningTime(value) {
+  const match = String(value || "").trim().match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return "";
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return "";
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
 function uniqueByTaskId() {
@@ -4404,6 +4425,7 @@ function migrateState(saved) {
   migrated.tasks = (saved.tasks || seedState.tasks).map((task) => ({
     ...task,
     list: taskListName(task),
+    plannedTime: normalizePlanningTime(task.plannedTime),
     estimatedMinutes: normalizePositiveInteger(task.estimatedMinutes),
     mentalLoad: normalizeTaskLoad(task.mentalLoad),
     physicalLoad: normalizeTaskLoad(task.physicalLoad),

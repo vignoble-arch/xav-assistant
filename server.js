@@ -741,7 +741,9 @@ function normalizeAppState(state) {
   return {
     ...structuredClone(seedState),
     ...state,
-    tasks: Array.isArray(state.tasks) ? state.tasks : structuredClone(seedState.tasks),
+    tasks: Array.isArray(state.tasks)
+      ? state.tasks.map((task) => ({ ...task, plannedTime: normalizePlanningTime(task.plannedTime) }))
+      : structuredClone(seedState.tasks),
     inbox: Array.isArray(state.inbox) ? state.inbox : structuredClone(seedState.inbox),
     reminders: Array.isArray(state.reminders) ? state.reminders : structuredClone(seedState.reminders),
     notes: Array.isArray(state.notes) ? state.notes : structuredClone(seedState.notes),
@@ -1173,6 +1175,7 @@ async function saveTaskFromApp(req, res) {
     list: normalizeTaskList(body.list || existing?.list || existing?.category || "bureau"),
     source: existing?.source || "manuel",
     due: String(body.due || ""),
+    plannedTime: normalizePlanningTime(body.plannedTime ?? existing?.plannedTime),
     notes: String(body.notes || existing?.notes || ""),
     estimatedMinutes: normalizePositiveNumber(body.estimatedMinutes ?? existing?.estimatedMinutes),
     mentalLoad: normalizeLoadValue(body.mentalLoad ?? existing?.mentalLoad),
@@ -1189,6 +1192,10 @@ async function saveTaskFromApp(req, res) {
         ? await updateGoogleTask(task)
         : await createGoogleTask(task);
       Object.assign(task, saved);
+      task.plannedTime = normalizePlanningTime(body.plannedTime ?? existing?.plannedTime);
+      task.estimatedMinutes = normalizePositiveNumber(body.estimatedMinutes ?? existing?.estimatedMinutes);
+      task.mentalLoad = normalizeLoadValue(body.mentalLoad ?? existing?.mentalLoad);
+      task.physicalLoad = normalizeLoadValue(body.physicalLoad ?? existing?.physicalLoad);
     }
   } catch (error) {
     return sendJson(res, { error: error.message }, 409);
@@ -1210,6 +1217,15 @@ function normalizeLoadValue(value) {
   const number = Number(value || 0);
   if (!Number.isFinite(number) || number <= 0) return 0;
   return Math.max(1, Math.min(5, Math.round(number)));
+}
+
+function normalizePlanningTime(value) {
+  const match = String(value || "").trim().match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return "";
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return "";
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
 async function deleteTaskFromApp(req, res) {
@@ -1854,6 +1870,7 @@ function googleTaskToAppTask(task, listId, listName) {
     list: normalizeTaskList(listName),
     source: "Google Tasks",
     due: task.due ? task.due.slice(0, 10) : "",
+    plannedTime: "",
     notes: task.notes || "",
     estimatedMinutes: 0,
     mentalLoad: 0,
@@ -1971,6 +1988,7 @@ function mergeTasksBySourceId(incoming, existing) {
     return {
       ...task,
       list: normalizeTaskList(current.list || task.list),
+      plannedTime: normalizePlanningTime(current.plannedTime ?? task.plannedTime),
       estimatedMinutes: normalizePositiveNumber(current.estimatedMinutes ?? task.estimatedMinutes),
       mentalLoad: normalizeLoadValue(current.mentalLoad ?? task.mentalLoad),
       physicalLoad: normalizeLoadValue(current.physicalLoad ?? task.physicalLoad),
@@ -3801,15 +3819,58 @@ function getAiStateSummary(state) {
     .slice(0, 4)
     .map((report) => `${report.title}: ${report.status}`);
   const upcomingAgenda = getUpcomingAgendaItems(state).slice(0, 5);
+  const hourlyPlanning = getHourlyPlanningForAi(state).slice(0, 12);
+  const tasksToPlace = getTasksToPlaceForAi(state).slice(0, 10);
 
   return [
     `Contexte actuel: ${openTasks.length} taches ouvertes.`,
     urgentTasks.length ? `Taches importantes: ${urgentTasks.join("; ")}.` : "",
     effortTasks.length ? `Charges declarees pour organiser la journee: ${effortTasks.join("; ")}.` : "",
+    hourlyPlanning.length ? `Planning horaire accessible a Fernand/Paulo: ${hourlyPlanning.join("; ")}.` : "",
+    tasksToPlace.length ? `Taches datees sans heure a placer dans le planning: ${tasksToPlace.join("; ")}.` : "",
     upcomingAgenda.length ? `Agenda Google synchronise: lecture de l'agenda personnel et de l'agenda assistants. Prochains rendez-vous: ${upcomingAgenda.join("; ")}.` : "Agenda Google synchronise: aucun rendez-vous lu dans les 30 prochains jours, ou synchronisation a relancer.",
     activeOrders.length ? `Commandes en cours: ${activeOrders.slice(0, 5).map((order) => `${order.reference} - ${order.customerName} (${order.status})`).join("; ")}.` : "",
     reports.length ? `Travaux en cours: ${reports.join("; ")}.` : "",
   ].filter(Boolean).join(" ");
+}
+
+function getHourlyPlanningForAi(state) {
+  const today = todayISO();
+  const maxDate = addDaysToISO(today, 7);
+  const events = (state.agenda || [])
+    .filter((event) => (event.date || inferDateKeyFromAgendaTime(event.time) || today) >= today)
+    .filter((event) => (event.date || inferDateKeyFromAgendaTime(event.time) || today) <= maxDate)
+    .map((event) => ({
+      date: event.date || inferDateKeyFromAgendaTime(event.time) || today,
+      time: normalizePlanningTime(event.time) || "journee",
+      sortTime: normalizePlanningTime(event.time) || "00:00",
+      title: event.title || "Evenement sans titre",
+      kind: "rdv",
+    }));
+  const tasks = (state.tasks || [])
+    .filter((task) => task.status !== "Termine" && task.due && task.due >= today && task.due <= maxDate && normalizePlanningTime(task.plannedTime))
+    .map((task) => ({
+      date: task.due,
+      time: normalizePlanningTime(task.plannedTime),
+      sortTime: normalizePlanningTime(task.plannedTime),
+      title: task.title || "Tache sans titre",
+      kind: `tache ${task.list || "sans liste"}`,
+    }));
+  return [...events, ...tasks]
+    .sort((a, b) => a.date.localeCompare(b.date) || a.sortTime.localeCompare(b.sortTime) || a.title.localeCompare(b.title, "fr"))
+    .map((item) => `${item.date} ${item.time} - ${item.title} (${item.kind})`);
+}
+
+function getTasksToPlaceForAi(state) {
+  const today = todayISO();
+  const maxDate = addDaysToISO(today, 7);
+  return (state.tasks || [])
+    .filter((task) => task.status !== "Termine" && task.due && task.due >= today && task.due <= maxDate && !normalizePlanningTime(task.plannedTime))
+    .sort(sortTasksForBrief)
+    .map((task) => {
+      const effort = formatTaskEffortForAi(task);
+      return `${task.due} - ${task.title || "Tache sans titre"} (${task.list || "sans liste"}${effort ? `, ${effort}` : ""})`;
+    });
 }
 
 function formatTaskEffortForAi(task) {
@@ -3838,13 +3899,7 @@ function buildMorningBrief(state) {
   const todayTasks = openTasks.filter((task) => task.due === today).sort(sortTasksForBrief);
   const tomorrowTasks = openTasks.filter((task) => task.due === tomorrow).sort(sortTasksForBrief);
   const noDateTasks = openTasks.filter((task) => !task.due).sort(sortTasksForBrief);
-  const agendaToday = (state.agenda || [])
-    .filter((event) => (event.date || inferDateKeyFromAgendaTime(event.time) || today) === today)
-    .slice(0, 6)
-    .map((event) => ({
-      title: event.title || "Evenement sans titre",
-      time: event.time || "Aujourd'hui",
-    }));
+  const agendaToday = getPlanningForDate(state, today).slice(0, 8);
   const priorities = [...lateTasks, ...todayTasks, ...noDateTasks]
     .filter(uniqueTaskById())
     .sort(sortTasksForBrief)
@@ -3917,12 +3972,35 @@ function taskToBriefItem(task) {
     list: task.list || task.category || "divers et perso",
     priority: task.priority || "Normale",
     due: task.due || "",
+    plannedTime: normalizePlanningTime(task.plannedTime),
     source: task.source || "manuel",
     estimatedMinutes: normalizePositiveNumber(task.estimatedMinutes),
     mentalLoad: normalizeLoadValue(task.mentalLoad),
     physicalLoad: normalizeLoadValue(task.physicalLoad),
     effort: formatTaskEffortForAi(task),
   };
+}
+
+function getPlanningForDate(state, dateKey) {
+  const events = (state.agenda || [])
+    .filter((event) => (event.date || inferDateKeyFromAgendaTime(event.time) || dateKey) === dateKey)
+    .map((event) => ({
+      title: event.title || "Evenement sans titre",
+      time: normalizePlanningTime(event.time) || "Journee",
+      sortTime: normalizePlanningTime(event.time) || "00:00",
+      type: "event",
+    }));
+  const tasks = (state.tasks || [])
+    .filter((task) => task.status !== "Termine" && task.due === dateKey)
+    .map((task) => ({
+      title: task.title || "Tache sans titre",
+      time: normalizePlanningTime(task.plannedTime) || "A placer",
+      sortTime: normalizePlanningTime(task.plannedTime) || "99:99",
+      type: "task",
+    }));
+  return [...events, ...tasks]
+    .sort((a, b) => a.sortTime.localeCompare(b.sortTime) || a.title.localeCompare(b.title, "fr"))
+    .map(({ sortTime, ...item }) => item);
 }
 
 function uniqueTaskById() {
@@ -3941,6 +4019,9 @@ function sortTasksForBrief(a, b) {
   const dateA = a.due || "9999-12-31";
   const dateB = b.due || "9999-12-31";
   if (dateA !== dateB) return dateA.localeCompare(dateB);
+  const timeA = normalizePlanningTime(a.plannedTime) || "99:99";
+  const timeB = normalizePlanningTime(b.plannedTime) || "99:99";
+  if (timeA !== timeB) return timeA.localeCompare(timeB);
   return String(a.title || "").localeCompare(String(b.title || ""), "fr");
 }
 

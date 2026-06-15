@@ -4507,6 +4507,47 @@ textarea {
   font-size: 0.7rem;
 }
 
+.expire-revenue-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.expire-revenue-grid article {
+  display: grid;
+  gap: 5px;
+  border: 1px solid rgba(112, 91, 68, 0.08);
+  border-radius: 16px;
+  padding: 13px;
+  background: rgba(255, 253, 248, 0.66);
+}
+
+.expire-revenue-grid span {
+  color: #5f6d73;
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.expire-revenue-grid strong {
+  color: #2c2522;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.8rem;
+  font-weight: 500;
+}
+
+.expire-revenue-grid p,
+.expire-revenue-note {
+  margin: 0;
+  color: #7c716a;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.expire-revenue-note {
+  margin-top: 12px;
+}
+
 .expire-checklist {
   display: grid;
   gap: 8px;

@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=liberer-1" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="styles.css?v=mail-read-on-open-1" />
+    <link rel="stylesheet" href="styles.css?v=fiscal-revenue-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -600,6 +600,28 @@
                     <i style="--h: 51%"></i>
                     <i style="--h: 72%"></i>
                   </div>
+                </section>
+
+                <section class="expire-panel expire-revenue-panel">
+                  <div class="expire-panel-header">
+                    <div>
+                      <span>Chiffre d'affaires</span>
+                      <h2>Exercice Art Mas</h2>
+                    </div>
+                  </div>
+                  <div class="expire-revenue-grid">
+                    <article>
+                      <span>Exercice en cours</span>
+                      <strong data-expire-revenue="year-current">0&euro;</strong>
+                      <p data-expire-revenue="year-compare">Comparatif N-1 en attente</p>
+                    </article>
+                    <article>
+                      <span>Mois en cours</span>
+                      <strong data-expire-revenue="month-current">0&euro;</strong>
+                      <p data-expire-revenue="month-compare">Comparatif N-1 en attente</p>
+                    </article>
+                  </div>
+                  <p class="expire-revenue-note" data-expire-revenue="period">Exercice du 1er septembre au 31 aout.</p>
                 </section>
 
                 <section class="expire-panel expire-accounting-panel">
@@ -1489,7 +1511,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=mail-read-on-open-1"></script>
+    <script src="app.js?v=fiscal-revenue-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

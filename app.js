@@ -870,6 +870,7 @@ function renderExpirePage() {
   const dueToday = debtTasks.filter((task) => task.due && task.due <= today).length;
   const dueWeek = debtTasks.filter((task) => task.due && task.due <= weekLimit).length;
   const urgent = debtTasks.filter((task) => ["Tres urgente", "Urgente"].includes(effectivePriority(task))).length;
+  const revenue = buildFiscalRevenueStats(state.baqio?.orders || [], new Date());
 
   const summaryCards = document.querySelectorAll(".expire-summary article");
   updateSummaryCard(summaryCards[0], dueToday, "creance(s) a traiter", "A payer aujourd'hui");
@@ -895,6 +896,92 @@ function renderExpirePage() {
   updateMiniPanel(kpis[0], debtTasks.length, "echeances suivies");
   updateMiniPanel(kpis[1], state.mail.filter((mail) => /facture|compta|paiement/i.test(`${mail.title} ${mail.detail || ""}`)).length, "emails compta");
   updateMiniPanel(kpis[2], urgent, "urgences");
+  renderExpireRevenue(revenue);
+}
+
+function renderExpireRevenue(revenue) {
+  setText("[data-expire-revenue='year-current']", formatEuroCents(revenue.currentFiscalCents));
+  setText("[data-expire-revenue='month-current']", formatEuroCents(revenue.currentMonthCents));
+  setText(
+    "[data-expire-revenue='year-compare']",
+    `${formatRevenueDelta(revenue.currentFiscalCents, revenue.previousFiscalCents)} vs N-1 a date (${formatEuroCents(revenue.previousFiscalCents)})`
+  );
+  setText(
+    "[data-expire-revenue='month-compare']",
+    `${formatRevenueDelta(revenue.currentMonthCents, revenue.previousMonthCents)} vs meme mois N-1 (${formatEuroCents(revenue.previousMonthCents)})`
+  );
+  setText(
+    "[data-expire-revenue='period']",
+    `Exercice ${formatDate(revenue.fiscalStart)} -> ${formatDate(revenue.fiscalEnd)}. Lecture a date jusqu'au ${formatDate(revenue.currentFiscalEnd)}. ${revenue.orderCount} commande(s) Baqio prises en compte.`
+  );
+}
+
+function buildFiscalRevenueStats(orders, referenceDate) {
+  const today = localDateKey(referenceDate);
+  const year = Number(today.slice(0, 4));
+  const monthIndex = Number(today.slice(5, 7)) - 1;
+  const fiscalStartYear = monthIndex >= 8 ? year : year - 1;
+  const fiscalStart = `${fiscalStartYear}-09-01`;
+  const fiscalEnd = `${fiscalStartYear + 1}-08-31`;
+  const currentFiscalEnd = today < fiscalEnd ? today : fiscalEnd;
+  const previousFiscalStart = `${fiscalStartYear - 1}-09-01`;
+  const previousFiscalComparableEnd = shiftYearDate(currentFiscalEnd, -1);
+  const currentMonth = today.slice(0, 7);
+  const previousYearMonth = `${year - 1}-${today.slice(5, 7)}`;
+  const eligibleOrders = (orders || []).filter(isBaqioOrderRevenueEligible);
+
+  return {
+    fiscalStart,
+    fiscalEnd,
+    currentFiscalEnd,
+    previousFiscalComparableEnd,
+    orderCount: eligibleOrders.filter((order) => isDateBetween(order.date, fiscalStart, currentFiscalEnd)).length,
+    currentFiscalCents: sumOrdersBetween(eligibleOrders, fiscalStart, currentFiscalEnd),
+    previousFiscalCents: sumOrdersBetween(eligibleOrders, previousFiscalStart, previousFiscalComparableEnd),
+    currentMonthCents: sumOrdersInMonth(eligibleOrders, currentMonth),
+    previousMonthCents: sumOrdersInMonth(eligibleOrders, previousYearMonth),
+  };
+}
+
+function shiftYearDate(dateKey, deltaYears) {
+  const year = Number(dateKey.slice(0, 4)) + deltaYears;
+  const month = Number(dateKey.slice(5, 7));
+  const day = Number(dateKey.slice(8, 10));
+  const lastDay = new Date(year, month, 0).getDate();
+  return `${year}-${String(month).padStart(2, "0")}-${String(Math.min(day, lastDay)).padStart(2, "0")}`;
+}
+
+function isBaqioOrderRevenueEligible(order) {
+  const stateText = normalizeText(`${order.state || ""} ${order.paymentStatus || ""}`);
+  if (!order.date || Number(order.totalCents || 0) <= 0) return false;
+  return !/(annule|annulee|cancel|canceled|cancelled|draft|brouillon|devis|quote|refunded|rembourse)/.test(stateText);
+}
+
+function sumOrdersBetween(orders, start, end) {
+  return orders
+    .filter((order) => isDateBetween(order.date, start, end))
+    .reduce((sum, order) => sum + Number(order.totalCents || 0), 0);
+}
+
+function sumOrdersInMonth(orders, monthKey) {
+  return orders
+    .filter((order) => String(order.date || "").slice(0, 7) === monthKey)
+    .reduce((sum, order) => sum + Number(order.totalCents || 0), 0);
+}
+
+function isDateBetween(value, start, end) {
+  const date = String(value || "").slice(0, 10);
+  return date >= start && date <= end;
+}
+
+function formatRevenueDelta(current, previous) {
+  const currentValue = Number(current || 0);
+  const previousValue = Number(previous || 0);
+  const diff = currentValue - previousValue;
+  if (!previousValue && currentValue) return "+100 %";
+  if (!previousValue) return "0 %";
+  const percent = Math.round((diff / previousValue) * 100);
+  return `${percent > 0 ? "+" : ""}${percent} %`;
 }
 
 function renderVivrePage() {

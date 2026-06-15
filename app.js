@@ -3769,6 +3769,7 @@ async function openMail(id) {
     if (!response.ok) throw new Error(payload.error || "Email impossible a ouvrir.");
     currentMailMessage = payload.message;
     renderMailDialog(currentMailMessage, false);
+    markMailReadSilently(currentMailMessage.id);
   } catch (error) {
     renderMailDialog(currentMailMessage, false);
     el.mailSendStatus.textContent = error.message || "Email impossible a ouvrir.";
@@ -3829,7 +3830,7 @@ function fillMailAiInstruction(action) {
     analyse: "Analyse cet email : importance, urgence, action a faire, risque eventuel et prochaine etape concrete.",
     reply: "Prepare une reponse professionnelle et simple. Avant tout envoi, je veux valider le texte.",
     attachment: "Regarde les pieces jointes listees, dis-moi ce qu'il faut verifier et quelles informations recuperer.",
-    drive: "Propose ou ranger cet email et ses pieces jointes dans Drive ou dans l'organisation de l'app. Si une autorisation manque, dis-le clairement.",
+    drive: "Propose seulement une logique de classement pour cet email et ses pieces jointes, sans choisir de dossier final. Xavier decidera plus tard des dossiers Drive autorises.",
   };
   el.mailAiInstruction.value = presets[action] || "";
   el.mailAiInstruction.focus();
@@ -3916,6 +3917,32 @@ async function markMailRead(id) {
   await applyMailAction(id, "read", "Email marque comme lu.");
 }
 
+async function markMailReadSilently(id) {
+  const mail = state.mail.find((entry) => entry.id === id || entry.sourceId === id);
+  if (!mail || !mail.unread) return;
+  if (!API_ENABLED) {
+    mail.unread = false;
+    renderMail();
+    renderInbox();
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/mail/action", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, action: "read" }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Action Gmail impossible.");
+    state = migrateState(data);
+    renderMail();
+    renderInbox();
+  } catch {
+    // L'ouverture reste prioritaire ; la prochaine synchro retentera.
+  }
+}
+
 async function archiveMail(id) {
   await applyMailAction(id, "archive", "Email archive.");
 }
@@ -3928,7 +3955,11 @@ async function applyMailAction(id, action, successMessage) {
   const mail = state.mail.find((entry) => entry.id === id);
   if (!mail) return;
   if (!API_ENABLED) {
-    state.mail = state.mail.filter((entry) => entry.id !== id);
+    if (action === "read") {
+      mail.unread = false;
+    } else {
+      state.mail = state.mail.filter((entry) => entry.id !== id);
+    }
     showToast(successMessage);
     render();
     return;

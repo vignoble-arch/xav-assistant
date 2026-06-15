@@ -1462,7 +1462,11 @@ async function handleMailActionFromApp(req, res) {
     return sendJson(res, { error: error.message }, 409);
   }
 
-  state.mail = (state.mail || []).filter((item) => item.id !== mail.id);
+  if (action === "read") {
+    state.mail = (state.mail || []).map((item) => item.id === mail.id ? { ...item, unread: false } : item);
+  } else {
+    state.mail = (state.mail || []).filter((item) => item.id !== mail.id);
+  }
   writeJson(STATE_FILE, state);
   return sendJson(res, state);
 }

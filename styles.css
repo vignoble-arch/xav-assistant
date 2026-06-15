@@ -3834,12 +3834,441 @@ textarea {
   text-align: center;
 }
 
+.vivre-view {
+  position: relative;
+  min-height: calc(100vh - 56px);
+  overflow: hidden;
+  border-radius: 28px;
+  color: #292522;
+  background:
+    linear-gradient(120deg, rgba(246, 241, 232, 0.72), rgba(255, 253, 248, 0.84)),
+    radial-gradient(ellipse at 16% 36%, rgba(168, 184, 160, 0.22), transparent 34%),
+    radial-gradient(ellipse at 88% 24%, rgba(214, 169, 154, 0.2), transparent 30%),
+    linear-gradient(145deg, #f6f1e8 0%, #fffdf8 52%, #e9e1cf 100%);
+  box-shadow: var(--shadow);
+}
+
+.vivre-background {
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(90deg, rgba(168, 184, 160, 0.08) 0 1px, transparent 1px 32px),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.42) 0 1px, transparent 1px 88px);
+}
+
+.vivre-background::before {
+  position: absolute;
+  right: -54px;
+  top: -56px;
+  width: 300px;
+  height: 300px;
+  content: "";
+  opacity: 0.28;
+  background:
+    radial-gradient(ellipse at 50% 18%, #a8b8a0 0 17%, transparent 18%),
+    radial-gradient(ellipse at 28% 42%, #a8b8a0 0 17%, transparent 18%),
+    radial-gradient(ellipse at 72% 44%, #a8b8a0 0 17%, transparent 18%),
+    linear-gradient(112deg, transparent 48%, #a8b8a0 49% 51%, transparent 52%);
+  transform: rotate(-18deg);
+}
+
+.vivre-content {
+  position: relative;
+  display: grid;
+  gap: 18px;
+  min-height: inherit;
+  padding: 28px clamp(18px, 3vw, 44px) 30px;
+}
+
+.vivre-header {
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr) 62px;
+  align-items: start;
+  gap: 16px;
+}
+
+.vivre-round-button,
+.vivre-avatar {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  border-radius: 50%;
+  background: rgba(255, 253, 248, 0.82);
+  box-shadow: 0 12px 28px rgba(64, 44, 32, 0.12);
+  backdrop-filter: blur(16px);
+}
+
+.vivre-round-button {
+  gap: 4px;
+  align-content: center;
+}
+
+.vivre-round-button span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  border-radius: 99px;
+  background: #292522;
+}
+
+.vivre-avatar {
+  padding: 8px;
+}
+
+.vivre-avatar img,
+.vivre-brandmark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.vivre-brandmark {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.vivre-brandmark img {
+  width: 42px;
+  height: 42px;
+  mix-blend-mode: multiply;
+}
+
+.vivre-brandmark p {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2rem, 4vw, 3.35rem);
+  line-height: 0.9;
+  letter-spacing: 0.16em;
+}
+
+.vivre-brandmark span {
+  color: #6f6861;
+  font-size: clamp(0.82rem, 1.3vw, 0.98rem);
+  letter-spacing: 0.06em;
+}
+
+.vivre-advice-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  width: min(700px, 86%);
+  min-height: 92px;
+  margin: -2px auto 0;
+  padding: 20px 30px;
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  border-radius: 22px;
+  background: rgba(255, 253, 248, 0.82);
+  box-shadow: 0 14px 34px rgba(64, 44, 32, 0.1);
+  backdrop-filter: blur(18px);
+}
+
+.vivre-advice-card strong {
+  color: #a8b8a0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 2.8rem;
+  line-height: 1;
+}
+
+.vivre-advice-card p,
+.vivre-advice-card span {
+  margin: 0;
+}
+
+.vivre-advice-card p {
+  font-size: clamp(1rem, 1.35vw, 1.18rem);
+  line-height: 1.45;
+}
+
+.vivre-advice-card span {
+  display: block;
+  margin-top: 8px;
+  color: #7c716a;
+  font-size: 0.84rem;
+}
+
+.vivre-mandala {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  gap: 18px 86px;
+  width: min(1080px, 100%);
+  margin: 0 auto;
+}
+
+.vivre-card {
+  display: grid;
+  gap: 12px;
+  min-height: 280px;
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  border-radius: 28px;
+  padding: 22px;
+  background: rgba(255, 253, 248, 0.8);
+  box-shadow: 0 18px 44px rgba(64, 44, 32, 0.1);
+  backdrop-filter: blur(16px);
+}
+
+.vivre-card h2,
+.vivre-card p,
+.vivre-card small {
+  margin: 0;
+}
+
+.vivre-card h2 {
+  font-size: 1rem;
+  letter-spacing: 0.12em;
+}
+
+.vivre-card p,
+.vivre-card small {
+  color: #7c716a;
+  font-size: 0.84rem;
+}
+
+.vivre-card small {
+  align-self: end;
+  font-weight: 850;
+}
+
+.vivre-grocery-card .vivre-card-mark,
+.vivre-grocery-card small {
+  color: #a8b8a0;
+}
+
+.vivre-home-card .vivre-card-mark,
+.vivre-home-card small {
+  color: #d6a99a;
+}
+
+.vivre-personal-card .vivre-card-mark,
+.vivre-personal-card small {
+  color: #9db4c0;
+}
+
+.vivre-goals-card .vivre-card-mark,
+.vivre-goals-card small {
+  color: #d8c27a;
+}
+
+.vivre-card-mark {
+  justify-self: end;
+  width: 14px;
+  height: 34px;
+  margin-bottom: -30px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.48;
+}
+
+.vivre-check-list,
+.vivre-soft-list,
+.vivre-note-list,
+.vivre-goal-list {
+  display: grid;
+  gap: 8px;
+}
+
+.vivre-check-list label,
+.vivre-soft-list span,
+.vivre-note-list span,
+.vivre-goal-list article {
+  min-height: 38px;
+  border: 1px solid rgba(112, 91, 68, 0.08);
+  border-radius: 14px;
+  padding: 9px 12px;
+  background: rgba(246, 241, 232, 0.5);
+}
+
+.vivre-check-list label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.vivre-check-list input {
+  accent-color: #a8b8a0;
+}
+
+.vivre-soft-list span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.vivre-soft-list b,
+.vivre-note-list b,
+.vivre-goal-list span {
+  color: #3b3530;
+}
+
+.vivre-soft-list em {
+  color: #7c716a;
+  font-size: 0.78rem;
+  font-style: normal;
+}
+
+.vivre-note-list span {
+  display: grid;
+  gap: 4px;
+}
+
+.vivre-note-list b {
+  color: #9db4c0;
+  font-size: 0.72rem;
+}
+
+.vivre-goal-list article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.vivre-goal-list b {
+  color: #7c716a;
+  font-size: 0.78rem;
+}
+
+.vivre-goal-list i {
+  grid-column: 1 / -1;
+  height: 8px;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, #d8c27a 0 var(--p), rgba(112, 91, 68, 0.12) var(--p) 100%);
+}
+
+.vivre-assistant {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 50%;
+  display: grid;
+  width: 132px;
+  height: 132px;
+  place-items: center;
+  gap: 2px;
+  padding: 16px;
+  transform: translate(-50%, -50%);
+  border: 6px solid rgba(255, 255, 255, 0.62);
+  border-radius: 50%;
+  color: #3b3530;
+  background: radial-gradient(circle, rgba(255, 253, 248, 0.98) 0%, rgba(246, 241, 232, 0.96) 100%);
+  box-shadow: 0 18px 45px rgba(64, 44, 32, 0.18);
+}
+
+.vivre-assistant span {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 2.15rem;
+  line-height: 1;
+}
+
+.vivre-assistant strong {
+  font-size: 0.76rem;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.vivre-assistant small {
+  color: #7c716a;
+  font-size: 0.62rem;
+  text-align: center;
+}
+
+.vivre-today-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(4, auto);
+  align-items: center;
+  gap: 14px;
+  width: min(1080px, 100%);
+  margin: 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  border-radius: 22px;
+  padding: 18px 20px;
+  background: rgba(255, 253, 248, 0.82);
+  box-shadow: 0 14px 34px rgba(64, 44, 32, 0.09);
+  backdrop-filter: blur(16px);
+}
+
+.vivre-today-panel span {
+  color: #7c716a;
+  font-size: 0.8rem;
+}
+
+.vivre-today-panel > div > span {
+  color: #292522;
+  font-size: 0.88rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.vivre-today-panel p {
+  margin: 5px 0 0;
+  color: #7c716a;
+}
+
+.vivre-today-panel article {
+  display: grid;
+  min-width: 70px;
+  place-items: center;
+}
+
+.vivre-today-panel strong {
+  color: #a8b8a0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.7rem;
+  font-weight: 500;
+}
+
+.vivre-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  width: min(960px, 100%);
+  margin: 0 auto;
+}
+
+.vivre-actions button {
+  display: grid;
+  gap: 4px;
+  min-height: 68px;
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  border-radius: 18px;
+  padding: 14px 16px;
+  color: #292522;
+  background: rgba(255, 253, 248, 0.82);
+  box-shadow: 0 14px 34px rgba(64, 44, 32, 0.09);
+  text-align: left;
+}
+
+.vivre-actions span {
+  font-weight: 850;
+}
+
+.vivre-actions small {
+  color: #7c716a;
+}
+
+.vivre-footer-line {
+  margin: -4px 0 0;
+  color: #78906f;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1rem, 1.55vw, 1.25rem);
+  text-align: center;
+}
+
 body[data-active-view="organization"] .topbar,
 body[data-active-view="organization"] .quick-capture,
 body[data-active-view="inspire"] .topbar,
 body[data-active-view="inspire"] .quick-capture,
 body[data-active-view="expire"] .topbar,
-body[data-active-view="expire"] .quick-capture {
+body[data-active-view="expire"] .quick-capture,
+body[data-active-view="vivre"] .topbar,
+body[data-active-view="vivre"] .quick-capture {
   display: none;
 }
 
@@ -3932,6 +4361,29 @@ body[data-active-view="expire"] .quick-capture {
 
   .expire-payable em {
     display: none;
+  }
+
+  .vivre-content {
+    gap: 16px;
+    padding: 22px;
+  }
+
+  .vivre-mandala {
+    gap: 16px 64px;
+  }
+
+  .vivre-card {
+    min-height: 260px;
+    padding: 18px;
+  }
+
+  .vivre-assistant {
+    width: 116px;
+    height: 116px;
+  }
+
+  .vivre-today-panel {
+    grid-template-columns: minmax(0, 1fr) repeat(4, minmax(54px, auto));
   }
 }
 
@@ -4776,6 +5228,174 @@ body[data-active-view="expire"] .quick-capture {
     font-size: 0.9rem;
   }
 
+  .vivre-view {
+    min-height: auto;
+    border-radius: 18px;
+  }
+
+  .vivre-content {
+    gap: 14px;
+    padding: 14px 12px 18px;
+  }
+
+  .vivre-header {
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    gap: 8px;
+  }
+
+  .vivre-round-button,
+  .vivre-avatar {
+    width: 42px;
+    height: 42px;
+  }
+
+  .vivre-round-button span {
+    width: 18px;
+  }
+
+  .vivre-brandmark img {
+    width: 28px;
+    height: 28px;
+  }
+
+  .vivre-brandmark p {
+    font-size: 1.52rem;
+    letter-spacing: 0.14em;
+  }
+
+  .vivre-brandmark span {
+    font-size: 0.66rem;
+    letter-spacing: 0.02em;
+    text-align: center;
+  }
+
+  .vivre-advice-card {
+    width: 100%;
+    min-height: 82px;
+    padding: 15px;
+    border-radius: 18px;
+  }
+
+  .vivre-advice-card strong {
+    font-size: 2rem;
+  }
+
+  .vivre-advice-card p {
+    font-size: 0.82rem;
+  }
+
+  .vivre-mandala {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .vivre-card {
+    min-height: 176px;
+    border-radius: 20px;
+    padding: 14px;
+  }
+
+  .vivre-card h2 {
+    font-size: 0.78rem;
+  }
+
+  .vivre-card p {
+    font-size: 0.68rem;
+  }
+
+  .vivre-card-mark,
+  .vivre-card small,
+  .vivre-check-list label:nth-child(n+4),
+  .vivre-soft-list span:nth-child(n+4),
+  .vivre-note-list span:nth-child(n+3),
+  .vivre-goal-list article:nth-child(n+3) {
+    display: none;
+  }
+
+  .vivre-check-list label,
+  .vivre-soft-list span,
+  .vivre-note-list span,
+  .vivre-goal-list article {
+    min-height: 34px;
+    padding: 7px 9px;
+    font-size: 0.72rem;
+  }
+
+  .vivre-soft-list em,
+  .vivre-goal-list b {
+    font-size: 0.62rem;
+  }
+
+  .vivre-assistant {
+    width: 104px;
+    height: 104px;
+    padding: 12px;
+  }
+
+  .vivre-assistant span {
+    font-size: 1.62rem;
+  }
+
+  .vivre-assistant strong {
+    font-size: 0.68rem;
+  }
+
+  .vivre-assistant small {
+    display: none;
+  }
+
+  .vivre-today-panel {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .vivre-today-panel > div {
+    grid-column: 1 / -1;
+  }
+
+  .vivre-today-panel > div > span {
+    font-size: 0.72rem;
+  }
+
+  .vivre-today-panel p {
+    font-size: 0.68rem;
+  }
+
+  .vivre-today-panel article {
+    min-width: 0;
+  }
+
+  .vivre-today-panel strong {
+    font-size: 1.28rem;
+  }
+
+  .vivre-today-panel span {
+    font-size: 0.62rem;
+  }
+
+  .vivre-actions {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    width: 100%;
+    scrollbar-width: none;
+  }
+
+  .vivre-actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .vivre-actions button {
+    flex: 0 0 210px;
+    min-height: 62px;
+  }
+
+  .vivre-footer-line {
+    font-size: 0.9rem;
+  }
+
   .panel,
   .priority-band,
   .management-view {
@@ -4853,20 +5473,25 @@ body[data-active-view="expire"] .quick-capture {
     bottom: calc(10px + env(safe-area-inset-bottom));
     left: 10px;
     z-index: 10;
-    display: grid;
-    grid-template-columns: repeat(8, minmax(0, 1fr));
-    gap: 3px;
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
     padding: 6px;
     border: 1px solid rgba(36, 41, 35, 0.12);
     border-radius: 8px;
     background: rgba(255, 253, 248, 0.96);
     box-shadow: 0 16px 42px rgba(36, 41, 35, 0.2);
     backdrop-filter: blur(12px);
+    scrollbar-width: none;
+  }
+
+  .mobile-action-dock::-webkit-scrollbar {
+    display: none;
   }
 
   .mobile-action-dock button {
     display: grid;
-    min-width: 0;
+    flex: 0 0 58px;
     min-height: 46px;
     place-items: center;
     border: 0;
@@ -4876,6 +5501,10 @@ body[data-active-view="expire"] .quick-capture {
     background: transparent;
     font-size: 0.62rem;
     font-weight: 800;
+  }
+
+  .mobile-action-dock .dock-primary {
+    flex-basis: 66px;
   }
 
   .mobile-action-dock button.is-active {

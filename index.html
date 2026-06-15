@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=quick-note-1" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="styles.css?v=flux-2" />
+    <link rel="stylesheet" href="styles.css?v=flux-3" />
   </head>
   <body>
     <div class="app-shell">
@@ -32,6 +32,7 @@
           <button class="nav-item" type="button" data-view="organization">Organisation</button>
           <button class="nav-item" type="button" data-view="inspire">Inspire</button>
           <button class="nav-item" type="button" data-view="expire">Expire</button>
+          <button class="nav-item" type="button" data-view="vivre">Vivre</button>
           <button class="nav-item" type="button" data-view="requests">Demandes</button>
           <button class="nav-item" type="button" data-view="tasks">Taches</button>
           <button class="nav-item" type="button" data-view="inbox">Inbox</button>
@@ -625,6 +626,116 @@
           </div>
         </section>
 
+        <section class="vivre-view" data-panel="vivre" hidden aria-label="Vivre vie personnelle assistant perso">
+          <div class="vivre-background" aria-hidden="true"></div>
+          <div class="vivre-content">
+            <header class="vivre-header">
+              <button class="vivre-round-button" type="button" aria-label="Menu Vivre">
+                <span></span>
+                <span></span>
+                <span></span>
+              </button>
+              <div class="vivre-brandmark">
+                <img src="art-mas-logo.png" alt="Vignoble Art Mas" />
+                <p>VIVRE</p>
+                <span>Vie personnelle. Quotidien. Objectifs.</span>
+              </div>
+              <button class="vivre-avatar" type="button" aria-label="Profil personnel">
+                <img src="art-mas-logo.png" alt="" />
+              </button>
+            </header>
+
+            <article class="vivre-advice-card">
+              <strong aria-hidden="true">&ldquo;</strong>
+              <div>
+                <p>All&egrave;ge le quotidien, et garde de la place pour ce qui compte.</p>
+                <span>&mdash; Assistant Perso</span>
+              </div>
+            </article>
+
+            <div class="vivre-mandala" aria-label="Tableau vie personnelle">
+              <article class="vivre-card vivre-grocery-card">
+                <div class="vivre-card-mark" aria-hidden="true"></div>
+                <h2>COURSES</h2>
+                <p>Liste active et achats &agrave; pr&eacute;voir</p>
+                <div class="vivre-check-list">
+                  <label><input type="checkbox" /> Pain</label>
+                  <label><input type="checkbox" /> Caf&eacute;</label>
+                  <label><input type="checkbox" /> Lessive</label>
+                  <label><input type="checkbox" checked /> Fruits</label>
+                  <label><input type="checkbox" /> Dentifrice</label>
+                </div>
+                <small>12 articles · class&eacute;s par rayon</small>
+              </article>
+
+              <article class="vivre-card vivre-home-card">
+                <div class="vivre-card-mark" aria-hidden="true"></div>
+                <h2>MAISON</h2>
+                <p>T&acirc;ches du foyer et petits gestes</p>
+                <div class="vivre-soft-list">
+                  <span><b>Lancer une machine</b><em>10 min</em></span>
+                  <span><b>Ranger les papiers</b><em>20 min</em></span>
+                  <span><b>Arroser les plantes</b><em>5 min</em></span>
+                  <span><b>Sortir le verre</b><em>2 min</em></span>
+                </div>
+                <small>Quand j'ai 10 minutes</small>
+              </article>
+
+              <button class="vivre-assistant" type="button" aria-label="Ouvrir Assistant Perso">
+                <span>A</span>
+                <strong>Assistant<br />Perso</strong>
+                <small>quotidien &amp; objectifs</small>
+              </button>
+
+              <article class="vivre-card vivre-personal-card">
+                <div class="vivre-card-mark" aria-hidden="true"></div>
+                <h2>PERSO</h2>
+                <p>Id&eacute;es, rappels familiaux, admin perso</p>
+                <div class="vivre-note-list">
+                  <span><b>Famille</b> Penser au cadeau de L&eacute;a</span>
+                  <span><b>Admin perso</b> Papier mutuelle &agrave; retrouver</span>
+                  <span><b>Id&eacute;e</b> Noter une id&eacute;e d&eacute;co pour l'entr&eacute;e</span>
+                  <span><b>&Agrave; ne pas oublier</b> Appeler mamie ce week-end</span>
+                </div>
+                <small>Voir mes id&eacute;es et rappels</small>
+              </article>
+
+              <article class="vivre-card vivre-goals-card">
+                <div class="vivre-card-mark" aria-hidden="true"></div>
+                <h2>OBJECTIFS</h2>
+                <p>Budgets et petits projets personnels</p>
+                <div class="vivre-goal-list">
+                  <article><span>Vacances Portugal</span><b>450&euro; / 1 500&euro;</b><i style="--p: 30%"></i></article>
+                  <article><span>Cadeau L&eacute;a</span><b>60&euro; / 120&euro;</b><i style="--p: 50%"></i></article>
+                  <article><span>Week-end mer</span><b>180&euro; / 400&euro;</b><i style="--p: 45%"></i></article>
+                  <article><span>Nouveau v&eacute;lo</span><b>90&euro; / 650&euro;</b><i style="--p: 14%"></i></article>
+                </div>
+                <small>Cr&eacute;er un objectif</small>
+              </article>
+            </div>
+
+            <section class="vivre-today-panel" aria-label="Aujourd'hui dans Vivre">
+              <div>
+                <span>Aujourd'hui dans Vivre</span>
+                <p>&Agrave; acheter · &Agrave; faire · &Agrave; garder en t&ecirc;te · &Agrave; construire</p>
+              </div>
+              <article><strong>12</strong><span>courses</span></article>
+              <article><strong>4</strong><span>gestes maison</span></article>
+              <article><strong>4</strong><span>id&eacute;es perso</span></article>
+              <article><strong>4</strong><span>objectifs</span></article>
+            </section>
+
+            <section class="vivre-actions" aria-label="Actions rapides Vivre">
+              <button type="button"><span>Ajouter aux courses</span><small>Texte ou dict&eacute;e</small></button>
+              <button type="button"><span>T&acirc;che maison</span><small>Petit geste doux</small></button>
+              <button type="button"><span>Id&eacute;e perso</span><small>&Agrave; garder en t&ecirc;te</small></button>
+              <button type="button"><span>Objectif</span><small>Construire sans pression</small></button>
+            </section>
+
+            <p class="vivre-footer-line">Vivre. All&eacute;ger. Garder. Construire. Laisser de la place &agrave; ce qui compte.</p>
+          </div>
+        </section>
+
         <section class="management-view" data-panel="requests" hidden>
           <div class="view-header">
             <div>
@@ -1049,6 +1160,9 @@
       <button type="button" data-mobile-view="expire">
         <span>Expire</span>
       </button>
+      <button type="button" data-mobile-view="vivre">
+        <span>Vivre</span>
+      </button>
       <button type="button" data-mobile-view="tasks">
         <span>Taches</span>
       </button>
@@ -1212,7 +1326,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=flux-2"></script>
+    <script src="app.js?v=flux-3"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

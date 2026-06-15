@@ -3278,8 +3278,10 @@ textarea {
   font-weight: 850;
 }
 
-.respire-agenda-item div {
+.respire-agenda-item-content {
   display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
   gap: 4px;
   padding: 12px 14px;
   border: 1px solid rgba(112, 91, 68, 0.1);
@@ -3289,13 +3291,33 @@ textarea {
 }
 
 .respire-agenda-item strong {
+  display: block;
   color: #2a2826;
   font-size: 0.92rem;
 }
 
-.respire-agenda-item span {
+.respire-agenda-item small {
+  display: block;
+  margin-top: 4px;
   color: #6f6861;
   font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.respire-ok-button {
+  min-width: 42px;
+  min-height: 34px;
+  border: 1px solid rgba(118, 84, 97, 0.14);
+  border-radius: 999px;
+  color: #fffdf8;
+  background: #765461;
+  font-size: 0.78rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.respire-ok-button:hover {
+  background: #5f4050;
 }
 
 .respire-agenda-item.is-priority::before {
@@ -5682,7 +5704,8 @@ body[data-active-view="vivre"] .quick-capture {
     font-size: 0.72rem;
   }
 
-  .respire-agenda-item div {
+  .respire-agenda-item-content {
+    grid-template-columns: minmax(0, 1fr) auto;
     padding: 10px 12px;
     border-radius: 14px;
   }
@@ -5691,8 +5714,14 @@ body[data-active-view="vivre"] .quick-capture {
     font-size: 0.78rem;
   }
 
-  .respire-agenda-item span {
+  .respire-agenda-item small {
     font-size: 0.68rem;
+  }
+
+  .respire-ok-button {
+    min-width: 36px;
+    min-height: 30px;
+    font-size: 0.7rem;
   }
 
   .respire-ai-actions {

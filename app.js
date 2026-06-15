@@ -781,10 +781,16 @@ function renderRespirePage() {
       ? planningItems.map((item) => `
           <article class="respire-agenda-item ${item.type === "event" ? "is-meeting" : "is-task"}">
             <time>${escapeHTML(item.time || formatDate(item.dateKey))}</time>
-            <div><strong>${escapeHTML(item.title)}</strong><span>${escapeHTML(item.meta || "")}</span></div>
+            <div class="respire-agenda-item-content">
+              <span>
+                <strong>${escapeHTML(item.title)}</strong>
+                <small>${escapeHTML(item.meta || "")}</small>
+              </span>
+              ${item.type === "task" ? `<button class="respire-ok-button" type="button" onclick="completePlanningTask('${item.id}')">OK</button>` : ""}
+            </div>
           </article>
         `).join("")
-      : `<article class="respire-agenda-item is-pause"><time>Aujourd'hui</time><div><strong>Journee libre</strong><span>Aucun rendez-vous synchronise.</span></div></article>`;
+      : `<article class="respire-agenda-item is-pause"><time>Aujourd'hui</time><div class="respire-agenda-item-content"><span><strong>Journee libre</strong><small>Aucun rendez-vous synchronise.</small></span></div></article>`;
   }
 
   const folders = document.querySelectorAll(".respire-folder-list button");

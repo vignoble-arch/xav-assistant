@@ -445,6 +445,10 @@ const server = http.createServer(async (req, res) => {
       return await handleMailReplyFromApp(req, res);
     }
 
+    if (requestUrl.pathname === "/api/mail/draft" && req.method === "POST") {
+      return await handleMailDraftFromApp(req, res);
+    }
+
     if (requestUrl.pathname === "/api/mail/action" && req.method === "POST") {
       return await handleMailActionFromApp(req, res);
     }
@@ -1251,6 +1255,62 @@ async function handleMailReplyFromApp(req, res) {
   } catch (error) {
     return sendJson(res, { error: error.message }, 409);
   }
+}
+
+async function handleMailDraftFromApp(req, res) {
+  const body = await readBody(req);
+  const mailId = String(body.id || "").trim();
+  const messageBody = String(body.body || "").trim();
+  if (!messageBody) return sendJson(res, { error: "Le brouillon est vide." }, 400);
+
+  try {
+    const draft = await createGmailReplyDraft(mailId, messageBody);
+    return sendJson(res, { ok: true, draft });
+  } catch (error) {
+    return sendJson(res, { error: error.message }, 409);
+  }
+}
+
+async function createGmailReplyDraft(mailId, messageBody) {
+  const state = getAppState();
+  const mail = findMailItem(state, mailId);
+  if (!mail) throw new Error("Email introuvable.");
+  if (!String(mail.source || "").startsWith("Gmail") || !mail.sourceId) {
+    throw new Error("Seuls les emails Gmail connectes peuvent recevoir un brouillon depuis l'app.");
+  }
+
+  const tokens = readJson(TOKENS_FILE, {});
+  const token = requireGmailSendToken(findGmailAccount(tokens, mail.mailbox));
+  const full = await fetchFullGmailMessage(token, "gmail", mail.sourceId);
+  const to = full.replyTo || full.from;
+  if (!to) throw new Error("Adresse de reponse introuvable.");
+
+  const raw = buildGmailReplyRaw({
+    to,
+    subject: buildReplySubject(full.subject || mail.title || ""),
+    inReplyTo: full.messageId,
+    references: [full.references, full.messageId].filter(Boolean).join(" "),
+    body: messageBody,
+  });
+
+  const created = await googleFetch(token, "gmail", "https://gmail.googleapis.com/gmail/v1/users/me/drafts", {
+    method: "POST",
+    body: {
+      message: {
+        raw,
+        threadId: full.threadId,
+      },
+    },
+  });
+
+  return {
+    id: created.id || "",
+    messageId: created.message?.id || "",
+    threadId: created.message?.threadId || full.threadId || "",
+    mailId: mail.id,
+    title: full.subject || mail.title || "(Sans objet)",
+    to,
+  };
 }
 
 async function handleMailActionFromApp(req, res) {
@@ -2666,7 +2726,7 @@ async function sendAiChat(body, res) {
     return sendJson(res, { error: "Message vide." }, 400);
   }
 
-  const directAnswer = tryHandleDirectWorker(message, mode, routed.worker);
+  const directAnswer = await tryHandleDirectWorker(message, mode, routed.worker);
   if (directAnswer) {
     rememberAiExchange(message, directAnswer.answer);
     return sendJson(res, {
@@ -2826,10 +2886,16 @@ function getWorkerDisplayName(worker) {
   }[worker] || worker || "Fernand";
 }
 
-function tryHandleDirectWorker(message, mode, forcedWorker = "") {
+async function tryHandleDirectWorker(message, mode, forcedWorker = "") {
   if (mode !== "quick") return null;
   const normalized = normalizeText(message);
   const asksAgenda = /(rendez[-\s]?vous|rdv|agenda|planning|calendrier)/.test(normalized);
+  if (isMailDraftConfirmation(message)) {
+    return await tryHandleSecretaryMailDirect(message, forcedWorker || "secretaire");
+  }
+  const mailAnswer = await tryHandleSecretaryMailDirect(message, forcedWorker);
+  if (mailAnswer) return mailAnswer;
+
   if (forcedWorker && !["fernand", "organisation"].includes(forcedWorker)) return null;
   if (!asksAgenda) return null;
 
@@ -2854,6 +2920,159 @@ function tryHandleDirectWorker(message, mode, forcedWorker = "") {
   }
 
   return null;
+}
+
+async function tryHandleSecretaryMailDirect(message, forcedWorker = "") {
+  const normalized = normalizeText(message);
+  const state = getAppState();
+  const hasPendingDraft = state.pendingMailDraft?.status === "awaiting_confirmation";
+  const isSecretary = forcedWorker === "secretaire"
+    || /(suzette|secretaire|secretariat|email|emails|mail|mails|gmail)/.test(normalized)
+    || (hasPendingDraft && isMailDraftConfirmation(message));
+  if (!isSecretary) return null;
+
+  if (isMailDraftConfirmation(message)) {
+    const pending = state.pendingMailDraft;
+    if (!pending?.mailId || !pending?.body || pending.status !== "awaiting_confirmation") {
+      return {
+        worker: "secretaire",
+        answer: "Je n'ai pas de brouillon email en attente de validation. Demande-moi d'abord de preparer une reponse a un email precis.",
+      };
+    }
+    const draft = await createGmailReplyDraft(pending.mailId, pending.body);
+    const nextState = getAppState();
+    nextState.pendingMailDraft = {
+      ...pending,
+      status: "draft_created",
+      gmailDraftId: draft.id,
+      updatedAt: new Date().toISOString(),
+    };
+    writeJson(STATE_FILE, nextState);
+    return {
+      worker: "secretaire",
+      answer: `C'est fait : j'ai cree le brouillon Gmail pour "${draft.title}". Il est dans les brouillons, rien n'a ete envoye.`,
+    };
+  }
+
+  if (/(reponds|réponds|repondre|répondre|prepare|prépare).*(email|mail)|(?:email|mail).*(reponds|réponds|repondre|répondre|prepare|prépare)/.test(normalized)) {
+    const mail = findRelevantMailForMessage(state, message);
+    if (!mail) {
+      return {
+        worker: "secretaire",
+        answer: "Je n'arrive pas a identifier l'email auquel tu veux repondre. Donne-moi le nom de l'expediteur ou quelques mots de l'objet, et je prepare le brouillon dans le chat.",
+      };
+    }
+    const body = buildSecretaryReplyDraft(mail, message);
+    const nextState = getAppState();
+    nextState.pendingMailDraft = {
+      id: randomUUID(),
+      mailId: mail.id,
+      sourceId: mail.sourceId || "",
+      mailbox: mail.mailbox || "",
+      title: mail.title || "(Sans objet)",
+      body,
+      status: "awaiting_confirmation",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    writeJson(STATE_FILE, nextState);
+    return {
+      worker: "secretaire",
+      answer: [
+        `J'ai prepare une reponse pour l'email "${mail.title || "(Sans objet)"}".`,
+        "",
+        "Brouillon propose :",
+        body,
+        "",
+        "Si c'est bon, reponds simplement : c'est bon.",
+        "Je le mettrai alors dans les brouillons Gmail, sans l'envoyer.",
+      ].join("\n"),
+    };
+  }
+
+  const asksImportant = /(important|prioritaire|urgent|a traiter|repondre|reponse|mail|email)/.test(normalized)
+    && /(important|prioritaire|urgent|recu|recus|nouveau|nouveaux|mail|email)/.test(normalized);
+  if (asksImportant) {
+    return {
+      worker: "secretaire",
+      answer: buildImportantMailAnswer(state),
+    };
+  }
+
+  return null;
+}
+
+function isMailDraftConfirmation(message) {
+  const normalized = normalizeText(message);
+  return /(c.?est bon|cest bon|c est bon|ok|valide|valides|tu peux|vas y|mets le en brouillon|met le en brouillon|cree le brouillon|crée le brouillon)/.test(normalized);
+}
+
+function buildImportantMailAnswer(state) {
+  const mails = rankImportantMails(state.mail || []).slice(0, 5);
+  if (!mails.length) return "Je ne vois aucun email synchronise pour le moment. La synchro Gmail est peut-etre a relancer.";
+  return [
+    `Je vois ${mails.length} email(s) a regarder en priorite :`,
+    ...mails.map((mail, index) => `${index + 1}. ${mail.unread ? "[Non lu] " : ""}${mail.title || "(Sans objet)"} - ${mail.source || "Gmail"} - ${formatDateTimeServer(mail.createdAt)}\n   ${trimText(mail.detail || mail.excerpt || "", 180)}`),
+    "",
+    "Je peux ensuite preparer une reponse dans le chat. Je ne l'enverrai pas : apres ton accord, je la placerai seulement dans les brouillons Gmail.",
+  ].join("\n");
+}
+
+function rankImportantMails(mails) {
+  const importantWords = /(commande|urgent|devis|facture|reglement|règlement|paiement|livraison|client|reservation|réservation|rendez|rdv|relance|contrat|echeance|échéance)/i;
+  return [...mails]
+    .map((mail) => {
+      const haystack = `${mail.title || ""} ${mail.detail || ""} ${mail.source || ""}`;
+      let score = 0;
+      if (mail.unread) score += 5;
+      if (importantWords.test(haystack)) score += 4;
+      if (String(mail.source || "").startsWith("Gmail")) score += 1;
+      score += Math.max(0, 3 - Math.floor((Date.now() - new Date(mail.createdAt || 0).getTime()) / 86400000));
+      return { mail, score };
+    })
+    .sort((a, b) => b.score - a.score || String(b.mail.createdAt || "").localeCompare(String(a.mail.createdAt || "")))
+    .map((item) => item.mail);
+}
+
+function findRelevantMailForMessage(state, message) {
+  const mails = state.mail || [];
+  if (!mails.length) return null;
+  const words = normalizeSearchWords(message)
+    .filter((word) => !["email", "emails", "mail", "mails", "reponds", "repondre", "prepare", "preparer", "reponse", "brouillon", "suzette", "secretaire"].includes(word));
+  if (!words.length || /(dernier|premier|recent|récent)/.test(normalizeText(message))) return rankImportantMails(mails)[0] || mails[0];
+  const scored = mails.map((mail) => {
+    const haystack = normalizeText([mail.title, mail.source, mail.detail, mail.mailbox].filter(Boolean).join(" "));
+    return {
+      mail,
+      score: words.reduce((score, word) => score + (haystack.includes(word) ? 1 : 0), 0),
+    };
+  }).sort((a, b) => b.score - a.score);
+  return scored[0]?.score ? scored[0].mail : null;
+}
+
+function buildSecretaryReplyDraft(mail, message) {
+  const subject = normalizeText(`${mail.title || ""} ${mail.detail || ""}`);
+  const asksOrder = /(commande|livraison|carton|bouteille|prix|tarif)/.test(subject);
+  const asksInfo = /(question|renseignement|information|devis)/.test(subject);
+  const tone = /court|rapide|simple/.test(normalizeText(message)) ? "court" : "normal";
+  const lines = ["Bonjour,"];
+  lines.push("");
+  if (asksOrder) {
+    lines.push("Merci pour votre message et pour votre commande.");
+    lines.push("Je l'ai bien recue et je reviens vers vous rapidement avec la confirmation et les informations pratiques.");
+  } else if (asksInfo) {
+    lines.push("Merci pour votre message.");
+    lines.push("Je prends connaissance de votre demande et je reviens vers vous rapidement avec les elements utiles.");
+  } else {
+    lines.push("Merci pour votre message.");
+    lines.push("Je reviens vers vous rapidement.");
+  }
+  if (tone !== "court") {
+    lines.push("");
+    lines.push("Bien cordialement,");
+    lines.push("Xavier");
+  }
+  return lines.join("\n");
 }
 
 function getNextAgendaAnswer(state) {
@@ -2902,6 +3121,7 @@ function buildAiMessages(message, mode = "quick", worker = "") {
   const knowledgeContext = findRelevantKnowledge(message);
   const agentInstructions = getAgentInstructionContext(worker || (mode === "report" ? "fernand" : "fernand"));
   const commercialContext = getCommercialAiContext(state, message, worker, mode);
+  const secretaryMailContext = getSecretaryMailContext(state, message, worker, mode);
 
   return [
     {
@@ -2934,6 +3154,7 @@ function buildAiMessages(message, mode = "quick", worker = "") {
         "Si Xavier fait reference a une chose dite juste avant, utilise cette memoire.",
         agentInstructions ? `Consignes permanentes du role: ${agentInstructions}` : "",
         knowledgeContext ? `Memoire documentaire utile: ${knowledgeContext}` : "",
+        secretaryMailContext ? `Contexte email Gmail synchronise pour Suzette: ${secretaryMailContext}` : "",
         commercialContext ? `Contexte commercial Baqio synchronise: ${commercialContext}` : "",
         commercialContext ? "Regle prioritaire commercial: Baqio est connecte et des donnees sont disponibles dans le contexte ci-dessus. Ignore toute ancienne consigne disant que Baqio n'est pas connecte." : "",
         "Quand la demande ressemble a une tache, propose une prochaine action claire.",
@@ -2951,6 +3172,7 @@ function buildWorkerConsultationMessages(originalMessage, worker, serviceQuestio
   const knowledgeContext = findRelevantKnowledge(originalMessage);
   const agentInstructions = getAgentInstructionContext(worker);
   const commercialContext = getCommercialAiContext(state, originalMessage, worker, "report");
+  const secretaryMailContext = getSecretaryMailContext(state, originalMessage, worker, "report");
 
   return [
     {
@@ -2965,6 +3187,7 @@ function buildWorkerConsultationMessages(originalMessage, worker, serviceQuestio
         "Reste concis: 8 a 14 lignes maximum.",
         agentInstructions ? `Consignes permanentes du role: ${agentInstructions}` : "",
         knowledgeContext ? `Memoire documentaire utile: ${knowledgeContext}` : "",
+        secretaryMailContext ? `Contexte email Gmail synchronise pour Suzette: ${secretaryMailContext}` : "",
         commercialContext ? `Contexte commercial Baqio synchronise: ${commercialContext}` : "",
         getAiStateSummary(state),
       ].filter(Boolean).join(" "),
@@ -3003,6 +3226,35 @@ function buildFernandFinalReportMessages(originalMessage, serviceQuestion, worke
       ].join("\n\n"),
     },
   ];
+}
+
+function getSecretaryMailContext(state, message, worker = "", mode = "quick") {
+  const normalized = normalizeText(`${worker} ${message}`);
+  const mentionsMail = worker === "secretaire"
+    || mode === "report"
+    || /(suzette|secretaire|secretariat|email|emails|mail|mails|gmail|inbox|boite|boîte|repondre|répondre|brouillon|important|urgent)/.test(normalized);
+  const mails = Array.isArray(state.mail) ? state.mail : [];
+  if (!mentionsMail || !mails.length) return "";
+
+  const important = rankImportantMails(mails).slice(0, 8).map((mail, index) => [
+    `${index + 1}. ${mail.title || "(Sans objet)"}`,
+    mail.source ? `source ${mail.source}` : "",
+    mail.mailbox ? `boite ${mail.mailbox}` : "",
+    mail.unread ? "non lu" : "deja lu",
+    mail.createdAt ? `date ${formatDateTimeServer(mail.createdAt)}` : "",
+    mail.detail ? `extrait ${trimText(mail.detail, 220)}` : "",
+  ].filter(Boolean).join(", "));
+
+  const pending = state.pendingMailDraft?.status === "awaiting_confirmation"
+    ? `Brouillon email en attente de validation pour "${state.pendingMailDraft.title}". Si Xavier dit "c'est bon", l'application peut creer un brouillon Gmail, sans envoyer.`
+    : "";
+
+  return [
+    `${mails.length} email(s) Gmail synchronise(s) dans l'application.`,
+    important.length ? `Emails a regarder en priorite: ${important.join(" | ")}.` : "",
+    pending,
+    "Regle Suzette: tu peux analyser et preparer une reponse dans le chat. Tu ne dois jamais dire qu'un email est envoye. Apres validation de Xavier, l'application cree seulement un brouillon Gmail.",
+  ].filter(Boolean).join(" ");
 }
 
 function getCommercialAiContext(state, message, worker = "", mode = "quick") {
@@ -3317,6 +3569,26 @@ function normalizeSearchWords(value) {
   return normalizeText(value)
     .split(/[^a-z0-9]+/)
     .filter((word) => word.length > 3);
+}
+
+function trimText(value, maxLength = 180) {
+  const clean = htmlToText(String(value || "")).replace(/\s+/g, " ").trim();
+  return clean.length > maxLength ? `${clean.slice(0, maxLength - 1).trim()}...` : clean;
+}
+
+function formatDateTimeServer(value) {
+  if (!value) return "date inconnue";
+  try {
+    return new Intl.DateTimeFormat("fr-FR", {
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "Europe/Paris",
+    }).format(new Date(value));
+  } catch {
+    return String(value);
+  }
 }
 
 function getAiStateSummary(state) {

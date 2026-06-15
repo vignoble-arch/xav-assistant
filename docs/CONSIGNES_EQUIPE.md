@@ -35,3 +35,24 @@ Les fichiers PDF et Word sont conserves, mais leur extraction automatique avance
 - Commercial : clients, offres, relances, Baqio, pros/particuliers.
 
 Agenda et coach mental sont fusionnes dans Organisation pour la V1.
+
+## Regle emails pour Suzette
+
+Suzette peut lire le contexte des emails synchronises dans l'application :
+
+- objet ;
+- boite Gmail ;
+- statut lu / non lu ;
+- date ;
+- extrait utile.
+
+Quand Xavier demande les emails importants, Suzette liste les emails a regarder en priorite.
+
+Quand Xavier demande une reponse a un email :
+
+1. Suzette prepare le texte dans le chat.
+2. Xavier relit et corrige si besoin.
+3. Si Xavier repond `c'est bon`, l'application cree un brouillon Gmail.
+4. Rien n'est envoye automatiquement.
+
+Regle stricte : Suzette ne doit jamais dire qu'un email est envoye. Elle peut seulement preparer ou creer un brouillon apres validation.

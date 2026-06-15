@@ -41,7 +41,7 @@ const OPENAI_MODEL_PRICES = {
   "gpt-5.5": { input: 5.00, output: 30.00 },
 };
 
-const TASK_LISTS = ["Respire", "commandes", "Expire", "Vivre", "Dettes", "Cave Expé", "vignoble", "bureau", "divers et perso"];
+const TASK_LISTS = ["Inspire", "Taches", "Expire", "Vivre"];
 
 const GOOGLE_SERVICES = ["gmail", "calendar", "drive", "tasks"];
 
@@ -117,7 +117,7 @@ const seedState = {
       title: "Valider le perimetre de la V0.1",
       status: "En cours",
       priority: "Importante",
-      list: "bureau",
+      list: "Taches",
       source: "manuel",
       due: todayISO(),
     },
@@ -126,7 +126,7 @@ const seedState = {
       title: "Lister les dossiers autorises",
       status: "A faire",
       priority: "Normale",
-      list: "bureau",
+      list: "Taches",
       source: "Drive",
       due: addDaysISO(2),
     },
@@ -135,7 +135,7 @@ const seedState = {
       title: "Revoir l'organisation personnelle",
       status: "A faire",
       priority: "Faible",
-      list: "divers et perso",
+      list: "Vivre",
       source: "liste",
       due: addDaysISO(1),
     },
@@ -181,11 +181,10 @@ const seedState = {
     },
   ],
   lists: {
-    Dettes: [],
-    "Cave Expé": [],
-    vignoble: [],
-    bureau: [],
-    "divers et perso": [],
+    Inspire: [],
+    Taches: [],
+    Expire: [],
+    Vivre: [],
   },
   agenda: [
     { id: randomUUID(), time: "09:00", title: "Revue du dashboard V0.1" },
@@ -743,7 +742,7 @@ function normalizeAppState(state) {
     ...structuredClone(seedState),
     ...state,
     tasks: Array.isArray(state.tasks)
-      ? state.tasks.map((task) => ({ ...task, plannedTime: normalizePlanningTime(task.plannedTime) }))
+      ? state.tasks.map((task) => ({ ...task, list: normalizeTaskList(task.list || task.category), plannedTime: normalizePlanningTime(task.plannedTime) }))
       : structuredClone(seedState.tasks),
     inbox: Array.isArray(state.inbox) ? state.inbox : structuredClone(seedState.inbox),
     reminders: Array.isArray(state.reminders) ? state.reminders : structuredClone(seedState.reminders),
@@ -754,10 +753,19 @@ function normalizeAppState(state) {
     orderPipeline: Array.isArray(state.orderPipeline) ? normalizeOrderPipeline(state.orderPipeline) : [],
     timeclock: normalizeTimeClockState(state.timeclock),
     requests: Array.isArray(state.requests) ? state.requests : [],
-    lists: state.lists && typeof state.lists === "object" ? state.lists : structuredClone(seedState.lists),
+    lists: migrateTaskLists(state.lists),
     agenda: Array.isArray(state.agenda) ? state.agenda : structuredClone(seedState.agenda),
     completedAgendaEvents: Array.isArray(state.completedAgendaEvents) ? state.completedAgendaEvents : [],
   };
+}
+
+function migrateTaskLists(savedLists = {}) {
+  const lists = Object.fromEntries(TASK_LISTS.map((name) => [name, []]));
+  Object.entries(savedLists || {}).forEach(([name, items]) => {
+    const listName = normalizeTaskList(name);
+    lists[listName].push(...(Array.isArray(items) ? items : []));
+  });
+  return lists;
 }
 
 function normalizeTimeClockState(timeclock) {
@@ -1174,7 +1182,7 @@ async function saveTaskFromApp(req, res) {
     title,
     status: nextStatus,
     priority: body.priority || existing?.priority || "Normale",
-    list: normalizeTaskList(body.list || existing?.list || existing?.category || "bureau"),
+    list: normalizeTaskList(body.list || existing?.list || existing?.category || "Taches"),
     source: existing?.source || "manuel",
     due: String(body.due || ""),
     plannedTime: normalizePlanningTime(body.plannedTime ?? existing?.plannedTime),
@@ -1989,7 +1997,7 @@ function mergeTasksBySourceId(incoming, existing) {
     if (!current) return task;
     return {
       ...task,
-      list: normalizeTaskList(current.list || task.list),
+      list: normalizeTaskList(task.list || current.list),
       plannedTime: normalizePlanningTime(current.plannedTime ?? task.plannedTime),
       estimatedMinutes: normalizePositiveNumber(current.estimatedMinutes ?? task.estimatedMinutes),
       mentalLoad: normalizeLoadValue(current.mentalLoad ?? task.mentalLoad),
@@ -2001,30 +2009,20 @@ function mergeTasksBySourceId(incoming, existing) {
 
 function mapGoogleTaskList(title) {
   const normalized = normalizeText(title);
-  if (normalized.includes("respire") || normalized.includes("organisation")) return "Respire";
-  if (normalized.includes("commande")) return "commandes";
-  if (normalized.includes("expire") || normalized.includes("echeance") || normalized.includes("sortie")) return "Expire";
-  if (normalized.includes("vivre")) return "Vivre";
-  if (normalized.includes("dette")) return "Dettes";
-  if (normalized.includes("cave") || normalized.includes("expe")) return "Cave Expé";
-  if (normalized.includes("vigne") || normalized.includes("vignoble")) return "vignoble";
-  if (normalized.includes("bureau")) return "bureau";
-  if (normalized.includes("divers") || normalized.includes("perso")) return "divers et perso";
-  return "divers et perso";
+  if (normalized.includes("inspire") || normalized.includes("commande") || normalized.includes("client") || normalized.includes("mail")) return "Inspire";
+  if (normalized.includes("expire") || normalized.includes("echeance") || normalized.includes("sortie") || normalized.includes("dette") || normalized.includes("facture") || normalized.includes("payer")) return "Expire";
+  if (normalized.includes("vivre") || normalized.includes("perso") || normalized.includes("maison") || normalized.includes("divers")) return "Vivre";
+  return "Taches";
 }
 
 function normalizeTaskList(value) {
   const normalized = normalizeText(value || "");
-  if (normalized.includes("respire") || normalized.includes("organisation")) return "Respire";
-  if (normalized.includes("commande")) return "commandes";
-  if (normalized.includes("expire") || normalized.includes("echeance") || normalized.includes("sortie")) return "Expire";
-  if (normalized.includes("vivre")) return "Vivre";
-  if (normalized.includes("dette")) return "Dettes";
-  if (normalized.includes("cave") || normalized.includes("expe")) return "Cave Expé";
-  if (normalized.includes("vigne") || normalized.includes("vignoble")) return "vignoble";
-  if (normalized.includes("bureau")) return "bureau";
-  if (normalized.includes("divers") || normalized.includes("perso")) return "divers et perso";
-  return TASK_LISTS.includes(value) ? value : "bureau";
+  if (TASK_LISTS.includes(value)) return value;
+  if (normalized.includes("inspire") || normalized.includes("commande") || normalized.includes("client") || normalized.includes("mail")) return "Inspire";
+  if (normalized.includes("expire") || normalized.includes("echeance") || normalized.includes("sortie") || normalized.includes("dette") || normalized.includes("facture") || normalized.includes("payer")) return "Expire";
+  if (normalized.includes("vivre") || normalized.includes("perso") || normalized.includes("maison") || normalized.includes("divers")) return "Vivre";
+  if (normalized.includes("tache") || normalized.includes("respire") || normalized.includes("organisation") || normalized.includes("cave") || normalized.includes("expe") || normalized.includes("vigne") || normalized.includes("vignoble") || normalized.includes("bureau") || normalized.includes("admin")) return "Taches";
+  return "Taches";
 }
 
 function addDaysToISO(iso, days) {
@@ -3971,7 +3969,7 @@ function taskToBriefItem(task) {
   return {
     id: task.id,
     title: task.title || "Tache sans titre",
-    list: task.list || task.category || "divers et perso",
+    list: normalizeTaskList(task.list || task.category),
     priority: task.priority || "Normale",
     due: task.due || "",
     plannedTime: normalizePlanningTime(task.plannedTime),

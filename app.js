@@ -4,9 +4,8 @@ const BRANDING_KEY = "assistant-xavier-branding-v1";
 
 const statuses = ["Inbox", "A faire", "En cours", "En attente", "Termine"];
 const ORDER_STATUSES = ["En commande", "Prete pour expedition", "En livraison", "Expedie"];
-const FLOW_TASK_LISTS = ["Respire", "commandes", "Expire", "Vivre"];
-const TASK_BOARD_LISTS = ["Dettes", "Cave Expé", "vignoble", "bureau", "divers et perso"];
-const TASK_LISTS = [...FLOW_TASK_LISTS, ...TASK_BOARD_LISTS];
+const TASK_LISTS = ["Inspire", "Taches", "Expire", "Vivre"];
+const FLOW_TASK_LISTS = TASK_LISTS;
 const WORKERS = [
   { key: "fernand", label: "Fernand", description: "Bras droit et rapports" },
   { key: "organisation", label: "Paulo", description: "Organisation, agenda, taches et mental" },
@@ -35,7 +34,7 @@ const seedState = {
       title: "Valider le perimetre de la V0.1",
       status: "En cours",
       priority: "Importante",
-      list: "bureau",
+      list: "Taches",
       source: "manuel",
       due: todayISO(),
     },
@@ -44,7 +43,7 @@ const seedState = {
       title: "Lister les dossiers Drive autorises",
       status: "A faire",
       priority: "Normale",
-      list: "bureau",
+      list: "Taches",
       source: "Drive",
       due: addDaysISO(2),
     },
@@ -53,7 +52,7 @@ const seedState = {
       title: "Revoir l'organisation personnelle",
       status: "A faire",
       priority: "Faible",
-      list: "divers et perso",
+      list: "Vivre",
       source: "liste",
       due: addDaysISO(1),
     },
@@ -99,11 +98,10 @@ const seedState = {
     },
   ],
   lists: {
-    Dettes: [],
-    "Cave Expé": [],
-    vignoble: [],
-    bureau: [],
-    "divers et perso": [],
+    Inspire: [],
+    Taches: [],
+    Expire: [],
+    Vivre: [],
   },
   agenda: [
     { id: crypto.randomUUID(), time: "09:00", title: "Revue du dashboard V0.1" },
@@ -759,7 +757,7 @@ function daysUntil(dateKey) {
 }
 
 function renderRespirePage() {
-  const respireTasks = getOpenTasksByList("Respire").sort(sortTasksForFocus);
+  const respireTasks = getOpenTasksByList("Taches").sort(sortTasksForFocus);
   const priorities = respireTasks.slice(0, 3);
   const priorityList = document.querySelector(".respire-priority-list");
   if (priorityList) {
@@ -809,7 +807,7 @@ function renderRespirePage() {
 }
 
 function renderInspirePage() {
-  const orderTasks = getOpenTasksByList("commandes").sort(sortTasksForFocus);
+  const orderTasks = getOpenTasksByList("Inspire").sort(sortTasksForFocus);
   const unread = state.mail.filter((mail) => mail.unread).length;
   const activeOrders = (state.orderPipeline || []).filter((order) => order.status !== "Expedie");
   const readyOrders = activeOrders.filter((order) => order.status === "Prete pour expedition").length;
@@ -827,7 +825,7 @@ function renderInspirePage() {
   ]);
 
   setMetric(".inspire-orders-card .inspire-main-metric strong", orderTasks.length || activeOrders.length);
-  setText(".inspire-orders-card .inspire-main-metric span", orderTasks.length ? "tache(s) commandes" : "en cours");
+  setText(".inspire-orders-card .inspire-main-metric span", orderTasks.length ? "tache(s) Inspire" : "en cours");
   if (orderTasks.length) {
     setTaskProgressList(".inspire-orders-card .inspire-progress-list", orderTasks.slice(0, 4));
   } else {
@@ -855,7 +853,7 @@ function renderInspirePage() {
 
   const todayPanel = document.querySelectorAll(".inspire-today-panel article");
   updateMiniPanel(todayPanel[0], formatEuroCents(summary.totalRevenueCents || 0), "CA echantillon Baqio");
-  updateMiniPanel(todayPanel[1], orderTasks.length || activeOrders.length, orderTasks.length ? "liste commandes" : `${readyOrders} prete(s) a expedier`);
+  updateMiniPanel(todayPanel[1], orderTasks.length || activeOrders.length, orderTasks.length ? "liste Inspire" : `${readyOrders} prete(s) a expedier`);
   updateMiniPanel(todayPanel[2], opportunities.length, "opportunites a soigner");
   updateMiniPanel(todayPanel[3], state.mail.length, `${unread} non lu(s)`);
 }
@@ -864,7 +862,7 @@ function renderExpirePage() {
   const expireTasks = getOpenTasksByList("Expire");
   const debtTasks = (expireTasks.length ? expireTasks : state.tasks
     .filter((task) => task.status !== "Termine")
-    .filter((task) => taskListName(task) === "Dettes" || /facture|payer|reglement|règlement|echeance|échéance|tva|urssaf|impot|impôt/i.test(`${task.title} ${task.notes || ""}`)))
+    .filter((task) => /facture|payer|reglement|règlement|echeance|échéance|tva|urssaf|impot|impôt/i.test(`${task.title} ${task.notes || ""}`)))
     .sort(sortTasksForFocus)
     .slice(0, 6);
   const today = localDateKey(new Date());
@@ -877,7 +875,7 @@ function renderExpirePage() {
   const summaryCards = document.querySelectorAll(".expire-summary article");
   updateSummaryCard(summaryCards[0], dueToday, "creance(s) a traiter", "A payer aujourd'hui");
   updateSummaryCard(summaryCards[1], dueWeek, "echeance(s) a 7 jours", "Cette semaine");
-  updateSummaryCard(summaryCards[2], expireTasks.length || state.tasks.filter((task) => taskListName(task) === "Dettes" && task.status !== "Termine").length, expireTasks.length ? "tache(s) Expire ouvertes" : "tache(s) Dettes ouvertes", "Suivi echeances");
+  updateSummaryCard(summaryCards[2], expireTasks.length, "tache(s) Expire ouvertes", "Suivi echeances");
   updateSummaryCard(summaryCards[3], urgent, "a regarder sans attendre", "Urgences");
 
   const list = document.querySelector(".expire-payables-list");
@@ -989,7 +987,7 @@ function formatRevenueDelta(current, previous) {
 function renderVivrePage() {
   const vivreTasks = getOpenTasksByList("Vivre");
   const personalTasks = (vivreTasks.length ? vivreTasks : state.tasks
-    .filter((task) => task.status !== "Termine" && taskListName(task) === "divers et perso"))
+    .filter((task) => task.status !== "Termine" && taskListName(task) === "Vivre"))
     .sort(sortTasksForFocus);
   const groceryTasks = personalTasks.filter((task) => /course|courses|acheter|pain|cafe|café|lessive|dentifrice/i.test(`${task.title} ${task.notes || ""}`));
   const homeTasks = personalTasks.filter((task) => /maison|ranger|machine|linge|arroser|menage|ménage|poubelle|verre/i.test(`${task.title} ${task.notes || ""}`));
@@ -1041,7 +1039,7 @@ function renderVivrePage() {
 function getPriorityTasks(limit = 3) {
   const today = todayISO();
   return state.tasks
-    .filter((task) => task.status !== "Termine" && task.status !== "Inbox" && !FLOW_TASK_LISTS.includes(taskListName(task)))
+    .filter((task) => task.status !== "Termine" && task.status !== "Inbox" && taskListName(task) === "Taches")
     .sort((a, b) => {
       const lateA = a.due && a.due < today ? 1 : 0;
       const lateB = b.due && b.due < today ? 1 : 0;
@@ -1187,7 +1185,7 @@ function resetBranding() {
 
 function renderPriorities() {
   const priorities = state.tasks
-    .filter((task) => task.status !== "Termine" && !FLOW_TASK_LISTS.includes(taskListName(task)))
+    .filter((task) => task.status !== "Termine" && taskListName(task) === "Taches")
     .sort((a, b) => priorityWeight(b.priority) - priorityWeight(a.priority))
     .slice(0, 3);
 
@@ -1372,7 +1370,7 @@ function renderInbox() {
 }
 
 function renderTasks() {
-  const active = state.tasks.filter((task) => !["Termine", "Inbox"].includes(task.status) && !FLOW_TASK_LISTS.includes(taskListName(task))).slice(0, 5);
+  const active = state.tasks.filter((task) => !["Termine", "Inbox"].includes(task.status)).slice(0, 5);
   el.activeTasks.innerHTML = active.length ? active.map(taskCard).join("") : emptyState("Aucune tache active.");
 
   renderTaskFilters();
@@ -1945,7 +1943,7 @@ async function commercialOpportunityToTask(id) {
     title: opportunity.taskTitle || opportunity.title,
     status: "A faire",
     priority: opportunity.priority || "Normale",
-    list: "bureau",
+    list: "Inspire",
     due: "",
     notes: opportunity.detail || "",
   });
@@ -3073,7 +3071,7 @@ function parseIntent(rawText) {
   }
 
   const listMatch = normalized.match(/^(ajoute|mettre|mets)\s+(.+?)\s+(aux|a la|dans la|dans les|dans)\s+(.+)$/);
-  if (listMatch && /(dette|cave|expe|vigne|vignoble|bureau|divers|perso|maison|admin|administratif)/.test(listMatch[4])) {
+  if (listMatch && /(inspire|tache|taches|expire|vivre|commande|dette|cave|expe|vigne|vignoble|bureau|divers|perso|maison|admin|administratif)/.test(listMatch[4])) {
     const list = normalizeListName(listMatch[4]);
     const title = cleanTitle(listMatch[2]);
     return {
@@ -3123,7 +3121,7 @@ function openTaskForm(id = "", options = {}) {
   const task = id ? state.tasks.find((item) => item.id === id) : null;
   el.taskEditId.value = task?.id || "";
   document.querySelector("#taskTitle").value = task?.title || "";
-  document.querySelector("#taskCategory").value = task ? taskListName(task) : options.list || "bureau";
+  document.querySelector("#taskCategory").value = task ? taskListName(task) : options.list || "Taches";
   document.querySelector("#taskPriority").value = task?.priority || "Normale";
   document.querySelector("#taskDue").value = task?.due || "";
   document.querySelector("#taskPlannedTime").value = normalizePlanningTime(task?.plannedTime || "");
@@ -3139,7 +3137,7 @@ function openTaskForm(id = "", options = {}) {
 
 function openRespirePriorityPicker() {
   if (!el.respirePriorityDialog) {
-    openTaskForm("", { list: "Respire" });
+    openTaskForm("", { list: "Taches" });
     return;
   }
   currentRespirePrioritySource = "all";
@@ -3149,7 +3147,7 @@ function openRespirePriorityPicker() {
 
 function createNewRespirePriority() {
   el.respirePriorityDialog?.close();
-  openTaskForm("", { list: "Respire" });
+  openTaskForm("", { list: "Taches" });
 }
 
 function renderRespirePriorityPicker() {
@@ -3182,11 +3180,10 @@ function renderRespirePriorityPicker() {
 function getRespirePriorityCandidates(source = "all") {
   return state.tasks
     .filter((task) => task.status !== "Termine")
-    .filter((task) => taskListName(task) !== "Respire")
+    .filter((task) => taskListName(task) !== "Taches")
     .filter((task) => {
       const list = taskListName(task);
       if (source === "all") return true;
-      if (source === "board") return !FLOW_TASK_LISTS.includes(list);
       return list === source;
     })
     .sort(sortTasksForFocus);
@@ -3194,7 +3191,7 @@ function getRespirePriorityCandidates(source = "all") {
 
 function respirePrioritySourceLabel(task) {
   const list = taskListName(task);
-  if (list === "commandes") return "Inspire";
+  if (list === "Inspire") return "Inspire";
   if (list === "Expire") return "Expire";
   if (list === "Vivre") return "Vivre";
   return list;
@@ -3205,13 +3202,13 @@ async function moveTaskToRespire(id) {
   if (!task) return;
   const saved = await saveTask({
     ...task,
-    list: "Respire",
+    list: "Taches",
     status: task.status === "Inbox" ? "A faire" : task.status,
   });
   if (saved) {
     el.respirePriorityDialog?.close();
     switchView("organization");
-    showToast("Tache ajoutee aux priorites Respire.");
+    showToast("Tache ajoutee aux priorites du jour.");
   }
 }
 
@@ -3296,7 +3293,7 @@ function clarifyNoteCard(note) {
         <b>${escapeHTML(suggested)}</b>
       </div>
       <div class="card-actions clarify-note-actions">
-        <button class="item-action item-action-primary" type="button" data-clarify-note-id="${escapeHTML(note.id)}" data-clarify-note-action="task">Tache Respire</button>
+        <button class="item-action item-action-primary" type="button" data-clarify-note-id="${escapeHTML(note.id)}" data-clarify-note-action="task">Tache</button>
         <button class="item-action" type="button" data-clarify-note-id="${escapeHTML(note.id)}" data-clarify-note-action="plan">Planifier</button>
         <button class="item-action" type="button" data-clarify-note-id="${escapeHTML(note.id)}" data-clarify-note-action="fernand">Fernand</button>
         <button class="item-action" type="button" data-clarify-note-id="${escapeHTML(note.id)}" data-clarify-note-action="organisation">Paulo</button>
@@ -3329,7 +3326,7 @@ function clarifyTaskCard(task) {
       </div>
       <div class="card-actions clarify-note-actions">
         <button class="item-action item-action-primary" type="button" data-clarify-task-id="${escapeHTML(task.id)}" data-clarify-task-action="plan">Planifier</button>
-        <button class="item-action" type="button" data-clarify-task-id="${escapeHTML(task.id)}" data-clarify-task-action="respire">Priorite Respire</button>
+        <button class="item-action" type="button" data-clarify-task-id="${escapeHTML(task.id)}" data-clarify-task-action="respire">Priorite du jour</button>
         <button class="item-action" type="button" data-clarify-task-id="${escapeHTML(task.id)}" data-clarify-task-action="start">Demarrer</button>
         <button class="item-action" type="button" data-clarify-task-id="${escapeHTML(task.id)}" data-clarify-task-action="waiting">Attente</button>
         <button class="item-action" type="button" data-clarify-task-id="${escapeHTML(task.id)}" data-clarify-task-action="edit">Modifier</button>
@@ -3344,7 +3341,7 @@ function suggestNoteDestination(note) {
   if (/mail|email|client|commande|devis|relance|facture/.test(text)) return "Suzette / Gaspard";
   if (/stress|mental|routine|souffle|angoisse|inquietude/.test(text)) return "Paulo";
   if (/idee|ressource|doc|document|garder/.test(text)) return "Note gardee";
-  return "Tache Respire";
+  return "Tache";
 }
 
 async function handleClarifyNoteAction(id, action) {
@@ -3397,9 +3394,9 @@ async function handleClarifyTaskAction(id, action) {
     return;
   }
   if (action === "respire") {
-    const saved = await saveTask({ ...task, list: "Respire", status: task.status === "En attente" ? "A faire" : task.status });
+    const saved = await saveTask({ ...task, list: "Taches", status: task.status === "En attente" ? "A faire" : task.status });
     if (saved) {
-      showToast("Tache ajoutee aux priorites Respire.");
+      showToast("Tache ajoutee aux priorites du jour.");
       renderClarifyNotesPicker();
     }
     return;
@@ -3420,14 +3417,14 @@ async function clarifyNoteToRespireTask(note) {
     title: note.title || makeQuickNoteTitle(note.body || ""),
     status: "A faire",
     priority: "Normale",
-    list: "Respire",
+    list: "Taches",
     source: "Note",
     due: "",
     notes: note.body || "",
   });
   if (saved) {
     markNoteCategory(note.id, "Archive - transformee en tache");
-    showToast("Note transformee en priorite Respire.");
+    showToast("Note transformee en priorite du jour.");
     renderClarifyNotesPicker();
   }
 }
@@ -3863,7 +3860,7 @@ function inboxToTask(id) {
     title: item.title,
     status: "A faire",
     priority: "Normale",
-    list: "bureau",
+    list: "Taches",
     source: item.source,
     due: "",
   });
@@ -4135,7 +4132,7 @@ function mailToTask(id) {
     title: item.title,
     status: "A faire",
     priority: "Normale",
-    list: "bureau",
+    list: "Inspire",
     source: "Gmail",
     due: "",
     notes: item.detail || "",
@@ -4456,7 +4453,7 @@ function migrateState(saved) {
     mentalLoad: normalizeTaskLoad(task.mentalLoad),
     physicalLoad: normalizeTaskLoad(task.physicalLoad),
   }));
-  migrated.lists = Object.fromEntries(TASK_LISTS.map((name) => [name, saved.lists?.[name] || []]));
+  migrated.lists = migrateTaskLists(saved.lists);
   migrated.completedAgendaEvents = Array.isArray(saved.completedAgendaEvents) ? saved.completedAgendaEvents : [];
   migrated.mail = (saved.mail || seedState.mail).map((item) => ({
     detail: "",
@@ -4489,6 +4486,15 @@ function migrateState(saved) {
     workerResponses: Array.isArray(request.workerResponses) ? request.workerResponses : [],
   }));
   return migrated;
+}
+
+function migrateTaskLists(savedLists = {}) {
+  const lists = Object.fromEntries(TASK_LISTS.map((name) => [name, []]));
+  Object.entries(savedLists || {}).forEach(([name, items]) => {
+    const listName = canonicalTaskListName(name) || "Taches";
+    lists[listName].push(...(Array.isArray(items) ? items : []));
+  });
+  return lists;
 }
 
 function normalizeOrderPipelineItem(order) {
@@ -4528,37 +4534,26 @@ function taskListName(task) {
   if (list) return list;
   const category = canonicalTaskListName(task.category);
   if (category) return category;
-  if (task.category === "Perso") return "divers et perso";
-  if (task.category === "Pro") return "bureau";
-  return "divers et perso";
+  if (task.category === "Perso") return "Vivre";
+  if (task.category === "Pro") return "Taches";
+  return "Taches";
 }
 
 function inferTaskList(text) {
-  if (text.includes("respire") || text.includes("organisation")) return "Respire";
-  if (text.includes("commande")) return "commandes";
+  if (text.includes("commande") || text.includes("client") || text.includes("mail")) return "Inspire";
   if (text.includes("expire") || text.includes("echeance") || text.includes("payer") || text.includes("facture")) return "Expire";
   if (text.includes("vivre") || text.includes("perso") || text.includes("maison")) return "Vivre";
-  if (text.includes("dette") || text.includes("facture") || text.includes("payer")) return "Dettes";
-  if (text.includes("cave") || text.includes("expe") || text.includes("expedition") || text.includes("commande")) return "Cave Expé";
-  if (text.includes("vigne") || text.includes("vignoble") || text.includes("parcelle")) return "vignoble";
-  if (text.includes("bureau") || text.includes("admin") || text.includes("client") || text.includes("mail")) return "bureau";
-  if (text.includes("perso") || text.includes("maison") || text.includes("divers")) return "divers et perso";
-  return "bureau";
+  return "Taches";
 }
 
 function canonicalTaskListName(value) {
   if (!value) return "";
   if (TASK_LISTS.includes(value)) return value;
   const normalized = normalizeText(String(value));
-  if (normalized.includes("respire") || normalized.includes("organisation")) return "Respire";
-  if (normalized.includes("commande")) return "commandes";
-  if (normalized.includes("expire") || normalized.includes("echeance") || normalized.includes("sortie")) return "Expire";
-  if (normalized.includes("vivre")) return "Vivre";
-  if (normalized.includes("dette")) return "Dettes";
-  if (normalized.includes("cave") || normalized.includes("expe")) return "Cave Expé";
-  if (normalized.includes("vigne") || normalized.includes("vignoble")) return "vignoble";
-  if (normalized.includes("bureau") || normalized.includes("admin")) return "bureau";
-  if (normalized.includes("divers") || normalized.includes("perso")) return "divers et perso";
+  if (normalized.includes("inspire") || normalized.includes("commande") || normalized.includes("client") || normalized.includes("mail")) return "Inspire";
+  if (normalized.includes("expire") || normalized.includes("echeance") || normalized.includes("sortie") || normalized.includes("dette") || normalized.includes("facture") || normalized.includes("payer")) return "Expire";
+  if (normalized.includes("vivre") || normalized.includes("perso") || normalized.includes("maison") || normalized.includes("divers")) return "Vivre";
+  if (normalized.includes("tache") || normalized.includes("respire") || normalized.includes("organisation") || normalized.includes("cave") || normalized.includes("expe") || normalized.includes("vigne") || normalized.includes("vignoble") || normalized.includes("bureau") || normalized.includes("admin")) return "Taches";
   return "";
 }
 
@@ -5193,15 +5188,10 @@ function cleanTitle(text) {
 }
 
 function normalizeListName(text) {
-  if (text.includes("respire") || text.includes("organisation")) return "Respire";
-  if (text.includes("commande")) return "commandes";
-  if (text.includes("expire") || text.includes("echeance") || text.includes("sortie")) return "Expire";
-  if (text.includes("vivre")) return "Vivre";
-  if (text.includes("dette") || text.includes("facture") || text.includes("payer")) return "Dettes";
-  if (text.includes("cave") || text.includes("expe") || text.includes("expedition")) return "Cave Expé";
-  if (text.includes("vigne") || text.includes("vignoble")) return "vignoble";
-  if (text.includes("bureau") || text.includes("admin")) return "bureau";
-  return "divers et perso";
+  if (text.includes("inspire") || text.includes("commande") || text.includes("client") || text.includes("mail")) return "Inspire";
+  if (text.includes("expire") || text.includes("echeance") || text.includes("sortie") || text.includes("dette") || text.includes("facture") || text.includes("payer")) return "Expire";
+  if (text.includes("vivre") || text.includes("perso") || text.includes("maison") || text.includes("divers")) return "Vivre";
+  return "Taches";
 }
 
 function normalizeText(value) {

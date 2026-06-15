@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=liberer-1" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="styles.css?v=planning-complete-1" />
+    <link rel="stylesheet" href="styles.css?v=task-lists-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -1361,7 +1361,7 @@
           </div>
           <button class="icon-button" value="cancel" aria-label="Fermer" type="submit">x</button>
         </div>
-        <p class="connection-hint">Choisis une note, puis sa destination : tache Respire, agenda, assistant, attente, archive ou suppression.</p>
+        <p class="connection-hint">Choisis une note, puis sa destination : tache, agenda, assistant, attente, archive ou suppression.</p>
         <div class="respire-priority-tabs clarify-notes-tabs" id="clarifyNotesTabs" aria-label="Filtrer les notes">
           <button class="is-active" type="button" data-clarify-filter="active">A clarifier</button>
           <button type="button" data-clarify-filter="ideas">Idees</button>
@@ -1383,16 +1383,15 @@
           </div>
           <button class="icon-button" value="cancel" aria-label="Fermer" type="submit">x</button>
         </div>
-        <p class="connection-hint">Ecris une nouvelle priorite, ou choisis une tache existante a remonter dans Respire.</p>
+        <p class="connection-hint">Ecris une nouvelle priorite, ou choisis une tache existante a remonter dans les priorites du jour.</p>
         <div class="dialog-actions">
           <button class="assistant-button small" id="createRespirePriority" value="default" type="button">Ecrire une priorite</button>
         </div>
         <div class="respire-priority-tabs" id="respirePriorityTabs" aria-label="Source des taches">
           <button class="is-active" type="button" data-priority-source="all">Tout</button>
-          <button type="button" data-priority-source="commandes">Inspire</button>
+          <button type="button" data-priority-source="Inspire">Inspire</button>
           <button type="button" data-priority-source="Expire">Expire</button>
           <button type="button" data-priority-source="Vivre">Vivre</button>
-          <button type="button" data-priority-source="board">Autres</button>
         </div>
         <div class="respire-priority-choice-list" id="respirePriorityList"></div>
       </form>
@@ -1416,15 +1415,10 @@
           <label>
             Liste
             <select id="taskCategory">
-              <option>Respire</option>
-              <option>commandes</option>
+              <option>Inspire</option>
+              <option>Taches</option>
               <option>Expire</option>
               <option>Vivre</option>
-              <option>bureau</option>
-              <option>vignoble</option>
-              <option>Cave ExpÃ©</option>
-              <option>Dettes</option>
-              <option>divers et perso</option>
             </select>
           </label>
           <label>
@@ -1515,7 +1509,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=planning-complete-1"></script>
+    <script src="app.js?v=task-lists-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

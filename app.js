@@ -759,7 +759,7 @@ function daysUntil(dateKey) {
 
 function renderRespirePage() {
   const respireTasks = getOpenTasksByList("Taches").sort(sortTasksForFocus);
-  const priorities = respireTasks.slice(0, 3);
+  const priorities = respireTasks.slice(0, 5);
   const priorityList = document.querySelector(".respire-priority-list");
   if (priorityList) {
     priorityList.innerHTML = priorities.length
@@ -1037,7 +1037,7 @@ function renderVivrePage() {
   updateMiniPanel(todayPanel[3], goalNotes.length, "objectifs");
 }
 
-function getPriorityTasks(limit = 3) {
+function getPriorityTasks(limit = 5) {
   const today = todayISO();
   return state.tasks
     .filter((task) => task.status !== "Termine" && task.status !== "Inbox" && taskListName(task) === "Taches")
@@ -1187,8 +1187,11 @@ function resetBranding() {
 function renderPriorities() {
   const priorities = state.tasks
     .filter((task) => task.status !== "Termine" && taskListName(task) === "Taches")
-    .sort((a, b) => priorityWeight(b.priority) - priorityWeight(a.priority))
-    .slice(0, 3);
+    .sort((a, b) => {
+      const priority = priorityWeight(b.priority) - priorityWeight(a.priority);
+      if (priority) return priority;
+      return sortTasksForFocus(a, b);
+    });
 
   el.priorityList.innerHTML = priorities.length
     ? priorities.map((task) => priorityCard(task)).join("")
@@ -1207,7 +1210,7 @@ function renderMorningBrief() {
   if (el.ancrageLoadLabel) el.ancrageLoadLabel.textContent = loadScore >= 8 ? "dense mais maitrisable" : loadScore >= 5 ? "charge moderee" : "journee respirante";
   if (el.ancrageSummary) {
     const planningCount = getPlanningItems().length;
-    el.ancrageSummary.textContent = `${planningCount} element(s) au planning, ${Math.min(priorities.length, 3)} priorite(s), charge mentale ${loadScore}/10.`;
+    el.ancrageSummary.textContent = `${planningCount} element(s) au planning, ${Math.min(priorities.length, 5)} priorite(s) IA, charge mentale ${loadScore}/10.`;
   }
   const decisions = buildAiDecisions(brief, loadScore);
   el.morningBrief.innerHTML = `
@@ -1241,7 +1244,7 @@ function computeDashboardLoadScore(stats, priorities, agenda) {
   const late = Math.min(Number(stats.late || 0), 5);
   const today = Math.min(Number(stats.today || 0), 4);
   const agendaCount = Math.min(agenda.length, 4);
-  const priorityCount = Math.min(priorities.length, 3);
+  const priorityCount = Math.min(priorities.length, 5);
   const effort = priorities.reduce((sum, task) => sum + Math.max(Number(task.mentalLoad || 0), Number(task.physicalLoad || 0)), 0);
   return Math.max(1, Math.min(10, 2 + late + Math.ceil(today / 2) + agendaCount + Math.max(0, priorityCount - 1) + Math.ceil(effort / 6)));
 }
@@ -1255,10 +1258,10 @@ function buildAiDecisions(brief, loadScore) {
       detail: `${stats.late} tache(s) a remettre au clair avant d'ajouter du nouveau.`,
     });
   }
-  if ((brief.priorities || []).length >= 3) {
+  if ((brief.priorities || []).length >= 5) {
     decisions.push({
-      title: "Garder seulement 3 priorites",
-      detail: "le reste attend pour eviter la dispersion.",
+      title: "Garder 5 priorites maximum",
+      detail: "l'IA limite ses propositions pour eviter la dispersion.",
     });
   }
   if (loadScore >= 7) {
@@ -4417,7 +4420,7 @@ function buildMorningBriefClient(currentState) {
       : "Aucune tache n'est prevue pour demain. Prevois 5 minutes ce soir pour organiser la journee suivante.",
     routine: [
       "Decharge mentale : note en vrac ce qui te prend de l'espace mental.",
-      "Choisis une priorite principale, pas trois priorites principales.",
+      "Choisis jusqu'a 5 priorites maximum, avec une priorite principale clairement identifiee.",
       "Traite d'abord une action courte pour lancer la dynamique.",
       "Verifie agenda, echeances et retards avant d'ouvrir de nouveaux sujets.",
       "Garde un vrai tampon dans la journee pour l'imprevu.",

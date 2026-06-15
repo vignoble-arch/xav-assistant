@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=liberer-1" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="styles.css?v=planning-undo-1" />
+    <link rel="stylesheet" href="styles.css?v=priority-scroll-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -142,7 +142,7 @@
                 <button class="mini-button" type="button" data-open-task-form>Ajouter</button>
               </div>
               <div class="priority-list" id="priorityList"></div>
-              <p class="ancrage-muted">3 priorites seulement · le reste attend</p>
+              <p class="ancrage-muted">Autant que necessaire pour toi - 5 maximum pour l'IA</p>
             </section>
 
             <section class="ancrage-card ancrage-decisions">
@@ -260,7 +260,7 @@
                   <article class="respire-petal respire-petal-do">
                     <div class="respire-petal-icon respire-icon-grape" aria-hidden="true"></div>
                     <h2>&Agrave; FAIRE</h2>
-                    <p>Tes 3 priorit&eacute;s du jour</p>
+                    <p>Tes priorit&eacute;s du jour</p>
                     <ol class="respire-priority-list">
                       <li><b>01</b><span>Preparer degustation clients</span><em>Essentiel</em></li>
                       <li><b>02</b><span>Suivi elevage cuve N&deg;12</span><em>Utile</em></li>
@@ -1509,7 +1509,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=planning-undo-1"></script>
+    <script src="app.js?v=priority-scroll-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

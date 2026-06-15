@@ -3931,7 +3931,7 @@ function buildMorningBrief(state) {
       : "Aucune tache n'est prevue pour demain. Prevois 5 minutes ce soir pour organiser la journee suivante.",
     routine: [
       "Decharge mentale : note en vrac ce qui te prend de l'espace mental.",
-      "Choisis une priorite principale, pas trois priorites principales.",
+      "Choisis jusqu'a 5 priorites maximum, avec une priorite principale clairement identifiee.",
       "Traite d'abord une action courte pour lancer la dynamique.",
       "Verifie agenda, echeances et retards avant d'ouvrir de nouveaux sujets.",
       "Garde un vrai tampon dans la journee pour l'imprevu.",

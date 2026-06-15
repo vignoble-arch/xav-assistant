@@ -604,6 +604,26 @@ select,
 .ancrage-priorities .priority-list {
   grid-template-columns: 1fr;
   margin-top: 18px;
+  max-height: min(46vh, 520px);
+  overflow-y: auto;
+  padding-right: 6px;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(138, 97, 121, 0.45) rgba(255, 253, 248, 0.65);
+}
+
+.ancrage-priorities .priority-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.ancrage-priorities .priority-list::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgba(255, 253, 248, 0.65);
+}
+
+.ancrage-priorities .priority-list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(138, 97, 121, 0.45);
 }
 
 .ancrage-priorities .priority-card {
@@ -5363,6 +5383,10 @@ body[data-active-view="vivre"] .quick-capture {
   .commercial-grid,
   .connections-grid {
     grid-template-columns: 1fr;
+  }
+
+  .ancrage-priorities .priority-list {
+    max-height: 320px;
   }
 
   .liberer-install-panel {

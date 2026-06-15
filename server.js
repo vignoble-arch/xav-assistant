@@ -41,7 +41,7 @@ const OPENAI_MODEL_PRICES = {
   "gpt-5.5": { input: 5.00, output: 30.00 },
 };
 
-const TASK_LISTS = ["Inspire", "Taches", "Expire", "Vivre"];
+const TASK_LISTS = ["Inspire", "Taches", "Expire", "Vivre", "Courses"];
 
 const GOOGLE_SERVICES = ["gmail", "calendar", "drive", "tasks"];
 
@@ -185,6 +185,7 @@ const seedState = {
     Taches: [],
     Expire: [],
     Vivre: [],
+    Courses: [],
   },
   agenda: [
     { id: randomUUID(), time: "09:00", title: "Revue du dashboard V0.1" },
@@ -2009,6 +2010,7 @@ function mergeTasksBySourceId(incoming, existing) {
 
 function mapGoogleTaskList(title) {
   const normalized = normalizeText(title);
+  if (normalized.includes("course") || normalized.includes("acheter")) return "Courses";
   if (normalized.includes("inspire") || normalized.includes("commande") || normalized.includes("client") || normalized.includes("mail")) return "Inspire";
   if (normalized.includes("expire") || normalized.includes("echeance") || normalized.includes("sortie") || normalized.includes("dette") || normalized.includes("facture") || normalized.includes("payer")) return "Expire";
   if (normalized.includes("vivre") || normalized.includes("perso") || normalized.includes("maison") || normalized.includes("divers")) return "Vivre";
@@ -2018,6 +2020,7 @@ function mapGoogleTaskList(title) {
 function normalizeTaskList(value) {
   const normalized = normalizeText(value || "");
   if (TASK_LISTS.includes(value)) return value;
+  if (normalized.includes("course") || normalized.includes("acheter")) return "Courses";
   if (normalized.includes("inspire") || normalized.includes("commande") || normalized.includes("client") || normalized.includes("mail")) return "Inspire";
   if (normalized.includes("expire") || normalized.includes("echeance") || normalized.includes("sortie") || normalized.includes("dette") || normalized.includes("facture") || normalized.includes("payer")) return "Expire";
   if (normalized.includes("vivre") || normalized.includes("perso") || normalized.includes("maison") || normalized.includes("divers")) return "Vivre";

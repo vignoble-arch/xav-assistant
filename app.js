@@ -5,7 +5,7 @@ const UNDO_ACTION_WINDOW_MS = 20000;
 
 const statuses = ["Inbox", "A faire", "En cours", "En attente", "Termine"];
 const ORDER_STATUSES = ["En commande", "Prete pour expedition", "En livraison", "Expedie"];
-const TASK_LISTS = ["Inspire", "Taches", "Expire", "Vivre"];
+const TASK_LISTS = ["Inspire", "Taches", "Expire", "Vivre", "Courses"];
 const FLOW_TASK_LISTS = TASK_LISTS;
 const WORKERS = [
   { key: "fernand", label: "Fernand", description: "Bras droit et rapports" },
@@ -103,6 +103,7 @@ const seedState = {
     Taches: [],
     Expire: [],
     Vivre: [],
+    Courses: [],
   },
   agenda: [
     { id: crypto.randomUUID(), time: "09:00", title: "Revue du dashboard V0.1" },
@@ -631,7 +632,7 @@ function bindFunctionalPages() {
   document.querySelectorAll(".vivre-actions button").forEach((button, index) => {
     button.addEventListener("click", () => {
       if (index === 0) openQuickNoteWithText("Courses : ", "Courses");
-      if (index === 1) openTaskForm();
+      if (index === 1) openTaskForm("", { list: "Vivre" });
       if (index === 2) openQuickNoteWithText("Idee perso : ", "Idee");
       if (index === 3) openQuickNoteWithText("Objectif : ", "Perso");
     });
@@ -986,18 +987,17 @@ function formatRevenueDelta(current, previous) {
 }
 
 function renderVivrePage() {
+  const groceryTasks = getOpenTasksByList("Courses").sort(sortTasksForFocus);
   const vivreTasks = getOpenTasksByList("Vivre");
-  const personalTasks = (vivreTasks.length ? vivreTasks : state.tasks
+  const homeTasks = (vivreTasks.length ? vivreTasks : state.tasks
     .filter((task) => task.status !== "Termine" && taskListName(task) === "Vivre"))
     .sort(sortTasksForFocus);
-  const groceryTasks = personalTasks.filter((task) => /course|courses|acheter|pain|cafe|café|lessive|dentifrice/i.test(`${task.title} ${task.notes || ""}`));
-  const homeTasks = personalTasks.filter((task) => /maison|ranger|machine|linge|arroser|menage|ménage|poubelle|verre/i.test(`${task.title} ${task.notes || ""}`));
   const personalNotes = state.notes.filter((note) => /perso|idee|idée|famille|objectif/i.test(`${note.category || ""} ${note.title || ""} ${note.body || ""}`));
   const goalNotes = personalNotes.filter((note) => /objectif|budget|vacance|cadeau|projet|envie/i.test(`${note.title || ""} ${note.body || ""}`));
 
   const groceryList = document.querySelector(".vivre-check-list");
   if (groceryList) {
-    const items = (groceryTasks.length ? groceryTasks : personalTasks).slice(0, 5);
+    const items = groceryTasks.slice(0, 8);
     groceryList.innerHTML = items.length
       ? items.map((task) => `<label><input type="checkbox" ${task.status === "Termine" ? "checked" : ""} data-vivre-task="${escapeHTML(task.id)}" /> ${escapeHTML(task.title)}${taskInlineDetails(task) ? ` - ${escapeHTML(taskInlineDetails(task))}` : ""}</label>`).join("")
       : `<label><input type="checkbox" /> Ajouter une liste de courses</label>`;
@@ -1009,7 +1009,7 @@ function renderVivrePage() {
 
   const homeList = document.querySelector(".vivre-soft-list");
   if (homeList) {
-    const items = (homeTasks.length ? homeTasks : personalTasks).slice(0, 4);
+    const items = homeTasks.slice(0, 4);
     homeList.innerHTML = items.length
       ? items.map((task) => `<span><b>${escapeHTML(task.title)}</b><em>${escapeHTML(taskInlineDetails(task) || "souple")}</em></span>`).join("")
       : `<span><b>Aucun geste maison</b><em>souple</em></span>`;
@@ -1031,7 +1031,7 @@ function renderVivrePage() {
   }
 
   const todayPanel = document.querySelectorAll(".vivre-today-panel article");
-  updateMiniPanel(todayPanel[0], groceryTasks.length || personalTasks.length, "courses / perso");
+  updateMiniPanel(todayPanel[0], groceryTasks.length, "courses");
   updateMiniPanel(todayPanel[1], homeTasks.length, "gestes maison");
   updateMiniPanel(todayPanel[2], personalNotes.length, "idees perso");
   updateMiniPanel(todayPanel[3], goalNotes.length, "objectifs");
@@ -4581,6 +4581,7 @@ function taskListName(task) {
 }
 
 function inferTaskList(text) {
+  if (text.includes("course") || text.includes("acheter") || text.includes("liste de course")) return "Courses";
   if (text.includes("commande") || text.includes("client") || text.includes("mail")) return "Inspire";
   if (text.includes("expire") || text.includes("echeance") || text.includes("payer") || text.includes("facture")) return "Expire";
   if (text.includes("vivre") || text.includes("perso") || text.includes("maison")) return "Vivre";
@@ -4591,6 +4592,7 @@ function canonicalTaskListName(value) {
   if (!value) return "";
   if (TASK_LISTS.includes(value)) return value;
   const normalized = normalizeText(String(value));
+  if (normalized.includes("course") || normalized.includes("acheter")) return "Courses";
   if (normalized.includes("inspire") || normalized.includes("commande") || normalized.includes("client") || normalized.includes("mail")) return "Inspire";
   if (normalized.includes("expire") || normalized.includes("echeance") || normalized.includes("sortie") || normalized.includes("dette") || normalized.includes("facture") || normalized.includes("payer")) return "Expire";
   if (normalized.includes("vivre") || normalized.includes("perso") || normalized.includes("maison") || normalized.includes("divers")) return "Vivre";
@@ -5244,6 +5246,7 @@ function cleanTitle(text) {
 }
 
 function normalizeListName(text) {
+  if (text.includes("course") || text.includes("acheter")) return "Courses";
   if (text.includes("inspire") || text.includes("commande") || text.includes("client") || text.includes("mail")) return "Inspire";
   if (text.includes("expire") || text.includes("echeance") || text.includes("sortie") || text.includes("dette") || text.includes("facture") || text.includes("payer")) return "Expire";
   if (text.includes("vivre") || text.includes("perso") || text.includes("maison") || text.includes("divers")) return "Vivre";

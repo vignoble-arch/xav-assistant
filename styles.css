@@ -587,6 +587,11 @@ select,
   margin-top: 12px;
 }
 
+.tag.very-urgent {
+  color: #fffdf8;
+  background: #8f332b;
+}
+
 .tag.urgent,
 .tag.important {
   color: #6c2f2b;
@@ -1575,6 +1580,11 @@ button:disabled {
 .task-card.is-today {
   border-color: #d6c08f;
   background: #fffaf0;
+}
+
+.task-card.is-soon {
+  border-color: #e5c2a1;
+  background: #fff8ef;
 }
 
 .notes-grid,

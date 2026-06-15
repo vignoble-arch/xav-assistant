@@ -4,7 +4,9 @@ const BRANDING_KEY = "assistant-xavier-branding-v1";
 
 const statuses = ["Inbox", "A faire", "En cours", "En attente", "Termine"];
 const ORDER_STATUSES = ["En commande", "Prete pour expedition", "En livraison", "Expedie"];
-const TASK_LISTS = ["Dettes", "Cave Expé", "vignoble", "bureau", "divers et perso"];
+const FLOW_TASK_LISTS = ["Respire", "commandes", "Expire", "Vivre"];
+const TASK_BOARD_LISTS = ["Dettes", "Cave Expé", "vignoble", "bureau", "divers et perso"];
+const TASK_LISTS = [...FLOW_TASK_LISTS, ...TASK_BOARD_LISTS];
 const WORKERS = [
   { key: "fernand", label: "Fernand", description: "Bras droit et rapports" },
   { key: "organisation", label: "Paulo", description: "Organisation, agenda, taches et mental" },
@@ -629,16 +631,59 @@ function renderFlowPages() {
   renderVivrePage();
 }
 
+function getOpenTasksByList(listName) {
+  return state.tasks.filter((task) =>
+    task.status !== "Termine" && task.status !== "Inbox" && taskListName(task) === listName
+  );
+}
+
+function taskInlineDetails(task) {
+  const parts = [];
+  if (task.due) parts.push(formatDate(task.due));
+  if (task.notes) parts.push(task.notes);
+  return parts.join(" - ");
+}
+
+function taskDetailLine(task) {
+  return taskInlineDetails(task) || task.source || "Tache";
+}
+
+function setTaskProgressList(selector, tasks) {
+  const node = document.querySelector(selector);
+  if (!node) return;
+  node.innerHTML = tasks.map((task) => `
+    <span>
+      <b>${escapeHTML(effectivePriority(task))}</b>
+      ${escapeHTML(task.title)}${taskInlineDetails(task) ? ` - ${escapeHTML(taskInlineDetails(task))}` : ""}
+    </span>
+  `).join("");
+}
+
+function effectivePriority(task) {
+  if (!task?.due || task.status === "Termine") return task?.priority || "Normale";
+  const days = daysUntil(task.due);
+  if (days <= 2) return "Tres urgente";
+  if (days <= 3) return "Urgente";
+  return task.priority || "Normale";
+}
+
+function daysUntil(dateKey) {
+  const today = new Date(`${todayISO()}T12:00:00`);
+  const target = new Date(`${dateKey}T12:00:00`);
+  return Math.round((target - today) / 86400000);
+}
+
 function renderRespirePage() {
-  const priorities = getPriorityTasks(3);
+  const respireTasks = getOpenTasksByList("Respire").sort(sortTasksForFocus);
+  const priorities = respireTasks.slice(0, 3);
   const priorityList = document.querySelector(".respire-priority-list");
   if (priorityList) {
     priorityList.innerHTML = priorities.length
       ? priorities.map((task, index) => `
           <li>
             <b>${String(index + 1).padStart(2, "0")}</b>
-            <span>${escapeHTML(task.title)}</span>
-            <em>${escapeHTML(priorityShortLabel(task.priority))}</em>
+            <span>${escapeHTML(task.title)}${taskInlineDetails(task) ? ` - ${escapeHTML(taskInlineDetails(task))}` : ""}</span>
+            <em>${escapeHTML(priorityShortLabel(effectivePriority(task)))}</em>
           </li>
         `).join("")
       : `<li><b>01</b><span>Aucune priorite immediate</span><em>Calme</em></li>`;
@@ -679,6 +724,7 @@ function renderRespirePage() {
 }
 
 function renderInspirePage() {
+  const orderTasks = getOpenTasksByList("commandes").sort(sortTasksForFocus);
   const unread = state.mail.filter((mail) => mail.unread).length;
   const activeOrders = (state.orderPipeline || []).filter((order) => order.status !== "Expedie");
   const readyOrders = activeOrders.filter((order) => order.status === "Prete pour expedition").length;
@@ -695,13 +741,17 @@ function renderInspirePage() {
     [state.mail.filter((mail) => /fournisseur|facture|paiement/i.test(`${mail.title} ${mail.detail || ""}`)).length, "admin"],
   ]);
 
-  setMetric(".inspire-orders-card .inspire-main-metric strong", activeOrders.length);
-  setText(".inspire-orders-card .inspire-main-metric span", "en cours");
-  setProgressList(".inspire-orders-card .inspire-progress-list", [
-    [activeOrders.filter((order) => order.status === "En commande").length, "a preparer"],
-    [readyOrders, "pretes a expedier"],
-    [deliveryOrders, "en livraison"],
-  ]);
+  setMetric(".inspire-orders-card .inspire-main-metric strong", orderTasks.length || activeOrders.length);
+  setText(".inspire-orders-card .inspire-main-metric span", orderTasks.length ? "tache(s) commandes" : "en cours");
+  if (orderTasks.length) {
+    setTaskProgressList(".inspire-orders-card .inspire-progress-list", orderTasks.slice(0, 4));
+  } else {
+    setProgressList(".inspire-orders-card .inspire-progress-list", [
+      [activeOrders.filter((order) => order.status === "En commande").length, "a preparer"],
+      [readyOrders, "pretes a expedier"],
+      [deliveryOrders, "en livraison"],
+    ]);
+  }
 
   setMetric(".inspire-business-card .inspire-main-metric strong", opportunities.length);
   setText(".inspire-business-card .inspire-main-metric span", "opportunite(s)");
@@ -720,41 +770,42 @@ function renderInspirePage() {
 
   const todayPanel = document.querySelectorAll(".inspire-today-panel article");
   updateMiniPanel(todayPanel[0], formatEuroCents(summary.totalRevenueCents || 0), "CA echantillon Baqio");
-  updateMiniPanel(todayPanel[1], activeOrders.length, `${readyOrders} prete(s) a expedier`);
+  updateMiniPanel(todayPanel[1], orderTasks.length || activeOrders.length, orderTasks.length ? "liste commandes" : `${readyOrders} prete(s) a expedier`);
   updateMiniPanel(todayPanel[2], opportunities.length, "opportunites a soigner");
   updateMiniPanel(todayPanel[3], state.mail.length, `${unread} non lu(s)`);
 }
 
 function renderExpirePage() {
-  const debtTasks = state.tasks
+  const expireTasks = getOpenTasksByList("Expire");
+  const debtTasks = (expireTasks.length ? expireTasks : state.tasks
     .filter((task) => task.status !== "Termine")
-    .filter((task) => taskListName(task) === "Dettes" || /facture|payer|reglement|règlement|echeance|échéance|tva|urssaf|impot|impôt/i.test(`${task.title} ${task.notes || ""}`))
+    .filter((task) => taskListName(task) === "Dettes" || /facture|payer|reglement|règlement|echeance|échéance|tva|urssaf|impot|impôt/i.test(`${task.title} ${task.notes || ""}`)))
     .sort(sortTasksForFocus)
     .slice(0, 6);
   const today = localDateKey(new Date());
   const weekLimit = addDaysISO(7);
   const dueToday = debtTasks.filter((task) => task.due && task.due <= today).length;
   const dueWeek = debtTasks.filter((task) => task.due && task.due <= weekLimit).length;
-  const urgent = debtTasks.filter((task) => task.priority === "Urgente" || (task.due && task.due < today)).length;
+  const urgent = debtTasks.filter((task) => ["Tres urgente", "Urgente"].includes(effectivePriority(task))).length;
 
   const summaryCards = document.querySelectorAll(".expire-summary article");
   updateSummaryCard(summaryCards[0], dueToday, "creance(s) a traiter", "A payer aujourd'hui");
   updateSummaryCard(summaryCards[1], dueWeek, "echeance(s) a 7 jours", "Cette semaine");
-  updateSummaryCard(summaryCards[2], state.tasks.filter((task) => taskListName(task) === "Dettes" && task.status !== "Termine").length, "tache(s) Dettes ouvertes", "Suivi dettes");
+  updateSummaryCard(summaryCards[2], expireTasks.length || state.tasks.filter((task) => taskListName(task) === "Dettes" && task.status !== "Termine").length, expireTasks.length ? "tache(s) Expire ouvertes" : "tache(s) Dettes ouvertes", "Suivi echeances");
   updateSummaryCard(summaryCards[3], urgent, "a regarder sans attendre", "Urgences");
 
   const list = document.querySelector(".expire-payables-list");
   if (list) {
     list.innerHTML = debtTasks.length
       ? debtTasks.map((task) => `
-          <article class="expire-payable ${getDueClass(task) === "is-late" ? "is-urgent" : task.priority === "Importante" ? "is-important" : "is-planned"}">
+          <article class="expire-payable ${getDueClass(task) === "is-late" || effectivePriority(task) === "Tres urgente" ? "is-urgent" : effectivePriority(task) === "Urgente" || effectivePriority(task) === "Importante" ? "is-important" : "is-planned"}">
             <time>${escapeHTML(task.due ? formatDate(task.due) : "Sans date")}</time>
-            <div><strong>${escapeHTML(task.title)}</strong><span>${escapeHTML(task.notes || task.source || "Tache")}</span></div>
+            <div><strong>${escapeHTML(task.title)}</strong><span>${escapeHTML(taskDetailLine(task))}</span></div>
             <b>${escapeHTML(extractMoneyLabel(`${task.title} ${task.notes || ""}`) || "")}</b>
-            <em>${escapeHTML(task.priority || "Normal")}</em>
+            <em>${escapeHTML(effectivePriority(task))}</em>
           </article>
         `).join("")
-      : `<article class="expire-payable is-fixed"><time>Calme</time><div><strong>Aucune sortie urgente</strong><span>Les taches Dettes alimenteront cette liste.</span></div><b></b><em>OK</em></article>`;
+      : `<article class="expire-payable is-fixed"><time>Calme</time><div><strong>Aucune sortie urgente</strong><span>Les taches Expire alimenteront cette liste.</span></div><b></b><em>OK</em></article>`;
   }
 
   const kpis = document.querySelectorAll(".expire-mini-kpis article");
@@ -764,8 +815,9 @@ function renderExpirePage() {
 }
 
 function renderVivrePage() {
-  const personalTasks = state.tasks
-    .filter((task) => task.status !== "Termine" && taskListName(task) === "divers et perso")
+  const vivreTasks = getOpenTasksByList("Vivre");
+  const personalTasks = (vivreTasks.length ? vivreTasks : state.tasks
+    .filter((task) => task.status !== "Termine" && taskListName(task) === "divers et perso"))
     .sort(sortTasksForFocus);
   const groceryTasks = personalTasks.filter((task) => /course|courses|acheter|pain|cafe|café|lessive|dentifrice/i.test(`${task.title} ${task.notes || ""}`));
   const homeTasks = personalTasks.filter((task) => /maison|ranger|machine|linge|arroser|menage|ménage|poubelle|verre/i.test(`${task.title} ${task.notes || ""}`));
@@ -776,7 +828,7 @@ function renderVivrePage() {
   if (groceryList) {
     const items = (groceryTasks.length ? groceryTasks : personalTasks).slice(0, 5);
     groceryList.innerHTML = items.length
-      ? items.map((task) => `<label><input type="checkbox" ${task.status === "Termine" ? "checked" : ""} data-vivre-task="${escapeHTML(task.id)}" /> ${escapeHTML(task.title)}</label>`).join("")
+      ? items.map((task) => `<label><input type="checkbox" ${task.status === "Termine" ? "checked" : ""} data-vivre-task="${escapeHTML(task.id)}" /> ${escapeHTML(task.title)}${taskInlineDetails(task) ? ` - ${escapeHTML(taskInlineDetails(task))}` : ""}</label>`).join("")
       : `<label><input type="checkbox" /> Ajouter une liste de courses</label>`;
     groceryList.querySelectorAll("[data-vivre-task]").forEach((input) => {
       input.addEventListener("click", (event) => event.stopPropagation());
@@ -788,7 +840,7 @@ function renderVivrePage() {
   if (homeList) {
     const items = (homeTasks.length ? homeTasks : personalTasks).slice(0, 4);
     homeList.innerHTML = items.length
-      ? items.map((task) => `<span><b>${escapeHTML(task.title)}</b><em>${escapeHTML(task.due ? formatDate(task.due) : "souple")}</em></span>`).join("")
+      ? items.map((task) => `<span><b>${escapeHTML(task.title)}</b><em>${escapeHTML(taskInlineDetails(task) || "souple")}</em></span>`).join("")
       : `<span><b>Aucun geste maison</b><em>souple</em></span>`;
   }
 
@@ -817,7 +869,7 @@ function renderVivrePage() {
 function getPriorityTasks(limit = 3) {
   const today = todayISO();
   return state.tasks
-    .filter((task) => task.status !== "Termine" && task.status !== "Inbox")
+    .filter((task) => task.status !== "Termine" && task.status !== "Inbox" && !FLOW_TASK_LISTS.includes(taskListName(task)))
     .sort((a, b) => {
       const lateA = a.due && a.due < today ? 1 : 0;
       const lateB = b.due && b.due < today ? 1 : 0;
@@ -828,6 +880,7 @@ function getPriorityTasks(limit = 3) {
 }
 
 function priorityShortLabel(priority) {
+  if (priority === "Tres urgente") return "Tres urgent";
   if (priority === "Urgente") return "Urgent";
   if (priority === "Importante") return "Essentiel";
   if (priority === "Faible") return "Doux";
@@ -962,7 +1015,7 @@ function resetBranding() {
 
 function renderPriorities() {
   const priorities = state.tasks
-    .filter((task) => task.status !== "Termine")
+    .filter((task) => task.status !== "Termine" && !FLOW_TASK_LISTS.includes(taskListName(task)))
     .sort((a, b) => priorityWeight(b.priority) - priorityWeight(a.priority))
     .slice(0, 3);
 
@@ -1071,7 +1124,7 @@ function renderInbox() {
 }
 
 function renderTasks() {
-  const active = state.tasks.filter((task) => !["Termine", "Inbox"].includes(task.status)).slice(0, 5);
+  const active = state.tasks.filter((task) => !["Termine", "Inbox"].includes(task.status) && !FLOW_TASK_LISTS.includes(taskListName(task))).slice(0, 5);
   el.activeTasks.innerHTML = active.length ? active.map(taskCard).join("") : emptyState("Aucune tache active.");
 
   renderTaskFilters();
@@ -1084,7 +1137,7 @@ function renderTasks() {
     return;
   }
 
-  el.taskBoard.innerHTML = TASK_LISTS
+  el.taskBoard.innerHTML = TASK_BOARD_LISTS
     .map((listName) => {
       const tasks = filteredTasks.filter((task) => taskListName(task) === listName);
       if (!tasks.length) return "";
@@ -1103,7 +1156,7 @@ function renderTasks() {
 
 function renderTaskFilterNote(filteredTasks) {
   if (!el.taskFilterNote) return;
-  const total = state.tasks.filter((task) => task.status !== "Termine" && task.status !== "Inbox").length;
+  const total = state.tasks.filter((task) => task.status !== "Termine" && task.status !== "Inbox" && !FLOW_TASK_LISTS.includes(taskListName(task))).length;
   const labels = {
     today: "a faire aujourd'hui ou en retard",
     late: "en retard",
@@ -1121,13 +1174,13 @@ function renderTaskFilters() {
   const current = el.taskListFilter.value || "all";
   el.taskListFilter.innerHTML = [
     `<option value="all">Toutes les listes</option>`,
-    ...TASK_LISTS.map((list) => `<option value="${escapeHTML(list)}">${escapeHTML(list)}</option>`),
+    ...TASK_BOARD_LISTS.map((list) => `<option value="${escapeHTML(list)}">${escapeHTML(list)}</option>`),
   ].join("");
-  el.taskListFilter.value = TASK_LISTS.includes(current) ? current : "all";
+  el.taskListFilter.value = TASK_BOARD_LISTS.includes(current) ? current : "all";
 }
 
 function renderTaskSummary() {
-  const openTasks = state.tasks.filter((task) => task.status !== "Termine");
+  const openTasks = state.tasks.filter((task) => task.status !== "Termine" && !FLOW_TASK_LISTS.includes(taskListName(task)));
   const today = todayISO();
   const late = openTasks.filter((task) => task.due && task.due < today).length;
   const dueToday = openTasks.filter((task) => task.due === today).length;
@@ -1146,7 +1199,7 @@ function getFilteredTasks() {
   const selectedList = el.taskListFilter.value || "all";
   const search = normalizeText(el.taskSearch.value || "");
   return state.tasks
-    .filter((task) => task.status !== "Termine" && task.status !== "Inbox")
+    .filter((task) => task.status !== "Termine" && task.status !== "Inbox" && !FLOW_TASK_LISTS.includes(taskListName(task)))
     .filter((task) => selectedList === "all" || taskListName(task) === selectedList)
     .filter((task) => {
       if (currentTaskFilter === "today") return task.due === today || (task.due && task.due < today);
@@ -1162,7 +1215,7 @@ function sortTasksForFocus(a, b) {
   const dateA = a.due || "9999-12-31";
   const dateB = b.due || "9999-12-31";
   if (dateA !== dateB) return dateA.localeCompare(dateB);
-  const priority = priorityWeight(b.priority) - priorityWeight(a.priority);
+  const priority = priorityWeight(effectivePriority(b)) - priorityWeight(effectivePriority(a));
   if (priority) return priority;
   return taskListName(a).localeCompare(taskListName(b), "fr");
 }
@@ -2218,7 +2271,7 @@ function priorityCard(task) {
     <article class="priority-card">
       <div class="card-top">
         <p class="card-title">${escapeHTML(task.title)}</p>
-        ${priorityTag(task.priority)}
+        ${priorityTag(effectivePriority(task))}
       </div>
       <p class="card-meta">${escapeHTML(taskListName(task))} - ${formatDate(task.due)} - ${escapeHTML(task.source)}</p>
       <div class="card-actions">
@@ -2243,7 +2296,7 @@ function taskCard(task) {
     <article class="task-card ${dueClass}">
       <div class="card-top">
         <p class="card-title">${escapeHTML(task.title)}</p>
-        ${priorityTag(task.priority)}
+        ${priorityTag(effectivePriority(task))}
       </div>
       <p class="card-meta">${escapeHTML(taskListName(task))} - ${escapeHTML(task.status)} - ${task.due ? formatDate(task.due) : "Sans echeance"} - ${escapeHTML(task.source || "manuel")}</p>
       ${task.notes ? `<p class="card-meta">${escapeHTML(task.notes)}</p>` : ""}
@@ -2263,6 +2316,7 @@ function getDueClass(task) {
   if (!task.due || task.status === "Termine") return "";
   if (task.due < todayISO()) return "is-late";
   if (task.due === todayISO()) return "is-today";
+  if (daysUntil(task.due) <= 3) return "is-soon";
   return "";
 }
 
@@ -2314,6 +2368,7 @@ function mailCard(item) {
 
 function priorityTag(priority) {
   const className = {
+    "Tres urgente": "very-urgent",
     Urgente: "urgent",
     Importante: "important",
     Normale: "normal",
@@ -2772,6 +2827,7 @@ function openTaskForm(id = "") {
   document.querySelector("#taskCategory").value = task ? taskListName(task) : "bureau";
   document.querySelector("#taskPriority").value = task?.priority || "Normale";
   document.querySelector("#taskDue").value = task?.due || "";
+  document.querySelector("#taskNotes").value = task?.notes || "";
   el.taskDialogTitle.textContent = task ? "Modifier la tache" : "Ajouter une tache";
   el.taskSubmitButton.textContent = task ? "Enregistrer" : "Ajouter";
   el.taskDialog.showModal();
@@ -2925,6 +2981,7 @@ async function handleTaskSubmit(event) {
     priority: document.querySelector("#taskPriority").value,
     list: document.querySelector("#taskCategory").value,
     due: document.querySelector("#taskDue").value || "",
+    notes: document.querySelector("#taskNotes").value.trim(),
   };
   const saved = await saveTask(payload);
   if (saved) closeTaskForm();
@@ -3685,20 +3742,42 @@ function formatAgentName(name) {
 }
 
 function taskListName(task) {
-  if (TASK_LISTS.includes(task.list)) return task.list;
-  if (TASK_LISTS.includes(task.category)) return task.category;
+  const list = canonicalTaskListName(task.list);
+  if (list) return list;
+  const category = canonicalTaskListName(task.category);
+  if (category) return category;
   if (task.category === "Perso") return "divers et perso";
   if (task.category === "Pro") return "bureau";
   return "divers et perso";
 }
 
 function inferTaskList(text) {
+  if (text.includes("respire") || text.includes("organisation")) return "Respire";
+  if (text.includes("commande")) return "commandes";
+  if (text.includes("expire") || text.includes("echeance") || text.includes("payer") || text.includes("facture")) return "Expire";
+  if (text.includes("vivre") || text.includes("perso") || text.includes("maison")) return "Vivre";
   if (text.includes("dette") || text.includes("facture") || text.includes("payer")) return "Dettes";
   if (text.includes("cave") || text.includes("expe") || text.includes("expedition") || text.includes("commande")) return "Cave Expé";
   if (text.includes("vigne") || text.includes("vignoble") || text.includes("parcelle")) return "vignoble";
   if (text.includes("bureau") || text.includes("admin") || text.includes("client") || text.includes("mail")) return "bureau";
   if (text.includes("perso") || text.includes("maison") || text.includes("divers")) return "divers et perso";
   return "bureau";
+}
+
+function canonicalTaskListName(value) {
+  if (!value) return "";
+  if (TASK_LISTS.includes(value)) return value;
+  const normalized = normalizeText(String(value));
+  if (normalized.includes("respire") || normalized.includes("organisation")) return "Respire";
+  if (normalized.includes("commande")) return "commandes";
+  if (normalized.includes("expire") || normalized.includes("echeance") || normalized.includes("sortie")) return "Expire";
+  if (normalized.includes("vivre")) return "Vivre";
+  if (normalized.includes("dette")) return "Dettes";
+  if (normalized.includes("cave") || normalized.includes("expe")) return "Cave Expé";
+  if (normalized.includes("vigne") || normalized.includes("vignoble")) return "vignoble";
+  if (normalized.includes("bureau") || normalized.includes("admin")) return "bureau";
+  if (normalized.includes("divers") || normalized.includes("perso")) return "divers et perso";
+  return "";
 }
 
 function saveState() {
@@ -4304,7 +4383,7 @@ function formatBytes(value) {
 }
 
 function priorityWeight(priority) {
-  return { Urgente: 4, Importante: 3, Normale: 2, Faible: 1 }[priority] || 0;
+  return { "Tres urgente": 5, Urgente: 4, Importante: 3, Normale: 2, Faible: 1 }[priority] || 0;
 }
 
 function cleanTitle(text) {
@@ -4312,6 +4391,10 @@ function cleanTitle(text) {
 }
 
 function normalizeListName(text) {
+  if (text.includes("respire") || text.includes("organisation")) return "Respire";
+  if (text.includes("commande")) return "commandes";
+  if (text.includes("expire") || text.includes("echeance") || text.includes("sortie")) return "Expire";
+  if (text.includes("vivre")) return "Vivre";
   if (text.includes("dette") || text.includes("facture") || text.includes("payer")) return "Dettes";
   if (text.includes("cave") || text.includes("expe") || text.includes("expedition")) return "Cave Expé";
   if (text.includes("vigne") || text.includes("vignoble")) return "vignoble";

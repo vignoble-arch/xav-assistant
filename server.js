@@ -41,7 +41,7 @@ const OPENAI_MODEL_PRICES = {
   "gpt-5.5": { input: 5.00, output: 30.00 },
 };
 
-const TASK_LISTS = ["Dettes", "Cave Expé", "vignoble", "bureau", "divers et perso"];
+const TASK_LISTS = ["Respire", "commandes", "Expire", "Vivre", "Dettes", "Cave Expé", "vignoble", "bureau", "divers et perso"];
 
 const GOOGLE_SERVICES = ["gmail", "calendar", "drive", "tasks"];
 
@@ -1900,6 +1900,10 @@ function mergeTasksBySourceId(incoming, existing) {
 
 function mapGoogleTaskList(title) {
   const normalized = normalizeText(title);
+  if (normalized.includes("respire") || normalized.includes("organisation")) return "Respire";
+  if (normalized.includes("commande")) return "commandes";
+  if (normalized.includes("expire") || normalized.includes("echeance") || normalized.includes("sortie")) return "Expire";
+  if (normalized.includes("vivre")) return "Vivre";
   if (normalized.includes("dette")) return "Dettes";
   if (normalized.includes("cave") || normalized.includes("expe")) return "Cave Expé";
   if (normalized.includes("vigne") || normalized.includes("vignoble")) return "vignoble";
@@ -1910,8 +1914,12 @@ function mapGoogleTaskList(title) {
 
 function normalizeTaskList(value) {
   const normalized = normalizeText(value || "");
+  if (normalized.includes("respire") || normalized.includes("organisation")) return "Respire";
+  if (normalized.includes("commande")) return "commandes";
+  if (normalized.includes("expire") || normalized.includes("echeance") || normalized.includes("sortie")) return "Expire";
+  if (normalized.includes("vivre")) return "Vivre";
   if (normalized.includes("dette")) return "Dettes";
-  if (normalized.includes("cave") || normalized.includes("expe")) return "Cave ExpÃ©";
+  if (normalized.includes("cave") || normalized.includes("expe")) return "Cave Expé";
   if (normalized.includes("vigne") || normalized.includes("vignoble")) return "vignoble";
   if (normalized.includes("bureau")) return "bureau";
   if (normalized.includes("divers") || normalized.includes("perso")) return "divers et perso";

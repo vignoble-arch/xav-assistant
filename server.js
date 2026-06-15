@@ -20,7 +20,7 @@ const SYNC_STATUS_FILE = path.join(DATA_DIR, "sync-status.json");
 const KNOWLEDGE_DIR = path.join(DATA_DIR, "knowledge");
 const KNOWLEDGE_FILE = path.join(DATA_DIR, "knowledge-documents.json");
 const AGENT_INSTRUCTIONS_FILE = path.join(DATA_DIR, "agent-instructions.json");
-const AUTO_SYNC_INTERVAL_MINUTES = Math.max(5, Number(process.env.AUTO_SYNC_INTERVAL_MINUTES || 15));
+const AUTO_SYNC_INTERVAL_MINUTES = Math.max(2, Number(process.env.AUTO_SYNC_INTERVAL_MINUTES || 5));
 const DEFAULT_BAQIO_SYNC_MAX_PAGES = 30;
 const ORDER_STATUSES = ["En commande", "Prete pour expedition", "En livraison", "Expedie"];
 
@@ -1313,6 +1313,7 @@ async function handleMailMessageFromApp(requestUrl, res) {
           date: full.date || mail.createdAt || "",
           body: full.body || mail.detail || "",
           snippet: full.snippet || mail.detail || "",
+          attachments: full.attachments || [],
           canReply: Boolean(full.from),
           needsSendScope: !hasGoogleScope(scopes, "https://www.googleapis.com/auth/gmail.send"),
         },
@@ -1332,6 +1333,7 @@ async function handleMailMessageFromApp(requestUrl, res) {
       date: mail.createdAt || "",
       body: mail.body || mail.excerpt || mail.detail || "",
       snippet: mail.detail || mail.excerpt || "",
+      attachments: mail.attachments || [],
       canReply: false,
       needsSendScope: false,
     },
@@ -1450,6 +1452,8 @@ async function handleMailActionFromApp(req, res) {
         await modifyGmailMessage(mail.sourceId, ["INBOX", "UNREAD"], mail.mailbox);
       } else if (action === "read") {
         await modifyGmailMessage(mail.sourceId, ["UNREAD"], mail.mailbox);
+      } else if (action === "delete") {
+        await trashGmailMessage(mail.sourceId, mail.mailbox);
       } else {
         return sendJson(res, { error: "Action email inconnue." }, 400);
       }
@@ -1505,6 +1509,7 @@ async function fetchGmailMessage(token, service, messageId) {
     source: "Gmail",
     labelIds: message.labelIds || [],
     unread: (message.labelIds || []).includes("UNREAD"),
+    attachmentCount: countGmailAttachments(message.payload),
     createdAt: date && !Number.isNaN(date.valueOf()) ? date.toISOString() : new Date().toISOString(),
     detail: `${from}${date && !Number.isNaN(date.valueOf()) ? ` - ${date.toLocaleDateString("fr-FR")}` : ""}${message.snippet ? ` - ${message.snippet}` : ""}`,
   };
@@ -1527,7 +1532,32 @@ async function fetchFullGmailMessage(token, service, messageId) {
     references: headers.references || "",
     snippet: message.snippet || "",
     body: extractGmailBody(message.payload) || message.snippet || "",
+    attachments: extractGmailAttachments(message.payload),
   };
+}
+
+function countGmailAttachments(payload) {
+  return extractGmailAttachments(payload).length;
+}
+
+function extractGmailAttachments(payload) {
+  const attachments = [];
+  function walk(part) {
+    if (!part) return;
+    const filename = String(part.filename || "").trim();
+    const attachmentId = part.body?.attachmentId || "";
+    if (filename || attachmentId) {
+      attachments.push({
+        id: attachmentId,
+        filename: filename || "Piece jointe",
+        mimeType: part.mimeType || "application/octet-stream",
+        size: Number(part.body?.size || 0),
+      });
+    }
+    for (const child of part.parts || []) walk(child);
+  }
+  walk(payload);
+  return attachments;
 }
 
 function getGmailHeaders(message) {
@@ -1627,6 +1657,15 @@ async function modifyGmailMessage(messageId, removeLabelIds = [], mailbox = "") 
   return googleFetch(token, "gmail", `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}/modify`, {
     method: "POST",
     body: { removeLabelIds },
+  });
+}
+
+async function trashGmailMessage(messageId, mailbox = "") {
+  const tokens = readJson(TOKENS_FILE, {});
+  const token = requireWritableGoogleToken(findGmailAccount(tokens, mailbox), "gmail");
+  return googleFetch(token, "gmail", `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}/trash`, {
+    method: "POST",
+    body: {},
   });
 }
 

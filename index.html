@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=liberer-1" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="styles.css?v=task-effort-fields-1" />
+    <link rel="stylesheet" href="styles.css?v=mail-inbox-actions-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -788,8 +788,21 @@
             <div>
               <p class="section-kicker">Filet de securite</p>
               <h2>Inbox centrale</h2>
+              <p class="view-subtitle">Emails a traiter, pieces jointes a surveiller et elements a clarifier.</p>
             </div>
+            <button class="assistant-button small" type="button" id="syncInboxMail">Actualiser Gmail</button>
           </div>
+          <p class="task-filter-note" id="inboxMailStatus"></p>
+          <section class="panel inbox-mail-panel">
+            <div class="panel-header">
+              <div>
+                <p class="section-kicker">Suzette</p>
+                <h2>Emails a traiter</h2>
+              </div>
+              <span class="source-pill" id="inboxMailCount">0 email</span>
+            </div>
+            <div class="wide-list" id="inboxMailList"></div>
+          </section>
           <div class="wide-list" id="fullInbox"></div>
         </section>
 
@@ -1287,6 +1300,21 @@
         </div>
         <p class="mail-dialog-meta" id="mailDialogMeta"></p>
         <div class="mail-body" id="mailDialogBody">Chargement...</div>
+        <div class="mail-attachments" id="mailAttachmentList" hidden></div>
+        <section class="mail-ai-panel">
+          <div>
+            <p class="section-kicker">Suzette</p>
+            <h3>Que doit faire l'IA de cet email ?</h3>
+          </div>
+          <div class="mail-ai-actions">
+            <button class="item-action" type="button" data-mail-ai-action="analyse">Analyser</button>
+            <button class="item-action" type="button" data-mail-ai-action="reply">Preparer une reponse</button>
+            <button class="item-action" type="button" data-mail-ai-action="attachment">Analyser les pieces jointes</button>
+            <button class="item-action" type="button" data-mail-ai-action="drive">Proposer le rangement</button>
+          </div>
+          <textarea id="mailAiInstruction" rows="3" placeholder="Exemple : dis-moi si c'est important, prepare une reponse, recupere les infos utiles, propose ou ranger la piece jointe..."></textarea>
+          <button class="assistant-button small" id="sendMailToAi" value="default" type="button">Demander a Suzette</button>
+        </section>
         <label class="mail-reply-label">
           Reponse
           <textarea id="mailReplyText" rows="6" placeholder="Ecrire la reponse ici..."></textarea>
@@ -1294,6 +1322,8 @@
         <p class="mail-send-status" id="mailSendStatus"></p>
         <div class="dialog-actions">
           <button class="ghost-button" value="cancel" type="submit">Fermer</button>
+          <button class="ghost-button" id="archiveOpenMail" value="default" type="button">Classer</button>
+          <button class="ghost-button" id="deleteOpenMail" value="default" type="button">Supprimer</button>
           <button class="ghost-button" id="copyMailReply" value="default" type="button">Copier</button>
           <button class="assistant-button" id="sendMailReply" value="default" type="button">Envoyer</button>
         </div>
@@ -1459,7 +1489,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=task-effort-fields-1"></script>
+    <script src="app.js?v=mail-inbox-actions-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

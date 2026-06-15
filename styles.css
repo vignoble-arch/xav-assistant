@@ -2306,7 +2306,7 @@ textarea {
 
 .mail-dialog-card {
   max-height: min(86vh, 860px);
-  grid-template-rows: auto auto minmax(220px, 1fr) auto auto auto;
+  grid-template-rows: auto auto minmax(220px, 1fr) auto auto auto auto auto;
 }
 
 .mail-dialog-meta,
@@ -2327,6 +2327,46 @@ textarea {
   color: var(--ink);
   line-height: 1.55;
   white-space: pre-wrap;
+}
+
+.mail-attachments,
+.mail-ai-panel {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(112, 91, 68, 0.12);
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(255, 253, 248, 0.74);
+}
+
+.mail-attachment-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.mail-attachment-grid article {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: #f6f1e8;
+}
+
+.mail-attachment-grid span,
+.mail-ai-panel h3 {
+  margin: 0;
+}
+
+.mail-ai-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mail-ai-panel textarea {
+  min-height: 82px;
 }
 
 .mail-reply-label {

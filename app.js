@@ -226,6 +226,10 @@ const el = {
   taskListFilter: document.querySelector("#taskListFilter"),
   taskSearch: document.querySelector("#taskSearch"),
   fullInbox: document.querySelector("#fullInbox"),
+  inboxMailList: document.querySelector("#inboxMailList"),
+  inboxMailCount: document.querySelector("#inboxMailCount"),
+  inboxMailStatus: document.querySelector("#inboxMailStatus"),
+  syncInboxMail: document.querySelector("#syncInboxMail"),
   notesGrid: document.querySelector("#notesGrid"),
   noteSummary: document.querySelector("#noteSummary"),
   memorySummary: document.querySelector("#memorySummary"),
@@ -310,6 +314,11 @@ const el = {
   mailDialogTitle: document.querySelector("#mailDialogTitle"),
   mailDialogMeta: document.querySelector("#mailDialogMeta"),
   mailDialogBody: document.querySelector("#mailDialogBody"),
+  mailAttachmentList: document.querySelector("#mailAttachmentList"),
+  mailAiInstruction: document.querySelector("#mailAiInstruction"),
+  sendMailToAi: document.querySelector("#sendMailToAi"),
+  archiveOpenMail: document.querySelector("#archiveOpenMail"),
+  deleteOpenMail: document.querySelector("#deleteOpenMail"),
   mailReplyText: document.querySelector("#mailReplyText"),
   mailSendStatus: document.querySelector("#mailSendStatus"),
   copyMailReply: document.querySelector("#copyMailReply"),
@@ -393,6 +402,12 @@ function bindEvents() {
   });
   el.copyMailReply?.addEventListener("click", copyMailReply);
   el.sendMailReply?.addEventListener("click", sendMailReply);
+  el.sendMailToAi?.addEventListener("click", sendCurrentMailToAi);
+  el.archiveOpenMail?.addEventListener("click", () => currentMailMessage?.id && archiveMail(currentMailMessage.id));
+  el.deleteOpenMail?.addEventListener("click", () => currentMailMessage?.id && deleteMail(currentMailMessage.id));
+  document.querySelectorAll("[data-mail-ai-action]").forEach((button) => {
+    button.addEventListener("click", () => fillMailAiInstruction(button.dataset.mailAiAction));
+  });
   el.mailDialog?.addEventListener("close", () => {
     currentMailMessage = null;
   });
@@ -430,6 +445,7 @@ function bindEvents() {
   });
   document.querySelector("#connectAllGoogle").addEventListener("click", () => startGoogleConnection("all"));
   el.syncAllGoogle.addEventListener("click", syncAllGoogleServices);
+  el.syncInboxMail?.addEventListener("click", syncInboxMail);
   el.googleConfigForm.addEventListener("submit", saveGoogleConfig);
   el.aiConfigForm.addEventListener("submit", saveAiConfig);
   el.aiProvider.addEventListener("change", applyAiProviderDefaults);
@@ -1251,6 +1267,16 @@ function formatShortDay(dateKey) {
 }
 
 function renderInbox() {
+  if (el.inboxMailCount) el.inboxMailCount.textContent = `${state.mail.length} email(s)`;
+  if (el.inboxMailStatus) {
+    const lastSync = syncStatusState?.lastFinishedAt ? formatDateTime(syncStatusState.lastFinishedAt) : "synchro non encore lue";
+    el.inboxMailStatus.textContent = `Gmail se met a jour automatiquement. Derniere synchro : ${lastSync}.`;
+  }
+  if (el.inboxMailList) {
+    el.inboxMailList.innerHTML = state.mail.length
+      ? state.mail.map(mailCard).join("")
+      : emptyState("Aucun email prioritaire synchronise.");
+  }
   el.fullInbox.innerHTML = state.inbox.length
     ? state.inbox.map((item) => inboxCard(item, true)).join("")
     : emptyState("Aucun element a trier.");
@@ -2503,17 +2529,20 @@ function externalCard(item, className) {
 }
 
 function mailCard(item) {
+  const attachmentLabel = Number(item.attachmentCount || 0) > 0 ? ` - ${item.attachmentCount} piece(s) jointe(s)` : "";
   return `
     <article class="mail-card">
       <div class="card-top">
         <p class="card-title">${escapeHTML(item.title)}</p>
         <span class="source-pill">${item.unread ? "Non lu" : "Email"}</span>
       </div>
-      <p class="card-meta">${escapeHTML(item.source)}${item.detail ? ` - ${escapeHTML(item.detail)}` : ""}</p>
+      <p class="card-meta">${escapeHTML(item.source)}${item.detail ? ` - ${escapeHTML(item.detail)}` : ""}${escapeHTML(attachmentLabel)}</p>
       <div class="card-actions">
         <button class="item-action item-action-primary" type="button" onclick="openMail('${item.id}')">Lire</button>
+        <button class="item-action" type="button" onclick="openMail('${item.id}')">Suzette</button>
         <button class="item-action" type="button" onclick="markMailRead('${item.id}')">Lu</button>
         <button class="item-action" type="button" onclick="archiveMail('${item.id}')">Archiver</button>
+        <button class="item-action" type="button" onclick="deleteMail('${item.id}')">Supprimer</button>
         <button class="item-action" type="button" onclick="mailToTask('${item.id}')">Tache</button>
         <button class="item-action" type="button" onclick="mailToNote('${item.id}')">Note</button>
       </div>
@@ -3720,10 +3749,13 @@ async function openMail(id) {
     title: mail.title,
     from: mail.source,
     body: mail.body || mail.excerpt || mail.detail || "",
+    snippet: mail.excerpt || mail.detail || "",
+    attachments: [],
     canReply: false,
   };
   renderMailDialog(currentMailMessage, true);
   el.mailReplyText.value = "";
+  if (el.mailAiInstruction) el.mailAiInstruction.value = "";
   el.mailDialog.showModal();
 
   if (!API_ENABLED) {
@@ -3756,10 +3788,80 @@ function renderMailDialog(message, loading = false) {
   el.mailDialogBody.innerHTML = loading
     ? `<p class="empty-state">Chargement du message...</p>`
     : formatMultiline(message.body || message.snippet || "Aucun contenu lisible pour cet email.");
+  renderMailAttachments(message.attachments || []);
   el.sendMailReply.disabled = !message.canReply || message.needsSendScope;
   el.mailSendStatus.textContent = message.needsSendScope
     ? "Pour envoyer depuis l'app, reconnecte Gmail dans Connexions. Tu peux deja lire et preparer la reponse."
     : message.canReply ? "" : "Reponse directe indisponible pour cet email.";
+}
+
+function renderMailAttachments(attachments) {
+  if (!el.mailAttachmentList) return;
+  if (!attachments.length) {
+    el.mailAttachmentList.hidden = true;
+    el.mailAttachmentList.innerHTML = "";
+    return;
+  }
+  el.mailAttachmentList.hidden = false;
+  el.mailAttachmentList.innerHTML = `
+    <p class="section-kicker">Pieces jointes</p>
+    <div class="mail-attachment-grid">
+      ${attachments.map((attachment) => `
+        <article>
+          <strong>${escapeHTML(attachment.filename || "Piece jointe")}</strong>
+          <span>${escapeHTML(attachment.mimeType || "fichier")}${attachment.size ? ` - ${formatFileSize(attachment.size)}` : ""}</span>
+        </article>
+      `).join("")}
+    </div>
+  `;
+}
+
+function formatFileSize(size) {
+  const number = Number(size || 0);
+  if (!number) return "";
+  if (number < 1024 * 1024) return `${Math.max(1, Math.round(number / 1024))} Ko`;
+  return `${(number / (1024 * 1024)).toFixed(1).replace(".", ",")} Mo`;
+}
+
+function fillMailAiInstruction(action) {
+  if (!el.mailAiInstruction) return;
+  const presets = {
+    analyse: "Analyse cet email : importance, urgence, action a faire, risque eventuel et prochaine etape concrete.",
+    reply: "Prepare une reponse professionnelle et simple. Avant tout envoi, je veux valider le texte.",
+    attachment: "Regarde les pieces jointes listees, dis-moi ce qu'il faut verifier et quelles informations recuperer.",
+    drive: "Propose ou ranger cet email et ses pieces jointes dans Drive ou dans l'organisation de l'app. Si une autorisation manque, dis-le clairement.",
+  };
+  el.mailAiInstruction.value = presets[action] || "";
+  el.mailAiInstruction.focus();
+}
+
+function sendCurrentMailToAi() {
+  if (!currentMailMessage) return;
+  const instruction = el.mailAiInstruction?.value.trim()
+    || "Analyse cet email et dis-moi quoi faire : classer, supprimer, repondre, transformer en tache ou ranger une piece jointe.";
+  const attachments = (currentMailMessage.attachments || [])
+    .map((attachment) => `${attachment.filename || "piece jointe"} (${attachment.mimeType || "type inconnu"}${attachment.size ? `, ${formatFileSize(attachment.size)}` : ""})`)
+    .join("; ") || "aucune piece jointe detectee";
+  const prompt = [
+    "@secretaire Traite cet email depuis l'Inbox.",
+    `Consigne de Xavier: ${instruction}`,
+    `Objet: ${currentMailMessage.title || "(Sans objet)"}`,
+    `De: ${currentMailMessage.from || "expediteur inconnu"}`,
+    currentMailMessage.to ? `A: ${currentMailMessage.to}` : "",
+    currentMailMessage.mailbox ? `Boite: ${currentMailMessage.mailbox}` : "",
+    currentMailMessage.date ? `Date: ${formatDateTime(currentMailMessage.date)}` : "",
+    `Pieces jointes: ${attachments}`,
+    `Contenu:\n${trimTextForPrompt(currentMailMessage.body || currentMailMessage.snippet || "", 2600)}`,
+    "Reponds dans le chat. Ne supprime, ne classe et n'envoie rien sans validation explicite de Xavier.",
+  ].filter(Boolean).join("\n\n");
+  el.mailDialog.close();
+  openAssistantWithText(prompt, "quick");
+  askLocalAi();
+}
+
+function trimTextForPrompt(value, maxLength) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  return text.length > maxLength ? `${text.slice(0, maxLength - 3)}...` : text;
 }
 
 async function sendMailReply() {
@@ -3816,6 +3918,10 @@ async function markMailRead(id) {
 
 async function archiveMail(id) {
   await applyMailAction(id, "archive", "Email archive.");
+}
+
+async function deleteMail(id) {
+  await applyMailAction(id, "delete", "Email supprime.");
 }
 
 async function applyMailAction(id, action, successMessage) {
@@ -4333,7 +4439,7 @@ async function loadSystemStatus() {
 function startAutoRefreshLoop() {
   if (!API_ENABLED) return;
   clearInterval(autoRefreshTimer);
-  autoRefreshTimer = setInterval(refreshServerStateQuietly, 5 * 60 * 1000);
+  autoRefreshTimer = setInterval(refreshServerStateQuietly, 90 * 1000);
 }
 
 async function refreshServerStateQuietly() {
@@ -4760,6 +4866,26 @@ async function syncAllGoogleServices() {
   render();
 }
 
+async function syncInboxMail() {
+  if (!API_ENABLED) {
+    showToast("Lance d'abord le serveur local.");
+    return;
+  }
+  if (el.inboxMailStatus) el.inboxMailStatus.textContent = "Actualisation Gmail en cours...";
+  const response = await fetch("/api/google/sync?service=gmail", { method: "POST" });
+  const payload = await response.json();
+  if (!response.ok) {
+    if (el.inboxMailStatus) el.inboxMailStatus.textContent = payload.error || "Actualisation Gmail impossible.";
+    showToast(payload.error || "Actualisation Gmail impossible.");
+    return;
+  }
+  state = migrateState(payload);
+  await loadConnections();
+  await loadSyncStatus();
+  render();
+  showToast("Gmail actualise.");
+}
+
 async function disconnectGoogleService(service) {
   const response = await fetch("/api/google/disconnect", {
     method: "POST",
@@ -4986,6 +5112,7 @@ window.deleteNote = deleteNote;
 window.openMail = openMail;
 window.markMailRead = markMailRead;
 window.archiveMail = archiveMail;
+window.deleteMail = deleteMail;
 window.mailToTask = mailToTask;
 window.mailToNote = mailToNote;
 window.commercialOpportunityToTask = commercialOpportunityToTask;

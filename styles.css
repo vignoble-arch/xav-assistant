@@ -2420,13 +2420,17 @@ textarea {
   margin-top: 16px;
 }
 
-.respire-chip-row span {
+.respire-chip-row button {
   min-height: 38px;
   border: 1px solid rgba(112, 91, 68, 0.1);
   border-radius: 14px;
   padding: 9px 14px;
   background: rgba(255, 253, 248, 0.55);
   color: #514941;
+}
+
+.respire-chip-row button:hover {
+  background: rgba(255, 253, 248, 0.85);
 }
 
 .respire-action-list,

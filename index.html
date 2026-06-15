@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=liberer-1" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="styles.css?v=respire-clarify-1" />
+    <link rel="stylesheet" href="styles.css?v=note-types-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -221,10 +221,10 @@
                       <b class="respire-mic" aria-hidden="true"></b>
                     </div>
                     <div class="respire-chip-row">
-                      <span>Idee</span>
-                      <span>Tache</span>
-                      <span>Pensee</span>
-                      <span>Inquietude</span>
+                      <button type="button" data-open-note-type="Idee">Idee</button>
+                      <button type="button" data-open-note-type="Tache">Tache</button>
+                      <button type="button" data-open-note-type="Pensee">Pensee</button>
+                      <button type="button" data-open-note-type="Inquietude">Inquietude</button>
                     </div>
                     <small>Tout deposer. On s'occupe du reste.</small>
                   </article>
@@ -1238,7 +1238,22 @@
           </div>
           <button class="icon-button" value="cancel" aria-label="Fermer" type="submit">x</button>
         </div>
-        <textarea id="quickNoteText" rows="7" placeholder="Ecrire ou dicter l'idee pendant qu'elle est la..."></textarea>
+        <label>
+          Type de note
+          <select id="quickNoteType">
+            <option>A clarifier</option>
+            <option>Tache</option>
+            <option>Idee</option>
+            <option>Courses</option>
+            <option>Pensee</option>
+            <option>Inquietude</option>
+            <option>Ressource</option>
+            <option>Client</option>
+            <option>Perso</option>
+            <option>Autre</option>
+          </select>
+        </label>
+        <textarea id="quickNoteText" rows="7" placeholder="Ecrire ou dicter ce qui traverse ton esprit..."></textarea>
         <div class="dialog-actions">
           <button class="ghost-button" type="button" id="startQuickNoteDictation">Micro</button>
           <button class="ghost-button" value="cancel" type="submit">Annuler</button>
@@ -1404,7 +1419,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=respire-clarify-1"></script>
+    <script src="app.js?v=note-types-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

@@ -1126,7 +1126,7 @@ async function saveQuickNoteFromApp(req, res) {
     id: String(body.id || randomUUID()),
     title: makeQuickNoteTitle(text),
     body: text,
-    category: "Idee",
+    category: cleanNoteCategory(body.category || body.type || "A clarifier"),
     source: "note rapide mobile",
     createdAt: body.createdAt || new Date().toISOString(),
     syncedAt: new Date().toISOString(),
@@ -1140,6 +1140,12 @@ async function saveQuickNoteFromApp(req, res) {
   }
   writeJson(STATE_FILE, state);
   return sendJson(res, { ok: true, note });
+}
+
+function cleanNoteCategory(value) {
+  const allowed = new Set(["A clarifier", "Tache", "Idee", "Courses", "Pensee", "Inquietude", "Ressource", "Client", "Perso", "Autre"]);
+  const category = String(value || "").trim();
+  return allowed.has(category) ? category : "A clarifier";
 }
 
 function makeQuickNoteTitle(text) {

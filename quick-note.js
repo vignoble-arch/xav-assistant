@@ -5,6 +5,7 @@ const el = {
   recordIcon: document.querySelector("#recordIcon"),
   recordState: document.querySelector("#recordState"),
   noteText: document.querySelector("#noteText"),
+  noteType: document.querySelector("#noteType"),
   saveButton: document.querySelector("#saveButton"),
   clearButton: document.querySelector("#clearButton"),
   syncButton: document.querySelector("#syncButton"),
@@ -112,6 +113,7 @@ async function saveCurrentNote() {
   const note = {
     id: crypto.randomUUID(),
     text,
+    category: el.noteType.value || "A clarifier",
     createdAt: new Date().toISOString(),
   };
 
@@ -126,6 +128,7 @@ async function saveCurrentNote() {
   }
 
   el.noteText.value = "";
+  el.noteType.value = "A clarifier";
   el.recordState.textContent = "Appuie, parle, libere.";
   el.saveButton.disabled = false;
   renderPending();

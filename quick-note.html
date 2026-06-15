@@ -8,10 +8,10 @@
     <meta name="apple-mobile-web-app-title" content="Liberer" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Lib&eacute;rer</title>
-    <link rel="manifest" href="quick-note.webmanifest?v=liberer-1" />
+    <link rel="manifest" href="quick-note.webmanifest?v=liberer-2" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="quick-note.css?v=liberer-1" />
+    <link rel="stylesheet" href="quick-note.css?v=liberer-2" />
   </head>
   <body>
     <main class="liberer-shell">
@@ -44,6 +44,21 @@
           </button>
           <p class="record-state" id="recordState">Appuie, parle, lib&egrave;re.</p>
           <textarea id="noteText" rows="8" placeholder="Parle ou ecris ce qui traverse ton esprit..."></textarea>
+          <label class="note-type-field">
+            Type
+            <select id="noteType">
+              <option>A clarifier</option>
+              <option>Tache</option>
+              <option>Idee</option>
+              <option>Courses</option>
+              <option>Pensee</option>
+              <option>Inquietude</option>
+              <option>Ressource</option>
+              <option>Client</option>
+              <option>Perso</option>
+              <option>Autre</option>
+            </select>
+          </label>
           <div class="quick-actions">
             <button class="secondary-button" type="button" id="clearButton">Effacer</button>
             <button class="primary-button" type="button" id="saveButton">Lib&eacute;rer</button>
@@ -61,7 +76,7 @@
     </main>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="quick-note.js?v=liberer-1"></script>
+    <script src="quick-note.js?v=liberer-2"></script>
     <script>
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("/service-worker.js").catch(() => {});

@@ -298,6 +298,7 @@ const el = {
   askLocalAi: document.querySelector("#askLocalAi"),
   quickNoteDialog: document.querySelector("#quickNoteDialog"),
   quickNoteText: document.querySelector("#quickNoteText"),
+  quickNoteType: document.querySelector("#quickNoteType"),
   startQuickNoteDictation: document.querySelector("#startQuickNoteDictation"),
   saveQuickNote: document.querySelector("#saveQuickNote"),
   mailDialog: document.querySelector("#mailDialog"),
@@ -531,6 +532,9 @@ function bindFunctionalPages() {
   };
 
   document.querySelector(".respire-note-box")?.addEventListener("click", openQuickNote);
+  document.querySelectorAll("[data-open-note-type]").forEach((button) => {
+    button.addEventListener("click", () => openQuickNote(null, { type: button.dataset.openNoteType || "A clarifier" }));
+  });
   document.querySelector(".respire-bell")?.addEventListener("click", () => {
     openAssistantWithText("@organisation Organise ma journee avec mes taches en retard, mon agenda et une routine courte.", "quick");
   });
@@ -594,10 +598,10 @@ function bindFunctionalPages() {
   document.querySelector(".vivre-goals-card")?.addEventListener("click", () => switchView("notes"));
   document.querySelectorAll(".vivre-actions button").forEach((button, index) => {
     button.addEventListener("click", () => {
-      if (index === 0) openQuickNoteWithText("Courses : ");
+      if (index === 0) openQuickNoteWithText("Courses : ", "Courses");
       if (index === 1) openTaskForm();
-      if (index === 2) openQuickNoteWithText("Idee perso : ");
-      if (index === 3) openQuickNoteWithText("Objectif : ");
+      if (index === 2) openQuickNoteWithText("Idee perso : ", "Idee");
+      if (index === 3) openQuickNoteWithText("Objectif : ", "Perso");
     });
   });
 }
@@ -641,8 +645,8 @@ function openAssistantWithText(text = "", mode = "quick") {
   updateAssistantPreview();
 }
 
-function openQuickNoteWithText(text = "") {
-  openQuickNote();
+function openQuickNoteWithText(text = "", type = "A clarifier") {
+  openQuickNote(null, { type });
   el.quickNoteText.value = text;
   el.quickNoteText.setSelectionRange(text.length, text.length);
 }
@@ -3245,9 +3249,10 @@ function addManualNote() {
   openQuickNote();
 }
 
-function openQuickNote(note = null) {
+function openQuickNote(note = null, options = {}) {
   currentQuickNoteEditId = note?.id || "";
   el.quickNoteText.value = note?.body || "";
+  if (el.quickNoteType) el.quickNoteType.value = note?.category || options.type || "A clarifier";
   quickNoteFinalTranscript = "";
   el.quickNoteDialog.showModal();
   setTimeout(() => el.quickNoteText.focus(), 0);
@@ -3266,7 +3271,7 @@ function saveQuickNote() {
     id: existing?.id || crypto.randomUUID(),
     title: makeQuickNoteTitle(body),
     body,
-    category: existing?.category || "Idee",
+    category: el.quickNoteType?.value || existing?.category || "A clarifier",
     source: existing?.source || "note rapide",
     createdAt: existing?.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -3276,6 +3281,7 @@ function saveQuickNote() {
     : [note, ...state.notes];
   stopQuickNoteDictation();
   el.quickNoteText.value = "";
+  if (el.quickNoteType) el.quickNoteType.value = "A clarifier";
   currentQuickNoteEditId = "";
   el.quickNoteDialog.close();
   showToast(existing ? "Note modifiee." : "Note ajoutee.");

@@ -172,6 +172,8 @@ let quickNoteRecognition = null;
 let quickNoteIsListening = false;
 let quickNoteFinalTranscript = "";
 let currentRespirePrioritySource = "all";
+let currentClarifyNoteFilter = "active";
+let currentClarifyNoteAction = "task";
 let currentQuickNoteEditId = "";
 let currentMailMessage = null;
 let assistantThreadMessages = [];
@@ -310,6 +312,9 @@ const el = {
   respirePriorityTabs: document.querySelector("#respirePriorityTabs"),
   respirePriorityList: document.querySelector("#respirePriorityList"),
   createRespirePriority: document.querySelector("#createRespirePriority"),
+  clarifyNotesDialog: document.querySelector("#clarifyNotesDialog"),
+  clarifyNotesTabs: document.querySelector("#clarifyNotesTabs"),
+  clarifyNotesList: document.querySelector("#clarifyNotesList"),
   taskDialog: document.querySelector("#taskDialog"),
   taskEditId: document.querySelector("#taskEditId"),
   taskDialogTitle: document.querySelector("#taskDialogTitle"),
@@ -390,6 +395,12 @@ function bindEvents() {
     button.addEventListener("click", () => {
       currentRespirePrioritySource = button.dataset.prioritySource || "all";
       renderRespirePriorityPicker();
+    });
+  });
+  el.clarifyNotesTabs?.querySelectorAll("[data-clarify-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      currentClarifyNoteFilter = button.dataset.clarifyFilter || "active";
+      renderClarifyNotesPicker();
     });
   });
   el.refreshMorningBrief.addEventListener("click", loadMorningBrief);
@@ -530,11 +541,11 @@ function bindFunctionalPages() {
   });
   document.querySelectorAll(".respire-action-list button").forEach((button, index) => {
     button.addEventListener("click", () => {
-      if (index === 0) openTaskForm();
-      if (index === 1) openAgendaForm();
-      if (index === 2) openAssistantWithText("@organisation Aide-moi a deleguer ou repartir cette action.", "quick");
-      if (index === 3) openTaskView("late");
-      if (index === 4) switchView("inbox");
+      if (index === 0) openClarifyNotesPicker("task");
+      if (index === 1) openClarifyNotesPicker("plan");
+      if (index === 2) openClarifyNotesPicker("delegate");
+      if (index === 3) openClarifyNotesPicker("waiting");
+      if (index === 4) openClarifyNotesPicker("delete");
     });
   });
   document.querySelectorAll(".respire-ai-actions button").forEach((button, index) => {
@@ -2924,6 +2935,159 @@ async function moveTaskToRespire(id) {
   }
 }
 
+function openClarifyNotesPicker(action = "task") {
+  if (!el.clarifyNotesDialog) {
+    switchView("notes");
+    return;
+  }
+  currentClarifyNoteAction = action;
+  currentClarifyNoteFilter = action === "waiting" ? "waiting" : "active";
+  renderClarifyNotesPicker();
+  el.clarifyNotesDialog.showModal();
+}
+
+function renderClarifyNotesPicker() {
+  if (!el.clarifyNotesList || !el.clarifyNotesTabs) return;
+  el.clarifyNotesTabs.querySelectorAll("[data-clarify-filter]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.clarifyFilter === currentClarifyNoteFilter);
+  });
+
+  const notes = getClarifyNoteCandidates(currentClarifyNoteFilter);
+  if (!notes.length) {
+    el.clarifyNotesList.innerHTML = emptyState("Aucune note dans cette categorie.");
+    return;
+  }
+
+  el.clarifyNotesList.innerHTML = notes.map(clarifyNoteCard).join("");
+  el.clarifyNotesList.querySelectorAll("[data-clarify-note-action]").forEach((button) => {
+    button.addEventListener("click", () => handleClarifyNoteAction(button.dataset.clarifyNoteId, button.dataset.clarifyNoteAction));
+  });
+}
+
+function getClarifyNoteCandidates(filter = "active") {
+  return [...(state.notes || [])]
+    .filter((note) => {
+      const category = normalizeText(note.category || "");
+      const haystack = normalizeText(`${note.title || ""} ${note.body || ""} ${note.category || ""}`);
+      if (filter === "all") return true;
+      if (filter === "ideas") return haystack.includes("idee") || category.includes("pensee");
+      if (filter === "waiting") return category.includes("attente");
+      if (filter === "kept") return category.includes("gardee") || category.includes("ressource");
+      if (filter === "archive") return category.includes("archive");
+      return !category.includes("archive") && !category.includes("attente") && note.category !== "Traitement IA";
+    })
+    .sort((a, b) => String(b.updatedAt || b.createdAt || "").localeCompare(String(a.updatedAt || a.createdAt || "")));
+}
+
+function clarifyNoteCard(note) {
+  const body = String(note.body || "").replace(/\s+/g, " ").trim();
+  const excerpt = body.length > 150 ? `${body.slice(0, 147)}...` : body;
+  const suggested = suggestNoteDestination(note);
+  return `
+    <article class="clarify-note-card">
+      <div class="card-top">
+        <div>
+          <p class="card-title">${escapeHTML(note.title || "Note sans titre")}</p>
+          <p class="card-meta">Classement actuel : ${escapeHTML(note.category || "A clarifier")}</p>
+        </div>
+        <span class="source-pill">${escapeHTML(suggested)}</span>
+      </div>
+      ${excerpt ? `<p class="card-meta">${escapeHTML(excerpt)}</p>` : ""}
+      <div class="clarify-routing">
+        <span>Destination</span>
+        <b>${escapeHTML(suggested)}</b>
+      </div>
+      <div class="card-actions clarify-note-actions">
+        <button class="item-action item-action-primary" type="button" data-clarify-note-id="${escapeHTML(note.id)}" data-clarify-note-action="task">Tache Respire</button>
+        <button class="item-action" type="button" data-clarify-note-id="${escapeHTML(note.id)}" data-clarify-note-action="plan">Planifier</button>
+        <button class="item-action" type="button" data-clarify-note-id="${escapeHTML(note.id)}" data-clarify-note-action="fernand">Fernand</button>
+        <button class="item-action" type="button" data-clarify-note-id="${escapeHTML(note.id)}" data-clarify-note-action="organisation">Paulo</button>
+        <button class="item-action" type="button" data-clarify-note-id="${escapeHTML(note.id)}" data-clarify-note-action="secretaire">Suzette</button>
+        <button class="item-action" type="button" data-clarify-note-id="${escapeHTML(note.id)}" data-clarify-note-action="commercial">Gaspard</button>
+        <button class="item-action" type="button" data-clarify-note-id="${escapeHTML(note.id)}" data-clarify-note-action="kept">Garder</button>
+        <button class="item-action" type="button" data-clarify-note-id="${escapeHTML(note.id)}" data-clarify-note-action="waiting">Attente</button>
+        <button class="item-action" type="button" data-clarify-note-id="${escapeHTML(note.id)}" data-clarify-note-action="archive">Archive</button>
+        <button class="item-action" type="button" data-clarify-note-id="${escapeHTML(note.id)}" data-clarify-note-action="delete">Supprimer</button>
+      </div>
+    </article>
+  `;
+}
+
+function suggestNoteDestination(note) {
+  const text = normalizeText(`${note.title || ""} ${note.body || ""} ${note.category || ""}`);
+  if (/rdv|rendez|agenda|planifier|creneau|livraison|date/.test(text)) return "Agenda";
+  if (/mail|email|client|commande|devis|relance|facture/.test(text)) return "Suzette / Gaspard";
+  if (/stress|mental|routine|souffle|angoisse|inquietude/.test(text)) return "Paulo";
+  if (/idee|ressource|doc|document|garder/.test(text)) return "Note gardee";
+  return "Tache Respire";
+}
+
+async function handleClarifyNoteAction(id, action) {
+  const note = state.notes.find((item) => item.id === id);
+  if (!note) return;
+  if (action === "task") {
+    await clarifyNoteToRespireTask(note);
+    return;
+  }
+  if (action === "plan") {
+    markNoteCategory(id, "A planifier");
+    el.clarifyNotesDialog?.close();
+    openAgendaForm("", { title: note.title || makeQuickNoteTitle(note.body || ""), note });
+    return;
+  }
+  if (["fernand", "organisation", "secretaire", "commercial"].includes(action)) {
+    markNoteCategory(id, `Envoyee a ${getWorkerLabel(action)}`);
+    el.clarifyNotesDialog?.close();
+    await processNoteWithWorker(id, action);
+    return;
+  }
+  if (action === "kept") {
+    markNoteCategory(id, "Note gardee");
+    showToast("Note gardee.");
+    return;
+  }
+  if (action === "waiting") {
+    markNoteCategory(id, "En attente");
+    showToast("Note mise en attente.");
+    return;
+  }
+  if (action === "archive") {
+    markNoteCategory(id, "Archive");
+    showToast("Note archivee.");
+    return;
+  }
+  if (action === "delete") {
+    el.clarifyNotesDialog?.close();
+    deleteNote(id);
+  }
+}
+
+async function clarifyNoteToRespireTask(note) {
+  const saved = await saveTask({
+    title: note.title || makeQuickNoteTitle(note.body || ""),
+    status: "A faire",
+    priority: "Normale",
+    list: "Respire",
+    source: "Note",
+    due: "",
+    notes: note.body || "",
+  });
+  if (saved) {
+    markNoteCategory(note.id, "Archive - transformee en tache");
+    showToast("Note transformee en priorite Respire.");
+    renderClarifyNotesPicker();
+  }
+}
+
+function markNoteCategory(id, category) {
+  state.notes = state.notes.map((note) => note.id === id
+    ? { ...note, category, updatedAt: new Date().toISOString() }
+    : note
+  );
+  render();
+  renderClarifyNotesPicker();
+}
+
 function closeTaskForm() {
   document.querySelector("#taskForm").reset();
   el.taskEditId.value = "";
@@ -2989,10 +3153,10 @@ async function deleteTask(id) {
   render();
 }
 
-function openAgendaForm(id = "") {
+function openAgendaForm(id = "", options = {}) {
   const event = id ? (state.agenda || []).find((item) => item.id === id) : null;
   el.agendaEditId.value = event?.id || "";
-  el.agendaTitle.value = event?.title || "";
+  el.agendaTitle.value = event?.title || options.title || "";
   el.agendaDate.value = event?.date || todayISO();
   el.agendaTime.value = /^\d{2}:\d{2}$/.test(event?.time || "") ? event.time : "";
   el.agendaDialogTitle.textContent = event ? "Modifier l'evenement" : "Ajouter un evenement";

@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=liberer-1" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="styles.css?v=respire-priority-1" />
+    <link rel="stylesheet" href="styles.css?v=respire-clarify-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -1271,6 +1271,28 @@
       </form>
     </dialog>
 
+    <dialog class="assistant-dialog clarify-notes-dialog" id="clarifyNotesDialog">
+      <form method="dialog" class="dialog-card clarify-notes-dialog-card">
+        <div class="dialog-header">
+          <div>
+            <p class="section-kicker">Respire</p>
+            <h2>Clarifier les notes</h2>
+          </div>
+          <button class="icon-button" value="cancel" aria-label="Fermer" type="submit">x</button>
+        </div>
+        <p class="connection-hint">Choisis une note, puis sa destination : tache Respire, agenda, assistant, attente, archive ou suppression.</p>
+        <div class="respire-priority-tabs clarify-notes-tabs" id="clarifyNotesTabs" aria-label="Filtrer les notes">
+          <button class="is-active" type="button" data-clarify-filter="active">A clarifier</button>
+          <button type="button" data-clarify-filter="ideas">Idees</button>
+          <button type="button" data-clarify-filter="waiting">Attente</button>
+          <button type="button" data-clarify-filter="kept">Gardees</button>
+          <button type="button" data-clarify-filter="archive">Archives</button>
+          <button type="button" data-clarify-filter="all">Tout</button>
+        </div>
+        <div class="clarify-notes-list" id="clarifyNotesList"></div>
+      </form>
+    </dialog>
+
     <dialog class="assistant-dialog" id="respirePriorityDialog">
       <form method="dialog" class="dialog-card respire-priority-dialog-card">
         <div class="dialog-header">
@@ -1382,7 +1404,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=respire-priority-1"></script>
+    <script src="app.js?v=respire-clarify-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

@@ -11,6 +11,7 @@ const WORKERS = [
   { key: "secretaire", label: "Suzette", description: "Emails, dossiers, echeances" },
   { key: "commercial", label: "Gaspard", description: "Clients, relances, Baqio" },
 ];
+const FLOW_PAGE_ORDER = ["dashboard", "organization", "inspire", "expire", "vivre", "tasks", "inbox", "notes"];
 const DAILY_ZEN_PHRASES = [
   "Une chose claire vaut mieux que dix urgences bruyantes.",
   "On avance mieux quand la journee respire.",
@@ -427,6 +428,8 @@ function bindEvents() {
   document.querySelectorAll("[data-open-task-form]").forEach((button) => {
     button.addEventListener("click", () => openTaskForm());
   });
+  bindFunctionalPages();
+  bindSwipeNavigation();
 }
 
 function render() {
@@ -451,6 +454,7 @@ function render() {
   renderRequests();
   renderLists();
   renderNotes();
+  renderFlowPages();
   renderMemory();
   renderBrandingSettings();
   renderAgentInstructions();
@@ -488,6 +492,400 @@ function renderDailyZen() {
   const dayKey = Number(new Intl.DateTimeFormat("fr-FR", { day: "numeric" }).format(new Date())) || 1;
   const index = (dayKey - 1) % phrases.length;
   el.dailyZen.textContent = phrases[index];
+}
+
+function bindFunctionalPages() {
+  const openTaskView = (filter = "all") => {
+    currentTaskFilter = filter;
+    document.querySelectorAll("[data-task-filter]").forEach((button) => {
+      button.classList.toggle("is-active", button.dataset.taskFilter === filter);
+    });
+    switchView("tasks");
+    renderTasks();
+  };
+
+  document.querySelector(".respire-note-box")?.addEventListener("click", openQuickNote);
+  document.querySelector(".respire-bell")?.addEventListener("click", () => {
+    openAssistantWithText("@organisation Organise ma journee avec mes taches en retard, mon agenda et une routine courte.", "quick");
+  });
+  document.querySelector(".respire-petal-do .respire-link-button")?.addEventListener("click", () => openTaskForm());
+  document.querySelector(".respire-petal-keep .respire-link-button")?.addEventListener("click", () => switchView("notes"));
+  document.querySelectorAll(".respire-folder-list button").forEach((button) => {
+    button.addEventListener("click", () => switchView("notes"));
+  });
+  document.querySelectorAll(".respire-action-list button").forEach((button, index) => {
+    button.addEventListener("click", () => {
+      if (index === 0) openTaskForm();
+      if (index === 1) openAgendaForm();
+      if (index === 2) openAssistantWithText("@organisation Aide-moi a deleguer ou repartir cette action.", "quick");
+      if (index === 3) openTaskView("late");
+      if (index === 4) switchView("inbox");
+    });
+  });
+  document.querySelectorAll(".respire-ai-actions button").forEach((button, index) => {
+    const prompts = [
+      "@organisation Organise ma journee avec les vraies taches, les rendez-vous et les reports d'hier.",
+      "@organisation Trouve-moi un creneau calme aujourd'hui.",
+      "@organisation Aide-moi a alleger ma journee sans perdre l'essentiel.",
+      "@organisation Cree-moi une pause utile dans la journee.",
+    ];
+    button.addEventListener("click", () => openAssistantWithText(prompts[index] || prompts[0], "quick"));
+  });
+
+  document.querySelector(".inspire-mail-card")?.addEventListener("click", () => switchView("inbox"));
+  document.querySelector(".inspire-orders-card")?.addEventListener("click", () => switchView("commercial"));
+  document.querySelector(".inspire-business-card")?.addEventListener("click", () => switchView("commercial"));
+  document.querySelector(".inspire-revenue-card")?.addEventListener("click", () => switchView("commercial"));
+  document.querySelector(".inspire-muriel")?.addEventListener("click", () => {
+    openAssistantWithText("@commercial Fais le point sur les commandes, les clients a relancer et les priorites commerciales.", "quick");
+  });
+  document.querySelectorAll(".inspire-quick-actions button").forEach((button, index) => {
+    const prompts = [
+      "@secretaire Prepare un brouillon d'email. Demande-moi le contexte si necessaire.",
+      "@commercial Prepare les elements pour creer un devis.",
+      "@commercial Aide-moi a suivre une nouvelle commande.",
+      "@commercial Propose les relances clients prioritaires.",
+    ];
+    button.addEventListener("click", () => openAssistantWithText(prompts[index] || prompts[0], "quick"));
+  });
+
+  document.querySelector(".expire-payables-panel .expire-panel-header button")?.addEventListener("click", () => openTaskView("late"));
+  document.querySelectorAll(".expire-actions button").forEach((button, index) => {
+    button.addEventListener("click", () => {
+      if (index === 0) openQuickNote();
+      if (index === 1) openAgendaForm();
+      if (index === 2) openTaskView("today");
+      if (index === 3) openAssistantWithText("@secretaire Priorise les sorties, echeances et points comptables a traiter.", "quick");
+    });
+  });
+
+  document.querySelector(".vivre-assistant")?.addEventListener("click", () => {
+    openAssistantWithText("@fernand Aide-moi a alleger le quotidien personnel et a garder les objectifs visibles.", "quick");
+  });
+  document.querySelector(".vivre-grocery-card")?.addEventListener("click", () => openTaskView("all"));
+  document.querySelector(".vivre-home-card")?.addEventListener("click", () => openTaskView("all"));
+  document.querySelector(".vivre-personal-card")?.addEventListener("click", () => switchView("notes"));
+  document.querySelector(".vivre-goals-card")?.addEventListener("click", () => switchView("notes"));
+  document.querySelectorAll(".vivre-actions button").forEach((button, index) => {
+    button.addEventListener("click", () => {
+      if (index === 0) openQuickNoteWithText("Courses : ");
+      if (index === 1) openTaskForm();
+      if (index === 2) openQuickNoteWithText("Idee perso : ");
+      if (index === 3) openQuickNoteWithText("Objectif : ");
+    });
+  });
+}
+
+function bindSwipeNavigation() {
+  const workspace = document.querySelector(".workspace");
+  if (!workspace) return;
+  let startX = 0;
+  let startY = 0;
+  workspace.addEventListener("touchstart", (event) => {
+    if (event.touches.length !== 1 || isInteractiveSwipeTarget(event.target)) return;
+    startX = event.touches[0].clientX;
+    startY = event.touches[0].clientY;
+  }, { passive: true });
+  workspace.addEventListener("touchend", (event) => {
+    if (!startX || !event.changedTouches.length || window.innerWidth > 1180) return;
+    if (document.querySelector("dialog[open]")) return;
+    const deltaX = event.changedTouches[0].clientX - startX;
+    const deltaY = event.changedTouches[0].clientY - startY;
+    startX = 0;
+    startY = 0;
+    if (Math.abs(deltaX) < 70 || Math.abs(deltaX) < Math.abs(deltaY) * 1.4) return;
+    const current = document.body.dataset.activeView || "dashboard";
+    const index = FLOW_PAGE_ORDER.indexOf(current);
+    if (index < 0) return;
+    const nextIndex = deltaX < 0
+      ? Math.min(FLOW_PAGE_ORDER.length - 1, index + 1)
+      : Math.max(0, index - 1);
+    if (nextIndex !== index) switchView(FLOW_PAGE_ORDER[nextIndex]);
+  }, { passive: true });
+}
+
+function isInteractiveSwipeTarget(target) {
+  return Boolean(target?.closest?.("button, a, input, textarea, select, dialog, .assistant-dialog"));
+}
+
+function openAssistantWithText(text = "", mode = "quick") {
+  setAssistantMode(mode);
+  openAssistant();
+  el.assistantText.value = text;
+  updateAssistantPreview();
+}
+
+function openQuickNoteWithText(text = "") {
+  openQuickNote();
+  el.quickNoteText.value = text;
+  el.quickNoteText.setSelectionRange(text.length, text.length);
+}
+
+function renderFlowPages() {
+  renderRespirePage();
+  renderInspirePage();
+  renderExpirePage();
+  renderVivrePage();
+}
+
+function renderRespirePage() {
+  const priorities = getPriorityTasks(3);
+  const priorityList = document.querySelector(".respire-priority-list");
+  if (priorityList) {
+    priorityList.innerHTML = priorities.length
+      ? priorities.map((task, index) => `
+          <li>
+            <b>${String(index + 1).padStart(2, "0")}</b>
+            <span>${escapeHTML(task.title)}</span>
+            <em>${escapeHTML(priorityShortLabel(task.priority))}</em>
+          </li>
+        `).join("")
+      : `<li><b>01</b><span>Aucune priorite immediate</span><em>Calme</em></li>`;
+  }
+
+  const timeline = document.querySelector(".respire-timeline");
+  const planningItems = getPlanningItems().slice(0, 5);
+  if (timeline) {
+    timeline.innerHTML = planningItems.length
+      ? planningItems.map((item) => `
+          <article class="respire-agenda-item ${item.type === "event" ? "is-meeting" : "is-task"}">
+            <time>${escapeHTML(item.time || formatDate(item.dateKey))}</time>
+            <div><strong>${escapeHTML(item.title)}</strong><span>${escapeHTML(item.meta || "")}</span></div>
+          </article>
+        `).join("")
+      : `<article class="respire-agenda-item is-pause"><time>Aujourd'hui</time><div><strong>Journee libre</strong><span>Aucun rendez-vous synchronise.</span></div></article>`;
+  }
+
+  const folders = document.querySelectorAll(".respire-folder-list button");
+  const noteCount = state.notes.length;
+  const ideaCount = state.notes.filter((note) => /idee|idée/i.test(`${note.category || ""} ${note.title || ""}`)).length;
+  const resourceCount = state.notes.filter((note) => /ressource|doc|drive|document/i.test(`${note.category || ""} ${note.title || ""}`)).length;
+  const archivedCount = state.notes.filter((note) => /archive/i.test(`${note.category || ""} ${note.title || ""}`)).length;
+  [noteCount, ideaCount, resourceCount, archivedCount].forEach((count, index) => {
+    const badge = folders[index]?.querySelector("b");
+    if (badge) badge.textContent = count;
+  });
+
+  const load = computeDayLoad();
+  const loadStrong = document.querySelector(".respire-day-panel article:nth-child(3) strong");
+  const loadText = document.querySelector(".respire-day-panel article:nth-child(3) p");
+  const gauge = document.querySelector(".respire-gauge b");
+  const headerScore = document.querySelector(".respire-agenda-header strong");
+  if (gauge) gauge.textContent = `${load.score}/10`;
+  if (headerScore) headerScore.textContent = `${load.score}/10`;
+  if (loadStrong) loadStrong.textContent = load.label;
+  if (loadText) loadText.textContent = `${load.todayTasks} tache(s) aujourd'hui, ${load.lateTasks} en retard, ${load.agendaItems} element(s) agenda.`;
+}
+
+function renderInspirePage() {
+  const unread = state.mail.filter((mail) => mail.unread).length;
+  const activeOrders = (state.orderPipeline || []).filter((order) => order.status !== "Expedie");
+  const readyOrders = activeOrders.filter((order) => order.status === "Prete pour expedition").length;
+  const deliveryOrders = activeOrders.filter((order) => order.status === "En livraison").length;
+  const summary = state.baqio?.summary || {};
+  const opportunities = summary.opportunities || [];
+
+  setMetric(".inspire-mail-card .inspire-main-metric strong", state.mail.length);
+  setText(".inspire-mail-card .inspire-main-metric span", "email(s)");
+  setStatGrid(".inspire-mail-card .inspire-stat-grid", [
+    [unread, "non lus"],
+    [state.mail.filter((mail) => /commande|client|urgent|devis/i.test(`${mail.title} ${mail.detail || ""}`)).length, "importants"],
+    [state.mail.filter((mail) => /repond|répond|reply/i.test(`${mail.title} ${mail.detail || ""}`)).length, "a repondre"],
+    [state.mail.filter((mail) => /fournisseur|facture|paiement/i.test(`${mail.title} ${mail.detail || ""}`)).length, "admin"],
+  ]);
+
+  setMetric(".inspire-orders-card .inspire-main-metric strong", activeOrders.length);
+  setText(".inspire-orders-card .inspire-main-metric span", "en cours");
+  setProgressList(".inspire-orders-card .inspire-progress-list", [
+    [activeOrders.filter((order) => order.status === "En commande").length, "a preparer"],
+    [readyOrders, "pretes a expedier"],
+    [deliveryOrders, "en livraison"],
+  ]);
+
+  setMetric(".inspire-business-card .inspire-main-metric strong", opportunities.length);
+  setText(".inspire-business-card .inspire-main-metric span", "opportunite(s)");
+  setProgressList(".inspire-business-card .inspire-progress-list", [
+    [summary.proCount || 0, "clients pro"],
+    [summary.individualCount || 0, "particuliers"],
+    [summary.orderCount || 0, "commandes Baqio"],
+  ]);
+
+  setMetric(".inspire-revenue-card .inspire-main-metric strong", formatEuroCents(summary.totalRevenueCents || 0));
+  setText(".inspire-revenue-card .inspire-main-metric span", "CA echantillon");
+  setStatGrid(".inspire-revenue-card .inspire-stat-grid", [
+    [formatEuroCents(summary.averageOrderCents || 0), "panier moyen"],
+    [summary.orderCount || 0, "commandes"],
+  ]);
+
+  const todayPanel = document.querySelectorAll(".inspire-today-panel article");
+  updateMiniPanel(todayPanel[0], formatEuroCents(summary.totalRevenueCents || 0), "CA echantillon Baqio");
+  updateMiniPanel(todayPanel[1], activeOrders.length, `${readyOrders} prete(s) a expedier`);
+  updateMiniPanel(todayPanel[2], opportunities.length, "opportunites a soigner");
+  updateMiniPanel(todayPanel[3], state.mail.length, `${unread} non lu(s)`);
+}
+
+function renderExpirePage() {
+  const debtTasks = state.tasks
+    .filter((task) => task.status !== "Termine")
+    .filter((task) => taskListName(task) === "Dettes" || /facture|payer|reglement|règlement|echeance|échéance|tva|urssaf|impot|impôt/i.test(`${task.title} ${task.notes || ""}`))
+    .sort(sortTasksForFocus)
+    .slice(0, 6);
+  const today = todayISO();
+  const weekLimit = addDaysISO(7);
+  const dueToday = debtTasks.filter((task) => task.due && task.due <= today).length;
+  const dueWeek = debtTasks.filter((task) => task.due && task.due <= weekLimit).length;
+  const urgent = debtTasks.filter((task) => task.priority === "Urgente" || (task.due && task.due < today)).length;
+
+  const summaryCards = document.querySelectorAll(".expire-summary article");
+  updateSummaryCard(summaryCards[0], dueToday, "creance(s) a traiter", "A payer aujourd'hui");
+  updateSummaryCard(summaryCards[1], dueWeek, "echeance(s) a 7 jours", "Cette semaine");
+  updateSummaryCard(summaryCards[2], state.tasks.filter((task) => taskListName(task) === "Dettes" && task.status !== "Termine").length, "tache(s) Dettes ouvertes", "Suivi dettes");
+  updateSummaryCard(summaryCards[3], urgent, "a regarder sans attendre", "Urgences");
+
+  const list = document.querySelector(".expire-payables-list");
+  if (list) {
+    list.innerHTML = debtTasks.length
+      ? debtTasks.map((task) => `
+          <article class="expire-payable ${getDueClass(task) === "is-late" ? "is-urgent" : task.priority === "Importante" ? "is-important" : "is-planned"}">
+            <time>${escapeHTML(task.due ? formatDate(task.due) : "Sans date")}</time>
+            <div><strong>${escapeHTML(task.title)}</strong><span>${escapeHTML(task.notes || task.source || "Tache")}</span></div>
+            <b>${escapeHTML(extractMoneyLabel(`${task.title} ${task.notes || ""}`) || "")}</b>
+            <em>${escapeHTML(task.priority || "Normal")}</em>
+          </article>
+        `).join("")
+      : `<article class="expire-payable is-fixed"><time>Calme</time><div><strong>Aucune sortie urgente</strong><span>Les taches Dettes alimenteront cette liste.</span></div><b></b><em>OK</em></article>`;
+  }
+
+  const kpis = document.querySelectorAll(".expire-mini-kpis article");
+  updateMiniPanel(kpis[0], debtTasks.length, "echeances suivies");
+  updateMiniPanel(kpis[1], state.mail.filter((mail) => /facture|compta|paiement/i.test(`${mail.title} ${mail.detail || ""}`)).length, "emails compta");
+  updateMiniPanel(kpis[2], urgent, "urgences");
+}
+
+function renderVivrePage() {
+  const personalTasks = state.tasks
+    .filter((task) => task.status !== "Termine" && taskListName(task) === "divers et perso")
+    .sort(sortTasksForFocus);
+  const groceryTasks = personalTasks.filter((task) => /course|courses|acheter|pain|cafe|café|lessive|dentifrice/i.test(`${task.title} ${task.notes || ""}`));
+  const homeTasks = personalTasks.filter((task) => /maison|ranger|machine|linge|arroser|menage|ménage|poubelle|verre/i.test(`${task.title} ${task.notes || ""}`));
+  const personalNotes = state.notes.filter((note) => /perso|idee|idée|famille|objectif/i.test(`${note.category || ""} ${note.title || ""} ${note.body || ""}`));
+  const goalNotes = personalNotes.filter((note) => /objectif|budget|vacance|cadeau|projet|envie/i.test(`${note.title || ""} ${note.body || ""}`));
+
+  const groceryList = document.querySelector(".vivre-check-list");
+  if (groceryList) {
+    const items = (groceryTasks.length ? groceryTasks : personalTasks).slice(0, 5);
+    groceryList.innerHTML = items.length
+      ? items.map((task) => `<label><input type="checkbox" ${task.status === "Termine" ? "checked" : ""} data-vivre-task="${escapeHTML(task.id)}" /> ${escapeHTML(task.title)}</label>`).join("")
+      : `<label><input type="checkbox" /> Ajouter une liste de courses</label>`;
+    groceryList.querySelectorAll("[data-vivre-task]").forEach((input) => {
+      input.addEventListener("click", (event) => event.stopPropagation());
+      input.addEventListener("change", () => completeTask(input.dataset.vivreTask));
+    });
+  }
+
+  const homeList = document.querySelector(".vivre-soft-list");
+  if (homeList) {
+    const items = (homeTasks.length ? homeTasks : personalTasks).slice(0, 4);
+    homeList.innerHTML = items.length
+      ? items.map((task) => `<span><b>${escapeHTML(task.title)}</b><em>${escapeHTML(task.due ? formatDate(task.due) : "souple")}</em></span>`).join("")
+      : `<span><b>Aucun geste maison</b><em>souple</em></span>`;
+  }
+
+  const noteList = document.querySelector(".vivre-note-list");
+  if (noteList) {
+    noteList.innerHTML = personalNotes.length
+      ? personalNotes.slice(0, 4).map((note) => `<span><b>${escapeHTML(note.category || "Note")}</b> ${escapeHTML(note.title)}</span>`).join("")
+      : `<span><b>Note</b> Les idees perso apparaitront ici.</span>`;
+  }
+
+  const goalList = document.querySelector(".vivre-goal-list");
+  if (goalList) {
+    goalList.innerHTML = (goalNotes.length ? goalNotes : personalNotes).slice(0, 4).map((note, index) => {
+      const progress = [25, 40, 55, 70][index] || 20;
+      return `<article><span>${escapeHTML(note.title)}</span><b>${escapeHTML(note.category || "objectif")}</b><i style="--p: ${progress}%"></i></article>`;
+    }).join("") || `<article><span>Creer un objectif</span><b>note perso</b><i style="--p: 0%"></i></article>`;
+  }
+
+  const todayPanel = document.querySelectorAll(".vivre-today-panel article");
+  updateMiniPanel(todayPanel[0], groceryTasks.length || personalTasks.length, "courses / perso");
+  updateMiniPanel(todayPanel[1], homeTasks.length, "gestes maison");
+  updateMiniPanel(todayPanel[2], personalNotes.length, "idees perso");
+  updateMiniPanel(todayPanel[3], goalNotes.length, "objectifs");
+}
+
+function getPriorityTasks(limit = 3) {
+  const today = todayISO();
+  return state.tasks
+    .filter((task) => task.status !== "Termine" && task.status !== "Inbox")
+    .sort((a, b) => {
+      const lateA = a.due && a.due < today ? 1 : 0;
+      const lateB = b.due && b.due < today ? 1 : 0;
+      if (lateA !== lateB) return lateB - lateA;
+      return sortTasksForFocus(a, b);
+    })
+    .slice(0, limit);
+}
+
+function priorityShortLabel(priority) {
+  if (priority === "Urgente") return "Urgent";
+  if (priority === "Importante") return "Essentiel";
+  if (priority === "Faible") return "Doux";
+  return "Utile";
+}
+
+function computeDayLoad() {
+  const today = todayISO();
+  const openTasks = state.tasks.filter((task) => task.status !== "Termine" && task.status !== "Inbox");
+  const todayTasks = openTasks.filter((task) => task.due === today).length;
+  const lateTasks = openTasks.filter((task) => task.due && task.due < today).length;
+  const agendaItems = getPlanningItems().filter((item) => item.dateKey === today).length;
+  const score = Math.max(1, Math.min(10, Math.round(2 + todayTasks * 0.9 + lateTasks * 1.3 + agendaItems * 0.8)));
+  const label = score >= 8 ? "Chargee" : score >= 5 ? "Moderee" : "Legere";
+  return { score, label, todayTasks, lateTasks, agendaItems };
+}
+
+function setMetric(selector, value) {
+  setText(selector, value);
+}
+
+function setText(selector, value) {
+  const node = document.querySelector(selector);
+  if (node) node.textContent = String(value);
+}
+
+function setStatGrid(selector, rows) {
+  const node = document.querySelector(selector);
+  if (!node) return;
+  node.innerHTML = rows.map(([value, label]) => `<span><b>${escapeHTML(String(value))}</b> ${escapeHTML(label)}</span>`).join("");
+}
+
+function setProgressList(selector, rows) {
+  const node = document.querySelector(selector);
+  if (!node) return;
+  node.innerHTML = rows.map(([value, label]) => `<span><b>${escapeHTML(String(value))}</b> ${escapeHTML(label)}</span>`).join("");
+}
+
+function updateMiniPanel(node, strong, text) {
+  if (!node) return;
+  const strongNode = node.querySelector("strong");
+  const textNode = node.querySelector("p, span:last-child");
+  if (strongNode) strongNode.textContent = String(strong);
+  if (textNode) textNode.textContent = String(text);
+}
+
+function updateSummaryCard(node, strong, text, label = "") {
+  if (!node) return;
+  const labelNode = node.querySelector("span");
+  const strongNode = node.querySelector("strong");
+  const textNode = node.querySelector("p");
+  if (labelNode && label) labelNode.textContent = label;
+  if (strongNode) strongNode.textContent = String(strong);
+  if (textNode) textNode.textContent = String(text);
+}
+
+function extractMoneyLabel(text) {
+  const match = String(text || "").match(/\b\d+(?:[.,]\d{1,2})?\s*(?:€|eur|euro|euros)\b/i);
+  return match ? match[0].replace(/eur(?:os?)?/i, "€") : "";
 }
 
 function readBranding() {

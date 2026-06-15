@@ -3196,7 +3196,9 @@ textarea {
 }
 
 .inspire-muriel strong {
+  font-size: 0.82rem;
   letter-spacing: 0.12em;
+  line-height: 1.22;
 }
 
 .inspire-muriel small {
@@ -4251,6 +4253,31 @@ textarea {
 
 .vivre-actions small {
   color: #7c716a;
+}
+
+.respire-note-box,
+.respire-petal-do,
+.respire-petal-keep,
+.inspire-card,
+.expire-panel-header button,
+.vivre-card,
+.vivre-assistant,
+.vivre-actions button {
+  cursor: pointer;
+}
+
+.respire-note-box:hover,
+.inspire-card:hover,
+.vivre-card:hover,
+.vivre-actions button:hover {
+  transform: translateY(-1px);
+}
+
+.respire-note-box,
+.inspire-card,
+.vivre-card,
+.vivre-actions button {
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
 }
 
 .vivre-footer-line {

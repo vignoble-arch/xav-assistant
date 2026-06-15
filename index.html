@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=liberer-1" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="styles.css?v=task-lists-1" />
+    <link rel="stylesheet" href="styles.css?v=respire-priority-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -1271,6 +1271,30 @@
       </form>
     </dialog>
 
+    <dialog class="assistant-dialog" id="respirePriorityDialog">
+      <form method="dialog" class="dialog-card respire-priority-dialog-card">
+        <div class="dialog-header">
+          <div>
+            <p class="section-kicker">Respire</p>
+            <h2>Ajouter une priorite</h2>
+          </div>
+          <button class="icon-button" value="cancel" aria-label="Fermer" type="submit">x</button>
+        </div>
+        <p class="connection-hint">Ecris une nouvelle priorite, ou choisis une tache existante a remonter dans Respire.</p>
+        <div class="dialog-actions">
+          <button class="assistant-button small" id="createRespirePriority" value="default" type="button">Ecrire une priorite</button>
+        </div>
+        <div class="respire-priority-tabs" id="respirePriorityTabs" aria-label="Source des taches">
+          <button class="is-active" type="button" data-priority-source="all">Tout</button>
+          <button type="button" data-priority-source="commandes">Inspire</button>
+          <button type="button" data-priority-source="Expire">Expire</button>
+          <button type="button" data-priority-source="Vivre">Vivre</button>
+          <button type="button" data-priority-source="board">Autres</button>
+        </div>
+        <div class="respire-priority-choice-list" id="respirePriorityList"></div>
+      </form>
+    </dialog>
+
     <dialog class="assistant-dialog" id="taskDialog">
       <form method="dialog" class="dialog-card" id="taskForm">
         <div class="dialog-header">
@@ -1358,7 +1382,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=task-lists-1"></script>
+    <script src="app.js?v=respire-priority-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

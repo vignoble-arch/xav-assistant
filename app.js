@@ -171,6 +171,7 @@ let autoRefreshTimer = null;
 let quickNoteRecognition = null;
 let quickNoteIsListening = false;
 let quickNoteFinalTranscript = "";
+let currentRespirePrioritySource = "all";
 let currentQuickNoteEditId = "";
 let currentMailMessage = null;
 let assistantThreadMessages = [];
@@ -305,6 +306,10 @@ const el = {
   mailSendStatus: document.querySelector("#mailSendStatus"),
   copyMailReply: document.querySelector("#copyMailReply"),
   sendMailReply: document.querySelector("#sendMailReply"),
+  respirePriorityDialog: document.querySelector("#respirePriorityDialog"),
+  respirePriorityTabs: document.querySelector("#respirePriorityTabs"),
+  respirePriorityList: document.querySelector("#respirePriorityList"),
+  createRespirePriority: document.querySelector("#createRespirePriority"),
   taskDialog: document.querySelector("#taskDialog"),
   taskEditId: document.querySelector("#taskEditId"),
   taskDialogTitle: document.querySelector("#taskDialogTitle"),
@@ -379,6 +384,13 @@ function bindEvents() {
   el.sendMailReply?.addEventListener("click", sendMailReply);
   el.mailDialog?.addEventListener("close", () => {
     currentMailMessage = null;
+  });
+  el.createRespirePriority?.addEventListener("click", createNewRespirePriority);
+  el.respirePriorityTabs?.querySelectorAll("[data-priority-source]").forEach((button) => {
+    button.addEventListener("click", () => {
+      currentRespirePrioritySource = button.dataset.prioritySource || "all";
+      renderRespirePriorityPicker();
+    });
   });
   el.refreshMorningBrief.addEventListener("click", loadMorningBrief);
   el.enableMorningNotification.addEventListener("click", toggleMorningNotification);
@@ -511,7 +523,7 @@ function bindFunctionalPages() {
   document.querySelector(".respire-bell")?.addEventListener("click", () => {
     openAssistantWithText("@organisation Organise ma journee avec mes taches en retard, mon agenda et une routine courte.", "quick");
   });
-  document.querySelector(".respire-petal-do .respire-link-button")?.addEventListener("click", () => openTaskForm());
+  document.querySelector(".respire-petal-do .respire-link-button")?.addEventListener("click", openRespirePriorityPicker);
   document.querySelector(".respire-petal-keep .respire-link-button")?.addEventListener("click", () => switchView("notes"));
   document.querySelectorAll(".respire-folder-list button").forEach((button) => {
     button.addEventListener("click", () => switchView("notes"));
@@ -2820,11 +2832,11 @@ function parseIntent(rawText) {
   return { type: "inbox", preview: "Intention ambigue : l'element sera conserve dans l'Inbox a trier." };
 }
 
-function openTaskForm(id = "") {
+function openTaskForm(id = "", options = {}) {
   const task = id ? state.tasks.find((item) => item.id === id) : null;
   el.taskEditId.value = task?.id || "";
   document.querySelector("#taskTitle").value = task?.title || "";
-  document.querySelector("#taskCategory").value = task ? taskListName(task) : "bureau";
+  document.querySelector("#taskCategory").value = task ? taskListName(task) : options.list || "bureau";
   document.querySelector("#taskPriority").value = task?.priority || "Normale";
   document.querySelector("#taskDue").value = task?.due || "";
   document.querySelector("#taskNotes").value = task?.notes || "";
@@ -2832,6 +2844,84 @@ function openTaskForm(id = "") {
   el.taskSubmitButton.textContent = task ? "Enregistrer" : "Ajouter";
   el.taskDialog.showModal();
   setTimeout(() => document.querySelector("#taskTitle").focus(), 0);
+}
+
+function openRespirePriorityPicker() {
+  if (!el.respirePriorityDialog) {
+    openTaskForm("", { list: "Respire" });
+    return;
+  }
+  currentRespirePrioritySource = "all";
+  renderRespirePriorityPicker();
+  el.respirePriorityDialog.showModal();
+}
+
+function createNewRespirePriority() {
+  el.respirePriorityDialog?.close();
+  openTaskForm("", { list: "Respire" });
+}
+
+function renderRespirePriorityPicker() {
+  if (!el.respirePriorityList || !el.respirePriorityTabs) return;
+  el.respirePriorityTabs.querySelectorAll("[data-priority-source]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.prioritySource === currentRespirePrioritySource);
+  });
+
+  const tasks = getRespirePriorityCandidates(currentRespirePrioritySource);
+  if (!tasks.length) {
+    el.respirePriorityList.innerHTML = emptyState("Aucune tache disponible dans cette categorie.");
+    return;
+  }
+
+  el.respirePriorityList.innerHTML = tasks.map((task) => `
+    <button class="respire-priority-choice" type="button" data-select-respire-task="${escapeHTML(task.id)}">
+      <span>
+        <strong>${escapeHTML(task.title)}</strong>
+        <small>${escapeHTML(respirePrioritySourceLabel(task))} - ${task.due ? formatDate(task.due) : "Sans echeance"}${task.notes ? ` - ${escapeHTML(task.notes)}` : ""}</small>
+      </span>
+      ${priorityTag(effectivePriority(task))}
+    </button>
+  `).join("");
+
+  el.respirePriorityList.querySelectorAll("[data-select-respire-task]").forEach((button) => {
+    button.addEventListener("click", () => moveTaskToRespire(button.dataset.selectRespireTask));
+  });
+}
+
+function getRespirePriorityCandidates(source = "all") {
+  return state.tasks
+    .filter((task) => task.status !== "Termine")
+    .filter((task) => taskListName(task) !== "Respire")
+    .filter((task) => {
+      const list = taskListName(task);
+      if (source === "all") return true;
+      if (source === "board") return !FLOW_TASK_LISTS.includes(list);
+      return list === source;
+    })
+    .sort(sortTasksForFocus);
+}
+
+function respirePrioritySourceLabel(task) {
+  const list = taskListName(task);
+  if (list === "commandes") return "Inspire";
+  if (list === "Expire") return "Expire";
+  if (list === "Vivre") return "Vivre";
+  return list;
+}
+
+async function moveTaskToRespire(id) {
+  const task = state.tasks.find((item) => item.id === id);
+  if (!task) return;
+  const saved = await saveTask({
+    ...task,
+    list: "Respire",
+    status: task.status === "Inbox" ? "A faire" : task.status,
+  });
+  if (saved) {
+    el.respirePriorityDialog?.close();
+    switchView("organization");
+    showToast("Tache ajoutee aux priorites Respire.");
+  }
 }
 
 function closeTaskForm() {

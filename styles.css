@@ -1662,6 +1662,85 @@ button:disabled {
   box-shadow: var(--shadow);
 }
 
+.respire-priority-dialog-card {
+  max-height: min(86vh, 760px);
+  grid-template-rows: auto auto auto auto minmax(180px, 1fr);
+}
+
+.respire-priority-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 0;
+  scrollbar-width: none;
+}
+
+.respire-priority-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.respire-priority-tabs button {
+  flex: 0 0 auto;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 13px;
+  color: var(--muted);
+  background: #fffdf8;
+  font-weight: 750;
+}
+
+.respire-priority-tabs button.is-active {
+  color: #fffdf8;
+  border-color: var(--green);
+  background: var(--green);
+}
+
+.respire-priority-choice-list {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  overflow: auto;
+  min-height: 180px;
+  padding-right: 2px;
+}
+
+.respire-priority-choice {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 64px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  color: var(--ink);
+  background: #fffdf8;
+  text-align: left;
+}
+
+.respire-priority-choice:hover {
+  border-color: rgba(85, 116, 100, 0.45);
+  background: var(--green-soft);
+}
+
+.respire-priority-choice span {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.respire-priority-choice strong {
+  font-size: 0.96rem;
+  line-height: 1.25;
+}
+
+.respire-priority-choice small {
+  color: var(--muted);
+  line-height: 1.35;
+}
+
 textarea {
   min-height: 132px;
   resize: vertical;

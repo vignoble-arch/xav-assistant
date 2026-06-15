@@ -223,6 +223,7 @@ const el = {
   taskSearch: document.querySelector("#taskSearch"),
   fullInbox: document.querySelector("#fullInbox"),
   notesGrid: document.querySelector("#notesGrid"),
+  noteSummary: document.querySelector("#noteSummary"),
   memorySummary: document.querySelector("#memorySummary"),
   memoryList: document.querySelector("#memoryList"),
   knowledgeUploadForm: document.querySelector("#knowledgeUploadForm"),
@@ -2160,9 +2161,27 @@ function renderLists() {
 }
 
 function renderNotes() {
+  renderNoteSummary();
   el.notesGrid.innerHTML = state.notes.length
     ? state.notes.map(noteCard).join("")
     : emptyState("Aucune note pour le moment.");
+}
+
+function renderNoteSummary() {
+  if (!el.noteSummary) return;
+  const notes = state.notes || [];
+  const countByCategory = (label) => notes.filter((note) => normalizeText(note.category || "") === normalizeText(label)).length;
+  const pending = notes.filter((note) => {
+    const category = normalizeText(note.category || "");
+    return !category || category === normalizeText("A clarifier");
+  }).length;
+  el.noteSummary.innerHTML = `
+    <article><strong>${pending}</strong><span>A clarifier</span></article>
+    <article><strong>${countByCategory("Tache")}</strong><span>Taches</span></article>
+    <article><strong>${countByCategory("Idee")}</strong><span>Idees</span></article>
+    <article><strong>${countByCategory("Courses")}</strong><span>Courses</span></article>
+    <article><strong>${notes.length}</strong><span>Total</span></article>
+  `;
 }
 
 function noteCard(note) {

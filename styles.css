@@ -1102,6 +1102,61 @@ button:disabled {
   padding: 18px;
 }
 
+.tasks-view,
+.notes-view {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 22px;
+  background:
+    linear-gradient(135deg, rgba(255, 253, 248, 0.92), rgba(246, 241, 232, 0.72)),
+    var(--surface);
+  box-shadow: 0 18px 44px rgba(52, 45, 35, 0.08);
+}
+
+.calm-view-header {
+  align-items: flex-start;
+  border: 1px solid rgba(112, 91, 68, 0.12);
+  border-radius: 18px;
+  padding: 18px;
+  background: rgba(255, 253, 248, 0.72);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.66);
+}
+
+.calm-view-header h2 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.5rem, 3vw, 2.3rem);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.calm-view-header .connection-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 430px;
+}
+
+.calm-view-header .connection-actions > * {
+  white-space: nowrap;
+}
+
+.view-subtitle {
+  max-width: 620px;
+  margin: 8px 0 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.flow-control-panel {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+  border: 1px solid rgba(112, 91, 68, 0.13);
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(255, 253, 248, 0.62);
+}
+
 .kanban {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1113,7 +1168,6 @@ button:disabled {
   display: grid;
   grid-template-columns: auto 220px minmax(220px, 1fr);
   gap: 10px;
-  margin-top: 18px;
   align-items: center;
 }
 
@@ -1122,16 +1176,16 @@ button:disabled {
   grid-template-columns: repeat(4, minmax(0, auto));
   gap: 4px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 999px;
   padding: 4px;
-  background: #f8f4ed;
+  background: rgba(255, 253, 248, 0.72);
 }
 
 .segmented-control button,
 .task-toolbar select,
 .task-toolbar input {
   min-height: 38px;
-  border-radius: 8px;
+  border-radius: 999px;
   border: 1px solid transparent;
   padding: 0 11px;
   color: var(--ink);
@@ -1145,7 +1199,7 @@ button:disabled {
 
 .segmented-control button.is-active {
   color: #fffdf8;
-  background: var(--blue);
+  background: var(--green);
 }
 
 .task-toolbar select,
@@ -1159,26 +1213,29 @@ button:disabled {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
-  margin-top: 14px;
+  margin-top: 0;
 }
 
 .task-summary article,
-.memory-summary article {
+.memory-summary article,
+.note-summary article {
   border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 12px;
-  background: #f8f4ed;
+  border-radius: 16px;
+  padding: 14px;
+  background: rgba(255, 253, 248, 0.76);
 }
 
 .task-summary strong,
-.memory-summary strong {
+.memory-summary strong,
+.note-summary strong {
   display: block;
   font-size: 1.35rem;
   line-height: 1;
 }
 
 .task-summary span,
-.memory-summary span {
+.memory-summary span,
+.note-summary span {
   display: block;
   margin-top: 5px;
   color: var(--muted);
@@ -1560,9 +1617,10 @@ button:disabled {
 }
 
 .task-section {
-  border-radius: 8px;
-  padding: 12px;
-  background: #f8f4ed;
+  border: 1px solid rgba(112, 91, 68, 0.12);
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(255, 253, 248, 0.58);
 }
 
 .task-section h3 {
@@ -1570,21 +1628,70 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
+  color: #4d493f;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.task-card {
+  position: relative;
+  border-radius: 16px;
+  padding: 14px;
+  background: rgba(255, 253, 248, 0.86);
+  box-shadow: 0 12px 28px rgba(52, 45, 35, 0.06);
+}
+
+.task-card::before {
+  position: absolute;
+  inset: 12px auto 12px 0;
+  width: 4px;
+  content: "";
+  border-radius: 0 999px 999px 0;
+  background: var(--green);
 }
 
 .task-card.is-late {
-  border-color: #e4b5ae;
+  border-color: rgba(157, 77, 71, 0.28);
   background: #fff9f8;
 }
 
+.task-card.is-late::before {
+  background: var(--red);
+}
+
 .task-card.is-today {
-  border-color: #d6c08f;
+  border-color: rgba(165, 109, 40, 0.26);
   background: #fffaf0;
 }
 
+.task-card.is-today::before {
+  background: var(--amber);
+}
+
 .task-card.is-soon {
-  border-color: #e5c2a1;
+  border-color: rgba(165, 109, 40, 0.2);
   background: #fff8ef;
+}
+
+.task-card .card-title,
+.note-card .card-title,
+.note-card h3 {
+  font-size: 1rem;
+}
+
+.task-card .card-meta {
+  padding-left: 2px;
+}
+
+.late-task-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  border-radius: 12px;
+  padding: 8px;
+  background: rgba(157, 77, 71, 0.08);
 }
 
 .notes-grid,
@@ -1593,6 +1700,41 @@ button:disabled {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
   margin-top: 18px;
+}
+
+.note-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.notes-grid {
+  align-items: start;
+}
+
+.note-card {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  border-radius: 18px;
+  padding: 15px;
+  background:
+    linear-gradient(180deg, rgba(255, 253, 248, 0.94), rgba(250, 246, 238, 0.94)),
+    var(--surface-strong);
+  box-shadow: 0 14px 34px rgba(52, 45, 35, 0.07);
+}
+
+.note-card::after {
+  position: absolute;
+  right: 14px;
+  bottom: 12px;
+  width: 36px;
+  height: 28px;
+  content: "";
+  border-right: 1px solid rgba(112, 91, 68, 0.16);
+  border-bottom: 1px solid rgba(112, 91, 68, 0.16);
+  border-radius: 0 0 14px;
 }
 
 .note-card p,
@@ -1608,6 +1750,14 @@ button:disabled {
   white-space: pre-line;
 }
 
+.note-body {
+  max-height: 260px;
+  overflow: auto;
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(246, 241, 232, 0.56);
+}
+
 .note-actions {
   padding-top: 10px;
   border-top: 1px solid var(--line);
@@ -1619,6 +1769,13 @@ button:disabled {
   gap: 16px;
   align-items: center;
   margin-top: 16px;
+}
+
+.note-install-panel {
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(231, 239, 233, 0.84), rgba(255, 253, 248, 0.9)),
+    var(--surface-strong);
 }
 
 .liberer-install-panel h2 {
@@ -4739,8 +4896,18 @@ body[data-active-view="vivre"] .quick-capture {
 
   .task-toolbar,
   .task-summary,
+  .note-summary,
   .kanban {
     grid-template-columns: 1fr;
+  }
+
+  .calm-view-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .calm-view-header .connection-actions {
+    max-width: none;
   }
 
   .segmented-control {

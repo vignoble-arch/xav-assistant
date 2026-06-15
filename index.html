@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=liberer-1" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="styles.css?v=note-types-1" />
+    <link rel="stylesheet" href="styles.css?v=task-notes-ui-2" />
   </head>
   <body>
     <div class="app-shell">
@@ -748,25 +748,28 @@
           <div class="request-list" id="requestList"></div>
         </section>
 
-        <section class="management-view" data-panel="tasks" hidden>
-          <div class="view-header">
+        <section class="management-view tasks-view" data-panel="tasks" hidden>
+          <div class="view-header calm-view-header">
             <div>
               <p class="section-kicker">Pilotage</p>
               <h2>Taches du jour</h2>
+              <p class="view-subtitle">Un espace pour voir ce qui compte, rattraper ce qui traine et avancer sans bruit.</p>
             </div>
             <button class="assistant-button small" type="button" data-open-task-form>Ajouter une tache</button>
           </div>
-          <div class="task-toolbar">
-            <div class="segmented-control" aria-label="Filtre temporel des taches">
-              <button type="button" data-task-filter="today">Aujourd'hui</button>
-              <button type="button" data-task-filter="late">En retard</button>
-              <button type="button" data-task-filter="nodate">Sans date</button>
-              <button class="is-active" type="button" data-task-filter="all">Tout</button>
+          <section class="flow-control-panel">
+            <div class="task-toolbar">
+              <div class="segmented-control" aria-label="Filtre temporel des taches">
+                <button type="button" data-task-filter="today">Aujourd'hui</button>
+                <button type="button" data-task-filter="late">En retard</button>
+                <button type="button" data-task-filter="nodate">Sans date</button>
+                <button class="is-active" type="button" data-task-filter="all">Tout</button>
+              </div>
+              <select id="taskListFilter" aria-label="Filtrer par liste"></select>
+              <input id="taskSearch" type="search" placeholder="Rechercher une tache..." autocomplete="off" />
             </div>
-            <select id="taskListFilter" aria-label="Filtrer par liste"></select>
-            <input id="taskSearch" type="search" placeholder="Rechercher une tache..." autocomplete="off" />
-          </div>
-          <div class="task-summary" id="taskSummary"></div>
+            <div class="task-summary" id="taskSummary"></div>
+          </section>
           <p class="task-filter-note" id="taskFilterNote"></p>
           <div class="kanban" id="taskBoard"></div>
         </section>
@@ -886,11 +889,12 @@
           </section>
         </section>
 
-        <section class="management-view" data-panel="notes" hidden>
-          <div class="view-header">
+        <section class="management-view notes-view" data-panel="notes" hidden>
+          <div class="view-header calm-view-header">
             <div>
               <p class="section-kicker">Memoire courte</p>
               <h2>Notes</h2>
+              <p class="view-subtitle">Deposer vite, classer juste, puis transformer seulement ce qui doit devenir une action.</p>
             </div>
             <div class="connection-actions">
               <a class="ghost-button link-button" href="/quick-note.html" target="_blank" rel="noopener">Ouvrir Liberer</a>
@@ -898,7 +902,8 @@
               <button class="assistant-button small" type="button" id="addNote">Note rapide</button>
             </div>
           </div>
-          <section class="panel liberer-install-panel">
+          <div class="note-summary" id="noteSummary"></div>
+          <section class="panel liberer-install-panel note-install-panel">
             <div>
               <p class="section-kicker">Liberer</p>
               <h2>Installer la prise de note rapide</h2>
@@ -1419,7 +1424,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=note-types-1"></script>
+    <script src="app.js?v=task-notes-ui-2"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

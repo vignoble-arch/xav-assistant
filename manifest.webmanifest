@@ -10,9 +10,9 @@
   "orientation": "any",
   "shortcuts": [
     {
-      "name": "Note rapide",
-      "short_name": "Note",
-      "description": "Dicter ou ecrire une note rapide.",
+      "name": "Liberer",
+      "short_name": "Liberer",
+      "description": "Dicter ou ecrire pour vider la tete rapidement.",
       "url": "/quick-note.html",
       "icons": [
         {

@@ -46,7 +46,7 @@ function toggleDictation() {
 
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
-    showToast("Dictee non disponible ici. Tu peux ecrire la note.");
+    showToast("Dictee non disponible ici. Tu peux ecrire.");
     el.noteText.focus();
     return;
   }
@@ -87,7 +87,7 @@ function toggleDictation() {
     isListening = false;
     el.recordButton.classList.remove("is-listening");
     el.recordIcon.textContent = "Micro";
-    el.recordState.textContent = el.noteText.value.trim() ? "Note prete a enregistrer." : "Appuie, parle, enregistre.";
+    el.recordState.textContent = el.noteText.value.trim() ? "Pret a liberer." : "Appuie, parle, libere.";
   };
 
   recognition.start();
@@ -122,11 +122,11 @@ async function saveCurrentNote() {
     addPending(note);
     showToast("Note gardee sur le telephone. Elle partira au retour du reseau.");
   } else {
-    showToast("Note enregistree.");
+    showToast("C'est libere.");
   }
 
   el.noteText.value = "";
-  el.recordState.textContent = "Appuie, parle, enregistre.";
+  el.recordState.textContent = "Appuie, parle, libere.";
   el.saveButton.disabled = false;
   renderPending();
   setTimeout(() => el.noteText.focus(), 100);
@@ -135,7 +135,7 @@ async function saveCurrentNote() {
 function clearNote() {
   stopDictation();
   el.noteText.value = "";
-  el.recordState.textContent = "Appuie, parle, enregistre.";
+  el.recordState.textContent = "Appuie, parle, libere.";
   el.noteText.focus();
 }
 

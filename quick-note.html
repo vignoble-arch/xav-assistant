@@ -3,51 +3,65 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#172033" />
+    <meta name="theme-color" content="#557464" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="Note Xavier" />
+    <meta name="apple-mobile-web-app-title" content="Liberer" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <title>Note rapide</title>
-    <link rel="manifest" href="manifest.webmanifest?v=quick-note-1" />
+    <title>Lib&eacute;rer</title>
+    <link rel="manifest" href="manifest.webmanifest?v=liberer-1" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="quick-note.css?v=quick-note-1" />
+    <link rel="stylesheet" href="quick-note.css?v=liberer-1" />
   </head>
   <body>
-    <main class="quick-note-shell">
-      <header class="quick-note-header">
-        <p>Assistant Xavier</p>
-        <h1>Note rapide</h1>
-        <span id="syncStatus">Pret</span>
-      </header>
+    <main class="liberer-shell">
+      <section class="liberer-card">
+        <header class="liberer-header">
+          <a class="round-link" href="/" aria-label="Ouvrir l'application complete">
+            <span></span>
+            <span></span>
+            <span></span>
+          </a>
+          <div class="brandmark">
+            <img src="art-mas-logo.png" alt="Vignoble Art Mas" />
+            <p>LIB&Eacute;RER</p>
+            <small>D&eacute;poser. Respirer. Revenir au clair.</small>
+          </div>
+          <span class="sync-pill" id="syncStatus">Pr&ecirc;t</span>
+        </header>
 
-      <section class="capture-panel">
-        <button class="record-button" type="button" id="recordButton" aria-label="Dicter une note">
-          <span id="recordIcon">Micro</span>
-        </button>
-        <p class="record-state" id="recordState">Appuie, parle, enregistre.</p>
-        <textarea id="noteText" rows="8" placeholder="Dicte ou ecris l'idee ici..."></textarea>
-        <div class="quick-actions">
-          <button class="secondary-button" type="button" id="clearButton">Effacer</button>
-          <button class="primary-button" type="button" id="saveButton">Enregistrer</button>
-        </div>
+        <article class="quote-card">
+          <strong aria-hidden="true">&ldquo;</strong>
+          <div>
+            <p>Ce qui est d&eacute;pos&eacute; ici ne p&egrave;se plus dans la t&ecirc;te.</p>
+            <span>&mdash; Assistant Xavier</span>
+          </div>
+        </article>
+
+        <section class="capture-panel">
+          <button class="record-button" type="button" id="recordButton" aria-label="Dicter une note">
+            <span id="recordIcon">Micro</span>
+          </button>
+          <p class="record-state" id="recordState">Appuie, parle, lib&egrave;re.</p>
+          <textarea id="noteText" rows="8" placeholder="Parle ou ecris ce qui traverse ton esprit..."></textarea>
+          <div class="quick-actions">
+            <button class="secondary-button" type="button" id="clearButton">Effacer</button>
+            <button class="primary-button" type="button" id="saveButton">Lib&eacute;rer</button>
+          </div>
+        </section>
+
+        <section class="pending-panel">
+          <div>
+            <strong id="pendingCount">0</strong>
+            <span>note(s) &agrave; envoyer</span>
+          </div>
+          <button class="secondary-button" type="button" id="syncButton">Synchroniser</button>
+        </section>
       </section>
-
-      <section class="pending-panel">
-        <div>
-          <strong id="pendingCount">0</strong>
-          <span>note(s) en attente</span>
-        </div>
-        <button class="secondary-button" type="button" id="syncButton">Synchroniser</button>
-      </section>
-
-      <nav class="quick-footer" aria-label="Navigation">
-        <a href="/">Ouvrir l'app complete</a>
-      </nav>
     </main>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="quick-note.js?v=quick-note-1"></script>
+    <script src="quick-note.js?v=liberer-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("/service-worker.js").catch(() => {});

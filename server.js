@@ -462,6 +462,11 @@ const server = http.createServer(async (req, res) => {
 
 function isPublicRoute(pathname) {
   return pathname === "/api/health"
+    || pathname === "/quick-note.html"
+    || pathname === "/quick-note.css"
+    || pathname === "/quick-note.js"
+    || pathname === "/quick-note.webmanifest"
+    || pathname === "/qr-liberer.png"
     || pathname === "/pointeuse.html"
     || pathname === "/pointeuse.css"
     || pathname === "/pointeuse.js"

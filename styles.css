@@ -1603,6 +1603,27 @@ button:disabled {
   border-top: 1px solid var(--line);
 }
 
+.liberer-install-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 132px;
+  gap: 16px;
+  align-items: center;
+  margin-top: 16px;
+}
+
+.liberer-install-panel h2 {
+  margin: 2px 0 6px;
+}
+
+.liberer-install-panel img {
+  display: block;
+  width: 132px;
+  height: 132px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
 .list-card ul {
   display: grid;
   gap: 8px;
@@ -4564,6 +4585,15 @@ body[data-active-view="vivre"] .quick-capture {
   .commercial-grid,
   .connections-grid {
     grid-template-columns: 1fr;
+  }
+
+  .liberer-install-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .liberer-install-panel img {
+    width: 160px;
+    height: 160px;
   }
 
   .task-toolbar,

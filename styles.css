@@ -566,6 +566,18 @@ select,
   box-shadow: none;
 }
 
+.ancrage-timeline .timeline-item.is-done {
+  opacity: 0.68;
+}
+
+.ancrage-timeline .timeline-item.is-done .card-title {
+  text-decoration: line-through;
+}
+
+.ancrage-timeline .timeline-item.is-done::before {
+  background: #7d9c77;
+}
+
 .ancrage-timeline .timeline-item::before {
   position: absolute;
   top: 22px;

@@ -191,6 +191,7 @@ const seedState = {
     { id: randomUUID(), time: "09:00", title: "Revue du dashboard V0.1" },
     { id: randomUUID(), time: "14:30", title: "Point architecture Google OAuth" },
   ],
+  completedAgendaEvents: [],
   mail: [
     { id: randomUUID(), title: "3 emails importants", source: "Gmail mock", detail: "A ouvrir quand la connexion Gmail sera active." },
     { id: randomUUID(), title: "1 email non lu a qualifier", source: "Gmail mock", detail: "Peut devenir une tache ou rester dans l'Inbox." },
@@ -755,6 +756,7 @@ function normalizeAppState(state) {
     requests: Array.isArray(state.requests) ? state.requests : [],
     lists: state.lists && typeof state.lists === "object" ? state.lists : structuredClone(seedState.lists),
     agenda: Array.isArray(state.agenda) ? state.agenda : structuredClone(seedState.agenda),
+    completedAgendaEvents: Array.isArray(state.completedAgendaEvents) ? state.completedAgendaEvents : [],
   };
 }
 
@@ -3845,7 +3847,7 @@ function getHourlyPlanningForAi(state) {
       time: normalizePlanningTime(event.time) || "journee",
       sortTime: normalizePlanningTime(event.time) || "00:00",
       title: event.title || "Evenement sans titre",
-      kind: "rdv",
+      kind: (state.completedAgendaEvents || []).includes(event.id) ? "rdv fait" : "rdv",
     }));
   const tasks = (state.tasks || [])
     .filter((task) => task.status !== "Termine" && task.due && task.due >= today && task.due <= maxDate && normalizePlanningTime(task.plannedTime))
@@ -3988,7 +3990,7 @@ function getPlanningForDate(state, dateKey) {
       title: event.title || "Evenement sans titre",
       time: normalizePlanningTime(event.time) || "Journee",
       sortTime: normalizePlanningTime(event.time) || "00:00",
-      type: "event",
+      type: (state.completedAgendaEvents || []).includes(event.id) ? "event-done" : "event",
     }));
   const tasks = (state.tasks || [])
     .filter((task) => task.status !== "Termine" && task.due === dateKey)

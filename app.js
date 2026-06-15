@@ -109,6 +109,7 @@ const seedState = {
     { id: crypto.randomUUID(), time: "09:00", title: "Revue du dashboard V0.1" },
     { id: crypto.randomUUID(), time: "14:30", title: "Point architecture Google OAuth" },
   ],
+  completedAgendaEvents: [],
   mail: [
     { id: crypto.randomUUID(), title: "3 emails importants", source: "Gmail mock", detail: "A ouvrir quand la connexion Gmail sera active." },
     { id: crypto.randomUUID(), title: "1 email non lu a qualifier", source: "Gmail mock", detail: "Peut devenir une tache ou rester dans l'Inbox." },
@@ -1490,6 +1491,7 @@ function getPlanningItems() {
     time: normalizePlanningTime(event.time) || "Journee",
     sortTime: normalizePlanningTime(event.time) || "00:00",
     meta: event.source || "Agenda",
+    completed: isAgendaEventCompleted(event.id),
   }));
 
   const taskItems = (state.tasks || [])
@@ -1518,16 +1520,18 @@ function getPlanningItems() {
 function planningItem(item) {
   const badge = item.type === "task" ? "Tache" : "Agenda";
   const actions = item.type === "task"
-    ? `<button class="item-action" type="button" onclick="openTaskForm('${item.id}')">Modifier</button>`
+    ? `<button class="item-action item-action-primary" type="button" onclick="completeTask('${item.id}')">OK</button>
+       <button class="item-action" type="button" onclick="openTaskForm('${item.id}')">Modifier</button>`
     : `<button class="item-action" type="button" onclick="openAgendaForm('${item.id}')">Modifier</button>
+       ${item.completed ? `<button class="item-action item-action-primary" type="button" onclick="unmarkAgendaDone('${item.id}')">Fait</button>` : `<button class="item-action item-action-primary" type="button" onclick="markAgendaDone('${item.id}')">OK</button>`}
        <button class="item-action" type="button" onclick="deleteAgendaEvent('${item.id}')">Supprimer</button>`;
   return `
-    <article class="timeline-item ${item.type === "task" ? "is-task" : "is-event"}">
+    <article class="timeline-item ${item.type === "task" ? "is-task" : "is-event"} ${item.completed ? "is-done" : ""}">
       <div class="timeline-time">${escapeHTML(item.time || formatDate(item.dateKey))}</div>
       <div>
         <div class="card-top">
           <p class="card-title">${escapeHTML(item.title)}</p>
-          <span class="source-pill">${badge}</span>
+          <span class="source-pill">${item.completed ? "OK" : badge}</span>
         </div>
         <p class="card-meta">${escapeHTML(item.meta)}</p>
         <div class="card-actions">${actions}</div>
@@ -3573,6 +3577,28 @@ async function deleteAgendaEvent(id) {
   render();
 }
 
+function markAgendaDone(id) {
+  const event = (state.agenda || []).find((item) => item.id === id);
+  if (!event) return;
+  const done = new Set(state.completedAgendaEvents || []);
+  done.add(id);
+  state.completedAgendaEvents = [...done];
+  saveState();
+  render();
+  showToast("Evenement marque OK.");
+}
+
+function unmarkAgendaDone(id) {
+  state.completedAgendaEvents = (state.completedAgendaEvents || []).filter((item) => item !== id);
+  saveState();
+  render();
+  showToast("Evenement remis a faire.");
+}
+
+function isAgendaEventCompleted(id) {
+  return (state.completedAgendaEvents || []).includes(id);
+}
+
 async function handleTaskSubmit(event) {
   event.preventDefault();
   const title = document.querySelector("#taskTitle").value.trim();
@@ -4431,6 +4457,7 @@ function migrateState(saved) {
     physicalLoad: normalizeTaskLoad(task.physicalLoad),
   }));
   migrated.lists = Object.fromEntries(TASK_LISTS.map((name) => [name, saved.lists?.[name] || []]));
+  migrated.completedAgendaEvents = Array.isArray(saved.completedAgendaEvents) ? saved.completedAgendaEvents : [];
   migrated.mail = (saved.mail || seedState.mail).map((item) => ({
     detail: "",
     ...item,
@@ -5265,6 +5292,8 @@ window.openTaskForm = openTaskForm;
 window.deleteTask = deleteTask;
 window.openAgendaForm = openAgendaForm;
 window.deleteAgendaEvent = deleteAgendaEvent;
+window.markAgendaDone = markAgendaDone;
+window.unmarkAgendaDone = unmarkAgendaDone;
 window.inboxToTask = inboxToTask;
 window.deleteKnowledgeDocument = deleteKnowledgeDocument;
 window.inboxToNote = inboxToNote;

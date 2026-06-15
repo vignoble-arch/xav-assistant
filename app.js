@@ -564,12 +564,18 @@ function bindFunctionalPages() {
   });
   document.querySelectorAll(".respire-ai-actions button").forEach((button, index) => {
     const prompts = [
-      "@organisation Organise ma journee avec les vraies taches, les rendez-vous et les reports d'hier.",
+      "",
       "@organisation Trouve-moi un creneau calme aujourd'hui.",
       "@organisation Aide-moi a alleger ma journee sans perdre l'essentiel.",
       "@organisation Cree-moi une pause utile dans la journee.",
     ];
-    button.addEventListener("click", () => openAssistantWithText(prompts[index] || prompts[0], "quick"));
+    button.addEventListener("click", () => {
+      if (index === 0) {
+        openManualDayOrganizer();
+        return;
+      }
+      openAssistantWithText(prompts[index] || prompts[1], "quick");
+    });
   });
 
   document.querySelector(".inspire-mail-card")?.addEventListener("click", () => switchView("inbox"));
@@ -614,6 +620,13 @@ function bindFunctionalPages() {
       if (index === 3) openQuickNoteWithText("Objectif : ", "Perso");
     });
   });
+}
+
+function openManualDayOrganizer() {
+  switchView("dashboard");
+  render();
+  document.querySelector(".ancrage-planning")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  showToast("Ancrage du jour ouvert pour organiser manuellement.");
 }
 
 function bindSwipeNavigation() {

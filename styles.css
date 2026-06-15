@@ -2031,6 +2031,23 @@ button:disabled {
   background: rgba(157, 77, 71, 0.08);
 }
 
+.task-list-switcher {
+  display: grid;
+  grid-template-columns: auto minmax(150px, 220px);
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.task-list-switcher select {
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 0.84rem;
+}
+
 .notes-grid,
 .list-columns {
   display: grid;

@@ -1970,6 +1970,7 @@ function mergeTasksBySourceId(incoming, existing) {
     if (!current) return task;
     return {
       ...task,
+      list: normalizeTaskList(current.list || task.list),
       estimatedMinutes: normalizePositiveNumber(current.estimatedMinutes ?? task.estimatedMinutes),
       mentalLoad: normalizeLoadValue(current.mentalLoad ?? task.mentalLoad),
       physicalLoad: normalizeLoadValue(current.physicalLoad ?? task.physicalLoad),

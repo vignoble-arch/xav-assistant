@@ -1383,7 +1383,9 @@ function renderTasks() {
     return;
   }
 
-  el.taskBoard.innerHTML = TASK_BOARD_LISTS
+  const selectedList = el.taskListFilter.value || "all";
+  const visibleLists = selectedList === "all" ? TASK_LISTS : [selectedList];
+  el.taskBoard.innerHTML = visibleLists
     .map((listName) => {
       const tasks = filteredTasks.filter((task) => taskListName(task) === listName);
       if (!tasks.length) return "";
@@ -1402,7 +1404,7 @@ function renderTasks() {
 
 function renderTaskFilterNote(filteredTasks) {
   if (!el.taskFilterNote) return;
-  const total = state.tasks.filter((task) => task.status !== "Termine" && task.status !== "Inbox" && !FLOW_TASK_LISTS.includes(taskListName(task))).length;
+  const total = state.tasks.filter((task) => task.status !== "Termine" && task.status !== "Inbox").length;
   const labels = {
     today: "a faire aujourd'hui ou en retard",
     late: "en retard",
@@ -1420,13 +1422,13 @@ function renderTaskFilters() {
   const current = el.taskListFilter.value || "all";
   el.taskListFilter.innerHTML = [
     `<option value="all">Toutes les listes</option>`,
-    ...TASK_BOARD_LISTS.map((list) => `<option value="${escapeHTML(list)}">${escapeHTML(list)}</option>`),
+    ...TASK_LISTS.map((list) => `<option value="${escapeHTML(list)}">${escapeHTML(list)}</option>`),
   ].join("");
-  el.taskListFilter.value = TASK_BOARD_LISTS.includes(current) ? current : "all";
+  el.taskListFilter.value = TASK_LISTS.includes(current) ? current : "all";
 }
 
 function renderTaskSummary() {
-  const openTasks = state.tasks.filter((task) => task.status !== "Termine" && !FLOW_TASK_LISTS.includes(taskListName(task)));
+  const openTasks = state.tasks.filter((task) => task.status !== "Termine" && task.status !== "Inbox");
   const today = todayISO();
   const late = openTasks.filter((task) => task.due && task.due < today).length;
   const dueToday = openTasks.filter((task) => task.due === today).length;
@@ -1445,7 +1447,7 @@ function getFilteredTasks() {
   const selectedList = el.taskListFilter.value || "all";
   const search = normalizeText(el.taskSearch.value || "");
   return state.tasks
-    .filter((task) => task.status !== "Termine" && task.status !== "Inbox" && !FLOW_TASK_LISTS.includes(taskListName(task)))
+    .filter((task) => task.status !== "Termine" && task.status !== "Inbox")
     .filter((task) => selectedList === "all" || taskListName(task) === selectedList)
     .filter((task) => {
       if (currentTaskFilter === "today") return task.due === today || (task.due && task.due < today);
@@ -2569,6 +2571,7 @@ function taskCard(task) {
       ${effort ? `<p class="card-meta task-effort-line">${escapeHTML(effort)}</p>` : ""}
       ${task.notes ? `<p class="card-meta">${escapeHTML(task.notes)}</p>` : ""}
       ${lateActions}
+      ${taskListSelector(task)}
       <div class="card-actions">
         ${task.status !== "Termine" ? `<button class="item-action" type="button" onclick="completeTask('${task.id}')">Terminer</button>` : ""}
         ${task.status !== "En cours" && task.status !== "Termine" ? `<button class="item-action" type="button" onclick="moveTask('${task.id}', 'En cours')">Demarrer</button>` : ""}
@@ -2577,6 +2580,18 @@ function taskCard(task) {
         <button class="item-action" type="button" onclick="deleteTask('${task.id}')">Supprimer</button>
       </div>
     </article>
+  `;
+}
+
+function taskListSelector(task) {
+  const currentList = taskListName(task);
+  return `
+    <label class="task-list-switcher">
+      <span>Liste</span>
+      <select onchange="moveTaskToList('${task.id}', this.value)">
+        ${TASK_LISTS.map((list) => `<option value="${escapeHTML(list)}" ${list === currentList ? "selected" : ""}>${escapeHTML(list)}</option>`).join("")}
+      </select>
+    </label>
   `;
 }
 
@@ -3776,6 +3791,14 @@ async function moveTask(id, status) {
   const task = state.tasks.find((item) => item.id === id);
   if (!task) return;
   await saveTask({ ...task, status });
+}
+
+async function moveTaskToList(id, list) {
+  const task = state.tasks.find((item) => item.id === id);
+  const targetList = canonicalTaskListName(list) || list;
+  if (!task || !TASK_LISTS.includes(targetList) || taskListName(task) === targetList) return;
+  const saved = await saveTask({ ...task, list: targetList });
+  if (saved) showToast(`Tache deplacee dans ${targetList}.`);
 }
 
 async function rescheduleTask(id, target) {
@@ -5214,6 +5237,7 @@ function formatAssistantAnswer(value) {
 
 window.completeTask = completeTask;
 window.moveTask = moveTask;
+window.moveTaskToList = moveTaskToList;
 window.rescheduleTask = rescheduleTask;
 window.openTaskForm = openTaskForm;
 window.deleteTask = deleteTask;

@@ -2302,6 +2302,78 @@ button:disabled {
   padding-right: 2px;
 }
 
+.expire-detail-dialog {
+  width: min(920px, calc(100vw - 28px));
+}
+
+.expire-detail-dialog-card {
+  max-height: min(88vh, 820px);
+  grid-template-rows: auto auto minmax(260px, 1fr);
+}
+
+.expire-detail-list {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.expire-detail-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: #fffdf8;
+}
+
+.expire-detail-card.is-late {
+  border-color: rgba(155, 86, 76, 0.36);
+  background: #fff5f2;
+}
+
+.expire-detail-card.is-today,
+.expire-detail-card.is-soon {
+  border-color: rgba(138, 97, 121, 0.28);
+  background: #fff9ee;
+}
+
+.expire-detail-card strong,
+.expire-detail-card span,
+.expire-detail-card small {
+  display: block;
+}
+
+.expire-detail-card strong {
+  color: var(--ink);
+  font-size: 0.98rem;
+  line-height: 1.25;
+}
+
+.expire-detail-card span,
+.expire-detail-card small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.expire-detail-card b {
+  color: #765461;
+  font-size: 0.98rem;
+  white-space: nowrap;
+}
+
+.expire-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .clarify-note-card {
   display: grid;
   gap: 12px;
@@ -4366,6 +4438,19 @@ textarea {
   padding: 18px;
 }
 
+.expire-summary article[data-expire-detail] {
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.expire-summary article[data-expire-detail]:hover,
+.expire-summary article[data-expire-detail]:focus-visible {
+  transform: translateY(-2px);
+  outline: 0;
+  border-color: rgba(138, 97, 121, 0.34);
+  background: rgba(255, 253, 248, 0.92);
+}
+
 .expire-summary span,
 .expire-panel-header span {
   color: #5f6d73;
@@ -6418,6 +6503,19 @@ body[data-active-view="vivre"] .quick-capture {
 
   .mail-body {
     min-height: 220px;
+  }
+
+  .expire-detail-card {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .expire-detail-actions {
+    justify-content: stretch;
+  }
+
+  .expire-detail-actions button {
+    flex: 1 1 120px;
   }
 
   .assistant-thread {

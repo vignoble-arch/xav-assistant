@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=liberer-1" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="styles.css?v=respire-timeline-ok-1" />
+    <link rel="stylesheet" href="styles.css?v=expire-details-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -507,22 +507,22 @@
             </article>
 
             <section class="expire-summary" aria-label="Sorties du jour">
-              <article>
+              <article data-expire-detail="today" role="button" tabindex="0">
                 <span>&Agrave; payer aujourd'hui</span>
                 <strong>3 420&euro;</strong>
                 <p>4 cr&eacute;ances &agrave; traiter</p>
               </article>
-              <article>
+              <article data-expire-detail="week" role="button" tabindex="0">
                 <span>Cette semaine</span>
                 <strong>8 950&euro;</strong>
                 <p>Sorties planifi&eacute;es</p>
               </article>
-              <article>
-                <span>Tr&eacute;sorerie dispo</span>
+              <article data-expire-detail="all" role="button" tabindex="0">
+                <span>Suivi &eacute;ch&eacute;ances</span>
                 <strong>24 300&euro;</strong>
                 <p>Apr&egrave;s sorties pr&eacute;vues</p>
               </article>
-              <article>
+              <article data-expire-detail="urgent" role="button" tabindex="0">
                 <span>Urgences</span>
                 <strong>5</strong>
                 <p>&Agrave; regarder sans attendre</p>
@@ -1398,6 +1398,20 @@
       </form>
     </dialog>
 
+    <dialog class="assistant-dialog expire-detail-dialog" id="expireDetailDialog">
+      <form method="dialog" class="dialog-card expire-detail-dialog-card">
+        <div class="dialog-header">
+          <div>
+            <p class="section-kicker">Expire</p>
+            <h2 id="expireDetailTitle">Details</h2>
+          </div>
+          <button class="icon-button" value="cancel" aria-label="Fermer" type="submit">x</button>
+        </div>
+        <p class="connection-hint" id="expireDetailIntro"></p>
+        <div class="expire-detail-list" id="expireDetailList"></div>
+      </form>
+    </dialog>
+
     <dialog class="assistant-dialog" id="taskDialog">
       <form method="dialog" class="dialog-card" id="taskForm">
         <div class="dialog-header">
@@ -1511,7 +1525,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=respire-timeline-ok-1"></script>
+    <script src="app.js?v=expire-details-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

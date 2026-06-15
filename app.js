@@ -177,6 +177,7 @@ let currentClarifyNoteFilter = "active";
 let currentClarifyNoteAction = "task";
 let currentQuickNoteEditId = "";
 let currentMailMessage = null;
+let currentExpireDetailType = "today";
 let assistantThreadMessages = [];
 
 const el = {
@@ -331,6 +332,10 @@ const el = {
   clarifyNotesDialog: document.querySelector("#clarifyNotesDialog"),
   clarifyNotesTabs: document.querySelector("#clarifyNotesTabs"),
   clarifyNotesList: document.querySelector("#clarifyNotesList"),
+  expireDetailDialog: document.querySelector("#expireDetailDialog"),
+  expireDetailTitle: document.querySelector("#expireDetailTitle"),
+  expireDetailIntro: document.querySelector("#expireDetailIntro"),
+  expireDetailList: document.querySelector("#expireDetailList"),
   taskDialog: document.querySelector("#taskDialog"),
   taskEditId: document.querySelector("#taskEditId"),
   taskDialogTitle: document.querySelector("#taskDialogTitle"),
@@ -613,6 +618,16 @@ function bindFunctionalPages() {
   });
 
   document.querySelector(".expire-payables-panel .expire-panel-header button")?.addEventListener("click", () => openTaskView("late"));
+  document.querySelectorAll("[data-expire-detail]").forEach((card) => {
+    const open = () => openExpireDetail(card.dataset.expireDetail || "all");
+    card.addEventListener("click", open);
+    card.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        open();
+      }
+    });
+  });
   document.querySelectorAll(".expire-actions button").forEach((button, index) => {
     button.addEventListener("click", () => {
       if (index === 0) openQuickNote();
@@ -867,17 +882,13 @@ function renderInspirePage() {
 }
 
 function renderExpirePage() {
-  const expireTasks = getOpenTasksByList("Expire");
-  const debtTasks = (expireTasks.length ? expireTasks : state.tasks
-    .filter((task) => task.status !== "Termine")
-    .filter((task) => /facture|payer|reglement|règlement|echeance|échéance|tva|urssaf|impot|impôt/i.test(`${task.title} ${task.notes || ""}`)))
-    .sort(sortTasksForFocus)
-    .slice(0, 6);
+  const expireTasks = getExpireTrackingTasks();
+  const debtTasks = expireTasks.slice(0, 6);
   const today = localDateKey(new Date());
   const weekLimit = addDaysISO(7);
-  const dueToday = debtTasks.filter((task) => task.due && task.due <= today).length;
-  const dueWeek = debtTasks.filter((task) => task.due && task.due <= weekLimit).length;
-  const urgent = debtTasks.filter((task) => ["Tres urgente", "Urgente"].includes(effectivePriority(task))).length;
+  const dueToday = expireTasks.filter((task) => task.due && task.due <= today).length;
+  const dueWeek = expireTasks.filter((task) => task.due && task.due <= weekLimit).length;
+  const urgent = expireTasks.filter(isExpireUrgentTask).length;
   const revenue = buildFiscalRevenueStats(state.baqio?.orders || [], new Date());
 
   const summaryCards = document.querySelectorAll(".expire-summary article");
@@ -905,8 +916,99 @@ function renderExpirePage() {
   updateMiniPanel(kpis[1], state.mail.filter((mail) => /facture|compta|paiement/i.test(`${mail.title} ${mail.detail || ""}`)).length, "emails compta");
   updateMiniPanel(kpis[2], urgent, "urgences");
   renderExpireRevenue(revenue);
+  if (el.expireDetailDialog?.open) renderExpireDetail(currentExpireDetailType);
 }
 
+function getExpireTrackingTasks() {
+  const expireTasks = getOpenTasksByList("Expire");
+  const inferredTasks = state.tasks
+    .filter((task) => task.status !== "Termine")
+    .filter((task) => /facture|payer|reglement|règlement|echeance|échéance|tva|urssaf|impot|impôt/i.test(`${task.title} ${task.notes || ""}`));
+  const byId = new Map();
+  [...expireTasks, ...inferredTasks].forEach((task) => byId.set(task.id, task));
+  return [...byId.values()].sort(sortTasksForFocus);
+}
+
+function isExpireUrgentTask(task) {
+  return ["Tres urgente", "Urgente"].includes(effectivePriority(task)) || getDueClass(task) === "is-late";
+}
+
+function getExpireDetailConfig(type) {
+  const today = localDateKey(new Date());
+  const weekLimit = addDaysISO(7);
+  const configs = {
+    today: {
+      title: "A payer aujourd'hui",
+      intro: "Echeances en retard ou a traiter aujourd'hui.",
+      empty: "Aucune echeance a payer aujourd'hui.",
+      filter: (task) => task.due && task.due <= today,
+    },
+    week: {
+      title: "Cette semaine",
+      intro: "Echeances a regarder d'ici 7 jours.",
+      empty: "Aucune echeance prevue cette semaine.",
+      filter: (task) => task.due && task.due <= weekLimit,
+    },
+    all: {
+      title: "Suivi echeances",
+      intro: "Toutes les taches ouvertes de la liste Expire.",
+      empty: "Aucune echeance ouverte dans Expire.",
+      filter: () => true,
+    },
+    urgent: {
+      title: "Urgences",
+      intro: "Taches urgentes ou en retard.",
+      empty: "Aucune urgence detectee.",
+      filter: isExpireUrgentTask,
+    },
+  };
+  return configs[type] || configs.all;
+}
+
+function getExpireDetailTasks(type) {
+  const config = getExpireDetailConfig(type);
+  return getExpireTrackingTasks().filter(config.filter);
+}
+
+function openExpireDetail(type = "all") {
+  currentExpireDetailType = type;
+  renderExpireDetail(type);
+  el.expireDetailDialog?.showModal();
+}
+
+function renderExpireDetail(type = "all") {
+  if (!el.expireDetailTitle || !el.expireDetailList) return;
+  const config = getExpireDetailConfig(type);
+  const tasks = getExpireDetailTasks(type);
+  el.expireDetailTitle.textContent = config.title;
+  if (el.expireDetailIntro) {
+    el.expireDetailIntro.textContent = `${config.intro} ${tasks.length} element(s).`;
+  }
+  el.expireDetailList.innerHTML = tasks.length
+    ? tasks.map(expireDetailCard).join("")
+    : emptyState(config.empty);
+}
+
+function expireDetailCard(task) {
+  const dueLabel = task.due ? `${formatDate(task.due)}${task.plannedTime ? ` a ${task.plannedTime}` : ""}` : "Sans date";
+  const amount = extractMoneyLabel(`${task.title} ${task.notes || ""}`);
+  const detail = taskDetailLine(task);
+  return `
+    <article class="expire-detail-card ${getDueClass(task)}">
+      <div>
+        <strong>${escapeHTML(task.title)}</strong>
+        <span>${escapeHTML(dueLabel)} - ${escapeHTML(effectivePriority(task))} - ${escapeHTML(task.source || "manuel")}</span>
+        ${detail ? `<small>${escapeHTML(detail)}</small>` : ""}
+        ${task.notes ? `<small>${escapeHTML(task.notes)}</small>` : ""}
+      </div>
+      ${amount ? `<b>${escapeHTML(amount)}</b>` : ""}
+      <div class="expire-detail-actions">
+        <button class="item-action item-action-primary" type="button" onclick="completeExpireDetailTask('${task.id}')">OK</button>
+        <button class="item-action" type="button" onclick="openTaskForm('${task.id}')">Modifier</button>
+      </div>
+    </article>
+  `;
+}
 function renderExpireRevenue(revenue) {
   setText("[data-expire-revenue='year-current']", formatEuroCents(revenue.currentFiscalCents));
   setText("[data-expire-revenue='month-current']", formatEuroCents(revenue.currentMonthCents));
@@ -3868,6 +3970,14 @@ async function completePlanningTask(id) {
   });
 }
 
+async function completeExpireDetailTask(id) {
+  const saved = await completeTask(id);
+  if (saved) {
+    renderExpirePage();
+    renderExpireDetail(currentExpireDetailType);
+  }
+}
+
 async function moveTask(id, status) {
   const task = state.tasks.find((item) => item.id === id);
   if (!task) return;
@@ -5341,6 +5451,7 @@ function formatAssistantAnswer(value) {
 
 window.completeTask = completeTask;
 window.completePlanningTask = completePlanningTask;
+window.completeExpireDetailTask = completeExpireDetailTask;
 window.moveTask = moveTask;
 window.moveTaskToList = moveTaskToList;
 window.rescheduleTask = rescheduleTask;

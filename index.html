@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=quick-note-1" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="styles.css?v=respire-1" />
+    <link rel="stylesheet" href="styles.css?v=comptoir-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -30,6 +30,7 @@
         <nav class="nav-list">
           <button class="nav-item is-active" type="button" data-view="dashboard">Vue du jour</button>
           <button class="nav-item" type="button" data-view="organization">Organisation</button>
+          <button class="nav-item" type="button" data-view="comptoir">Comptoir</button>
           <button class="nav-item" type="button" data-view="requests">Demandes</button>
           <button class="nav-item" type="button" data-view="tasks">Taches</button>
           <button class="nav-item" type="button" data-view="inbox">Inbox</button>
@@ -298,6 +299,130 @@
             </section>
 
             <p class="respire-footer-line">Respire. Trie. Priorise. Cree. Deguste le temps.</p>
+          </div>
+        </section>
+
+        <section class="comptoir-view" data-panel="comptoir" hidden aria-label="Comptoir secretariat commerce">
+          <div class="comptoir-background" aria-hidden="true"></div>
+          <div class="comptoir-content">
+            <header class="comptoir-header">
+              <button class="comptoir-round-button" type="button" aria-label="Menu comptoir">
+                <span></span>
+                <span></span>
+                <span></span>
+              </button>
+              <div class="comptoir-brandmark">
+                <img src="art-mas-logo.png" alt="Vignoble Art Mas" />
+                <p>COMPTOIR</p>
+                <span>Ton commerce. Tes clients. Ton rythme.</span>
+              </div>
+              <button class="comptoir-avatar" type="button" aria-label="Profil domaine">
+                <img src="art-mas-logo.png" alt="" />
+              </button>
+            </header>
+
+            <article class="comptoir-advice-card">
+              <strong aria-hidden="true">&ldquo;</strong>
+              <div>
+                <p>Commence par les commandes pr&ecirc;tes, puis les clients chauds.</p>
+                <p>Le reste attendra le bon moment.</p>
+                <span>&mdash; Muriel</span>
+              </div>
+              <i aria-hidden="true"></i>
+            </article>
+
+            <div class="comptoir-mandala" aria-label="Tableau secretariat commerce">
+              <article class="comptoir-card comptoir-mail-card" aria-label="Voir les emails a repondre">
+                <div class="comptoir-card-icon comptoir-icon-mail" aria-hidden="true"></div>
+                <h2>COURRIER</h2>
+                <p>Emails &amp; r&eacute;ponses IA</p>
+                <div class="comptoir-main-metric"><strong>12</strong><span>&agrave; r&eacute;pondre</span></div>
+                <div class="comptoir-stat-grid">
+                  <span><b>3</b> urgents</span>
+                  <span><b>5</b> r&eacute;ponses pr&ecirc;tes</span>
+                  <span><b>7</b> en attente</span>
+                  <span><b>4</b> fournisseurs</span>
+                </div>
+                <small>Les messages importants remontent seuls.</small>
+              </article>
+
+              <article class="comptoir-card comptoir-orders-card" aria-label="Voir les commandes">
+                <div class="comptoir-card-icon comptoir-icon-box" aria-hidden="true"></div>
+                <h2>COMMANDES</h2>
+                <p>Suivi &amp; pr&eacute;paration</p>
+                <div class="comptoir-main-metric"><strong>8</strong><span>en cours</span></div>
+                <div class="comptoir-progress-list">
+                  <span><b>3</b> &agrave; pr&eacute;parer</span>
+                  <span><b>2</b> pr&ecirc;tes &agrave; exp&eacute;dier</span>
+                  <span><b>1</b> paiement manquant</span>
+                </div>
+                <small>Chaque commande avance d'un geste.</small>
+              </article>
+
+              <button class="comptoir-muriel" type="button" aria-label="Ouvrir Muriel, assistant commerce">
+                <span aria-hidden="true"></span>
+                <strong>MURIEL</strong>
+                <small>Assistant<br />commerce</small>
+              </button>
+
+              <article class="comptoir-card comptoir-business-card" aria-label="Voir les affaires et relances">
+                <div class="comptoir-card-icon comptoir-icon-brief" aria-hidden="true"></div>
+                <h2>AFFAIRES</h2>
+                <p>Devis, relances &amp; opportunit&eacute;s</p>
+                <div class="comptoir-main-metric"><strong>4</strong><span>devis ouverts</span></div>
+                <div class="comptoir-progress-list">
+                  <span><b>6</b> relances &agrave; faire</span>
+                  <span><b>2</b> clients chauds</span>
+                  <span><b>3</b> rendez-vous</span>
+                </div>
+                <small>Les belles affaires murissent, certaines doivent &ecirc;tre cueillies.</small>
+              </article>
+
+              <article class="comptoir-card comptoir-revenue-card" aria-label="Voir le detail du chiffre d'affaires">
+                <div class="comptoir-card-icon comptoir-icon-chart" aria-hidden="true"></div>
+                <h2>CHIFFRES</h2>
+                <p>Pilotage &amp; performance</p>
+                <div class="comptoir-main-metric"><strong>24 850&euro;</strong><span>CA du mois</span></div>
+                <div class="comptoir-gauge" aria-hidden="true"><b>68%</b></div>
+                <div class="comptoir-stat-grid">
+                  <span><b>186&euro;</b> panier moyen</span>
+                  <span><b>3</b> paiements en attente</span>
+                </div>
+                <small>Le chiffre parle mieux quand il respire.</small>
+              </article>
+            </div>
+
+            <section class="comptoir-today-panel" aria-label="Aujourd'hui au comptoir">
+              <article>
+                <span>Encaissements</span>
+                <strong>2 450&euro;</strong>
+                <p>+18% vs hier</p>
+              </article>
+              <article>
+                <span>Commandes &agrave; servir</span>
+                <strong>8</strong>
+                <p>3 &agrave; pr&eacute;parer</p>
+              </article>
+              <article>
+                <span>Clients &agrave; soigner</span>
+                <strong>6</strong>
+                <p>2 clients chauds</p>
+              </article>
+              <article>
+                <span>Affaires &agrave; vendanger</span>
+                <strong>4</strong>
+                <p>1 d&eacute;cision imminente</p>
+              </article>
+            </section>
+
+            <section class="comptoir-quick-actions" aria-label="Actions rapides comptoir">
+              <button type="button"><b class="comptoir-small-mail"></b><span>R&eacute;diger un email</span><small>Muriel pr&eacute;pare</small></button>
+              <button type="button"><b class="comptoir-small-quote"></b><span>Cr&eacute;er un devis</span><small>Prix et client</small></button>
+              <button type="button"><b class="comptoir-small-order"></b><span>Nouvelle commande</span><small>Suivi direct</small></button>
+              <button type="button"><b class="comptoir-small-client"></b><span>Relancer un client</span><small>Avec douceur</small></button>
+            </section>
+
+            <p class="comptoir-footer-line">R&eacute;pondre. Vendre. Relancer. Suivre. Encaisser avec clart&eacute;.</p>
           </div>
         </section>
 
@@ -717,7 +842,10 @@
         <span>Jour</span>
       </button>
       <button type="button" data-mobile-view="organization">
-        <span>Respire</span>
+        <span>Zen</span>
+      </button>
+      <button type="button" data-mobile-view="comptoir">
+        <span>Cptoir</span>
       </button>
       <button type="button" data-mobile-view="tasks">
         <span>Taches</span>
@@ -882,7 +1010,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=respire-1"></script>
+    <script src="app.js?v=comptoir-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

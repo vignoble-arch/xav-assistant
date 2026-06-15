@@ -207,6 +207,7 @@ const el = {
   employeeCode: document.querySelector("#employeeCode"),
   employeeList: document.querySelector("#employeeList"),
   timeclockSummary: document.querySelector("#timeclockSummary"),
+  timeclockDailyList: document.querySelector("#timeclockDailyList"),
   timeclockEntries: document.querySelector("#timeclockEntries"),
   requestSummary: document.querySelector("#requestSummary"),
   requestList: document.querySelector("#requestList"),
@@ -730,7 +731,7 @@ function renderExpirePage() {
     .filter((task) => taskListName(task) === "Dettes" || /facture|payer|reglement|règlement|echeance|échéance|tva|urssaf|impot|impôt/i.test(`${task.title} ${task.notes || ""}`))
     .sort(sortTasksForFocus)
     .slice(0, 6);
-  const today = todayISO();
+  const today = localDateKey(new Date());
   const weekLimit = addDaysISO(7);
   const dueToday = debtTasks.filter((task) => task.due && task.due <= today).length;
   const dueWeek = debtTasks.filter((task) => task.due && task.due <= weekLimit).length;
@@ -1413,21 +1414,33 @@ function renderTimeclock() {
   const url = `${location.origin}/pointeuse.html`;
   el.timeclockUrl.value = url;
 
-  const today = todayISO();
-  const todayEntries = timeclock.entries.filter((entry) => entry.timestamp?.slice(0, 10) === today);
-  const arrivals = todayEntries.filter((entry) => entry.action === "arrival").length;
-  const departures = todayEntries.filter((entry) => entry.action === "departure").length;
-  const activeEmployees = timeclock.employees.filter((employee) => employee.active !== false).length;
+  const today = localDateKey(new Date());
+  const dailySummaries = buildClientTimeclockDailySummary(timeclock.entries);
+  const todaySummary = dailySummaries.find((day) => day.date === today) || emptyTimeclockDay(today);
+  const weekMinutes = dailySummaries.slice(0, 7).reduce((sum, day) => sum + day.workedMinutes, 0);
+  const observations = dailySummaries.reduce((sum, day) => sum + day.observations.length, 0);
   el.timeclockSummary.innerHTML = `
-    <article><strong>${activeEmployees}</strong><span>Employe(s)</span></article>
-    <article><strong>${todayEntries.length}</strong><span>Pointages aujourd'hui</span></article>
-    <article><strong>${arrivals}</strong><span>Arrivees</span></article>
-    <article><strong>${departures}</strong><span>Departs</span></article>
+    <article><strong>Cathy</strong><span>Employe</span></article>
+    <article><strong>${formatMinutes(todaySummary.workedMinutes)}</strong><span>Heures aujourd'hui</span></article>
+    <article><strong>${formatMinutes(weekMinutes)}</strong><span>Total 7 jours affiches</span></article>
+    <article><strong>${observations}</strong><span>Observation(s)</span></article>
   `;
 
-  el.employeeList.innerHTML = timeclock.employees.length
-    ? timeclock.employees.map(employeeCard).join("")
-    : emptyState("Ajoute au moins une personne, ou laisse l'employe creer son nom au premier pointage.");
+  el.employeeList.innerHTML = `
+    <article class="connection-card">
+      <div class="card-top">
+        <p class="card-title">Cathy</p>
+        <span class="source-pill">${todaySummary.departure ? "Journee pointee" : todaySummary.arrival ? "Arrivee pointee" : "En attente"}</span>
+      </div>
+      <p class="card-meta">Arrivee : ${escapeHTML(todaySummary.arrivalLabel)} - Depart : ${escapeHTML(todaySummary.departureLabel)} - Pause retiree : ${formatMinutes(todaySummary.pauseMinutes)}.</p>
+    </article>
+  `;
+
+  if (el.timeclockDailyList) {
+    el.timeclockDailyList.innerHTML = dailySummaries.length
+      ? dailySummaries.slice(0, 14).map(timeclockDayCard).join("")
+      : emptyState("Aucun jour calcule pour le moment.");
+  }
 
   const entries = [...timeclock.entries].sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp))).slice(0, 40);
   el.timeclockEntries.innerHTML = entries.length
@@ -1439,8 +1452,87 @@ function getTimeclockState() {
   const source = state.timeclock && typeof state.timeclock === "object" ? state.timeclock : {};
   return {
     employees: Array.isArray(source.employees) ? source.employees : [],
-    entries: Array.isArray(source.entries) ? source.entries : [],
+    entries: Array.isArray(source.entries) ? source.entries.map((entry) => ({
+      observation: "",
+      ...entry,
+    })) : [],
   };
+}
+
+function buildClientTimeclockDailySummary(entries) {
+  const grouped = {};
+  entries.forEach((entry) => {
+    const date = localDateKey(entry.timestamp);
+    grouped[date] = grouped[date] || emptyTimeclockDay(date);
+    grouped[date].entries.push(entry);
+    if (entry.observation) grouped[date].observations.push(entry.observation);
+  });
+
+  Object.values(grouped).forEach((day) => {
+    day.entries.sort((a, b) => String(a.timestamp).localeCompare(String(b.timestamp)));
+    const arrivals = day.entries.filter((entry) => entry.action === "arrival");
+    const departures = day.entries.filter((entry) => entry.action === "departure");
+    const firstArrival = arrivals[0];
+    const lastDeparture = departures[departures.length - 1];
+    day.arrival = firstArrival?.timestamp || "";
+    day.departure = lastDeparture?.timestamp || "";
+    day.arrivalLabel = day.arrival ? timeOnly(day.arrival) : "Non pointee";
+    day.departureLabel = day.departure ? timeOnly(day.departure) : "Non pointee";
+    if (!firstArrival || !lastDeparture) return;
+    const rawMinutes = Math.max(0, Math.round((new Date(lastDeparture.timestamp) - new Date(firstArrival.timestamp)) / 60000));
+    const departureHour = Number(new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", hour12: false }).format(new Date(lastDeparture.timestamp)));
+    day.pauseMinutes = departureHour < 13 ? 0 : 60;
+    day.workedMinutes = Math.max(0, rawMinutes - day.pauseMinutes);
+  });
+
+  return Object.values(grouped).sort((a, b) => b.date.localeCompare(a.date));
+}
+
+function emptyTimeclockDay(date) {
+  return {
+    date,
+    entries: [],
+    observations: [],
+    arrival: "",
+    departure: "",
+    arrivalLabel: "Non pointee",
+    departureLabel: "Non pointee",
+    pauseMinutes: 0,
+    workedMinutes: 0,
+  };
+}
+
+function timeclockDayCard(day) {
+  const status = day.arrival && day.departure ? "Complet" : day.arrival ? "Depart manquant" : "A verifier";
+  return `
+    <article class="report-card timeclock-day-card">
+      <div class="card-top">
+        <p class="card-title">${escapeHTML(formatDate(day.date))}</p>
+        <span class="source-pill">${escapeHTML(status)}</span>
+      </div>
+      <p class="card-meta">Arrivee ${escapeHTML(day.arrivalLabel)} - Depart ${escapeHTML(day.departureLabel)} - Pause ${formatMinutes(day.pauseMinutes)} - Travail ${formatMinutes(day.workedMinutes)}.</p>
+      ${day.observations.length ? `<div class="timeclock-observations">${day.observations.map((item) => `<p>${escapeHTML(item)}</p>`).join("")}</div>` : ""}
+    </article>
+  `;
+}
+
+function localDateKey(value) {
+  const date = new Date(value);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function timeOnly(value) {
+  return new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(new Date(value));
+}
+
+function formatMinutes(minutes) {
+  const total = Math.max(0, Number(minutes || 0));
+  const hours = Math.floor(total / 60);
+  const rest = total % 60;
+  return `${hours}h${String(rest).padStart(2, "0")}`;
 }
 
 function employeeCard(employee) {
@@ -1468,6 +1560,7 @@ function timeclockEntryCard(entry) {
         <span class="source-pill">${escapeHTML(timeclockActionLabel(entry.action))}</span>
       </div>
       <p class="card-meta">${escapeHTML(formatDateTime(entry.timestamp))} - ${entry.source === "nfc" ? "NFC/QR" : "App"}</p>
+      ${entry.observation ? `<p class="card-meta">Observation : ${escapeHTML(entry.observation)}</p>` : ""}
     </article>
   `;
 }

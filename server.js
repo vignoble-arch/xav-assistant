@@ -767,11 +767,12 @@ function normalizeTimeClockState(timeclock) {
       ? source.entries.map((entry) => ({
           id: entry.id || randomUUID(),
           employeeId: entry.employeeId || "",
-          employeeName: String(entry.employeeName || "Employe").trim(),
-          action: normalizeTimeClockAction(entry.action),
-          timestamp: entry.timestamp || new Date().toISOString(),
-          source: entry.source || "app",
-        }))
+        employeeName: String(entry.employeeName || "Employe").trim(),
+        action: normalizeTimeClockAction(entry.action),
+        timestamp: entry.timestamp || new Date().toISOString(),
+        source: entry.source || "app",
+        observation: String(entry.observation || "").trim(),
+      }))
       : [],
   };
 }
@@ -793,8 +794,19 @@ function getTimeClockStatus() {
 
 function getPublicTimeClockStatus() {
   const timeclock = normalizeTimeClockState(getAppState().timeclock);
+  const cathy = ensureCathyEmployee(timeclock);
+  const todayKey = parisDateKey(new Date());
+  const todayEntries = timeclock.entries
+    .filter((entry) => entry.employeeId === cathy.id && parisDateKey(entry.timestamp) === todayKey)
+    .sort((a, b) => String(a.timestamp).localeCompare(String(b.timestamp)));
   return {
     ok: true,
+    employee: {
+      id: cathy.id,
+      name: cathy.name,
+    },
+    nextAction: inferNextTimeClockAction(todayEntries),
+    todayEntries,
     employees: timeclock.employees
       .filter((employee) => employee.active !== false)
       .map((employee) => ({
@@ -807,13 +819,15 @@ function getPublicTimeClockStatus() {
 
 async function saveTimeClockPunch(req, res) {
   const body = await readBody(req);
-  const action = normalizeTimeClockAction(body.action);
+  const requestedAction = String(body.action || "auto");
   const employeeName = String(body.employeeName || "").trim();
   const employeeCode = String(body.code || "").trim();
+  const observation = String(body.observation || "").trim();
   const state = getAppState();
   state.timeclock = normalizeTimeClockState(state.timeclock);
 
-  let employee = state.timeclock.employees.find((item) => item.id === body.employeeId);
+  const cathyMode = !body.employeeId && !employeeName;
+  let employee = cathyMode ? ensureCathyEmployee(state.timeclock) : state.timeclock.employees.find((item) => item.id === body.employeeId);
   if (!employee && employeeName) {
     employee = state.timeclock.employees.find((item) => normalizeText(item.name) === normalizeText(employeeName));
   }
@@ -833,8 +847,17 @@ async function saveTimeClockPunch(req, res) {
   if (employee.active === false) {
     return sendJson(res, { error: "Cet employe est desactive dans la pointeuse." }, 403);
   }
-  if (employee.code && employee.code !== employeeCode) {
+  if (!cathyMode && employee.code && employee.code !== employeeCode) {
     return sendJson(res, { error: "Code personnel incorrect." }, 403);
+  }
+
+  const todayKey = parisDateKey(new Date());
+  const todayEntries = state.timeclock.entries
+    .filter((entry) => entry.employeeId === employee.id && parisDateKey(entry.timestamp) === todayKey)
+    .sort((a, b) => String(a.timestamp).localeCompare(String(b.timestamp)));
+  const action = requestedAction === "auto" ? inferNextTimeClockAction(todayEntries) : normalizeTimeClockAction(requestedAction);
+  if (requestedAction === "auto" && action === "complete") {
+    return sendJson(res, { error: "La journee de Cathy a deja une arrivee et un depart. Ajoute une observation depuis l'application si besoin." }, 409);
   }
 
   const entry = {
@@ -844,6 +867,7 @@ async function saveTimeClockPunch(req, res) {
     action,
     timestamp: new Date().toISOString(),
     source: body.source === "nfc" ? "nfc" : "app",
+    observation,
   };
   state.timeclock.entries.unshift(entry);
   writeJson(STATE_FILE, state);
@@ -851,8 +875,32 @@ async function saveTimeClockPunch(req, res) {
 }
 
 function normalizeTimeClockAction(action) {
+  if (action === "auto") return "auto";
   if (["arrival", "departure", "break_start", "break_end"].includes(action)) return action;
   return "arrival";
+}
+
+function ensureCathyEmployee(timeclock) {
+  let cathy = timeclock.employees.find((employee) => normalizeText(employee.name) === "cathy");
+  if (!cathy) {
+    cathy = {
+      id: randomUUID(),
+      name: "Cathy",
+      code: "",
+      active: true,
+      createdAt: new Date().toISOString(),
+    };
+    timeclock.employees.push(cathy);
+  }
+  return cathy;
+}
+
+function inferNextTimeClockAction(dayEntries) {
+  const arrivals = dayEntries.filter((entry) => entry.action === "arrival").length;
+  const departures = dayEntries.filter((entry) => entry.action === "departure").length;
+  if (!arrivals) return "arrival";
+  if (!departures) return "departure";
+  return "complete";
 }
 
 function getTimeClockStatusByEmployee(timeclock) {
@@ -868,14 +916,64 @@ function getTimeClockStatusByEmployee(timeclock) {
 function buildTimeClockDailySummary(entries) {
   const labels = {};
   entries.forEach((entry) => {
-    const day = entry.timestamp.slice(0, 10);
-    labels[day] = labels[day] || { date: day, arrivals: 0, departures: 0, breaks: 0, total: 0 };
+    const day = parisDateKey(entry.timestamp);
+    labels[day] = labels[day] || {
+      date: day,
+      employeeName: entry.employeeName || "Cathy",
+      arrivals: 0,
+      departures: 0,
+      breaks: 0,
+      total: 0,
+      workedMinutes: 0,
+      pauseMinutes: 0,
+      firstArrival: "",
+      lastDeparture: "",
+      observations: [],
+    };
     labels[day].total += 1;
     if (entry.action === "arrival") labels[day].arrivals += 1;
     if (entry.action === "departure") labels[day].departures += 1;
     if (entry.action === "break_start" || entry.action === "break_end") labels[day].breaks += 1;
+    if (entry.observation) labels[day].observations.push(entry.observation);
   });
-  return Object.values(labels).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 14);
+  Object.values(labels).forEach((day) => {
+    const dayEntries = entries
+      .filter((entry) => parisDateKey(entry.timestamp) === day.date)
+      .sort((a, b) => String(a.timestamp).localeCompare(String(b.timestamp)));
+    const arrivals = dayEntries.filter((entry) => entry.action === "arrival");
+    const departures = dayEntries.filter((entry) => entry.action === "departure");
+    const firstArrival = arrivals[0];
+    const lastDeparture = departures[departures.length - 1];
+    if (!firstArrival || !lastDeparture) return;
+    const start = new Date(firstArrival.timestamp);
+    const end = new Date(lastDeparture.timestamp);
+    const rawMinutes = Math.max(0, Math.round((end - start) / 60000));
+    const departureHour = parisHour(lastDeparture.timestamp);
+    const pauseMinutes = departureHour < 13 ? 0 : 60;
+    day.pauseMinutes = pauseMinutes;
+    day.workedMinutes = Math.max(0, rawMinutes - pauseMinutes);
+    day.firstArrival = firstArrival.timestamp;
+    day.lastDeparture = lastDeparture.timestamp;
+  });
+  return Object.values(labels).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 31);
+}
+
+function parisDateKey(value) {
+  return new Intl.DateTimeFormat("fr-CA", {
+    timeZone: "Europe/Paris",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(value));
+}
+
+function parisHour(value) {
+  const parts = new Intl.DateTimeFormat("fr-FR", {
+    timeZone: "Europe/Paris",
+    hour: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date(value));
+  return Number(parts.find((part) => part.type === "hour")?.value || 0);
 }
 
 async function getSystemStatus() {

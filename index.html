@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=quick-note-1" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="styles.css?v=flow-1" />
+    <link rel="stylesheet" href="styles.css?v=timeclock-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -857,19 +857,24 @@
             <section class="panel timeclock-panel">
               <div class="panel-header">
                 <div>
-                  <p class="section-kicker">Employes</p>
-                  <h2>Personnes autorisees</h2>
+                  <p class="section-kicker">Cathy</p>
+                  <h2>Mode simplifie</h2>
                 </div>
               </div>
-              <form class="employee-form" id="employeeForm">
-                <input id="employeeName" type="text" placeholder="Nom de l'employe" autocomplete="off" required />
-                <input id="employeeCode" type="text" inputmode="numeric" placeholder="Code optionnel" autocomplete="off" />
-                <button class="assistant-button small" type="submit">Ajouter</button>
-              </form>
+              <p class="connection-hint">La pointeuse est dediee a Cathy. Premier scan du jour : arrivee. Deuxieme scan : depart. L'application retire 1h de pause sauf depart avant 13h.</p>
               <div class="wide-list" id="employeeList"></div>
             </section>
           </div>
           <div class="timeclock-summary" id="timeclockSummary"></div>
+          <section class="panel timeclock-panel">
+            <div class="panel-header">
+              <div>
+                <p class="section-kicker">Controle</p>
+                <h2>Heures calculees</h2>
+              </div>
+            </div>
+            <div class="wide-list" id="timeclockDailyList"></div>
+          </section>
           <section class="panel timeclock-panel">
             <div class="panel-header">
               <div>
@@ -1326,7 +1331,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=flow-1"></script>
+    <script src="app.js?v=timeclock-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

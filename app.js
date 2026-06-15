@@ -170,6 +170,7 @@ let currentAssistantMode = "quick";
 let notificationPrefs = loadNotificationPrefs();
 let morningNotificationTimer = null;
 let autoRefreshTimer = null;
+let lastInboxSyncAttempt = 0;
 let quickNoteRecognition = null;
 let quickNoteIsListening = false;
 let quickNoteFinalTranscript = "";
@@ -229,6 +230,7 @@ const el = {
   taskListFilter: document.querySelector("#taskListFilter"),
   taskSearch: document.querySelector("#taskSearch"),
   fullInbox: document.querySelector("#fullInbox"),
+  inboxTriageSummary: document.querySelector("#inboxTriageSummary"),
   inboxMailList: document.querySelector("#inboxMailList"),
   inboxMailCount: document.querySelector("#inboxMailCount"),
   inboxMailStatus: document.querySelector("#inboxMailStatus"),
@@ -1481,6 +1483,7 @@ function formatShortDay(dateKey) {
 }
 
 function renderInbox() {
+  renderInboxTriageSummary();
   if (el.inboxMailCount) el.inboxMailCount.textContent = `${state.mail.length} email(s)`;
   if (el.inboxMailStatus) {
     const lastSync = syncStatusState?.lastFinishedAt ? formatDateTime(syncStatusState.lastFinishedAt) : "synchro non encore lue";
@@ -1494,6 +1497,30 @@ function renderInbox() {
   el.fullInbox.innerHTML = state.inbox.length
     ? state.inbox.map((item) => inboxCard(item, true)).join("")
     : emptyState("Aucun element a trier.");
+}
+
+function renderInboxTriageSummary() {
+  if (!el.inboxTriageSummary) return;
+  const mails = state.mail || [];
+  const unread = mails.filter((mail) => mail.unread).length;
+  const attachments = mails.filter((mail) => Number(mail.attachmentCount || 0) > 0).length;
+  const important = mails.filter(isImportantMailClient).length;
+  const lastMail = mails
+    .slice()
+    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))[0];
+  el.inboxTriageSummary.innerHTML = `
+    <article><strong>${unread}</strong><span>Non lus</span></article>
+    <article><strong>${important}</strong><span>A regarder</span></article>
+    <article><strong>${attachments}</strong><span>Pieces jointes</span></article>
+    <article><strong>${lastMail ? formatDateTime(lastMail.createdAt) : "Aucun"}</strong><span>Dernier email</span></article>
+  `;
+}
+
+function isImportantMailClient(mail) {
+  const text = normalizeText(`${mail.title || ""} ${mail.source || ""} ${mail.detail || ""} ${mail.excerpt || ""}`);
+  return mail.unread
+    || Number(mail.attachmentCount || 0) > 0
+    || /(commande|devis|facture|reglement|paiement|urgent|livraison|client|rendez|rdv|reponse|relance)/.test(text);
 }
 
 function renderTasks() {
@@ -2692,8 +2719,8 @@ function taskCard(task) {
   const dueClass = getDueClass(task);
   const effort = taskEffortLine(task);
   const dueLabel = task.due ? `${formatDate(task.due)}${task.plannedTime ? ` a ${task.plannedTime}` : ""}` : "Sans echeance";
-  const lateActions = dueClass === "is-late"
-    ? `<div class="late-task-actions" aria-label="Actions de rattrapage">
+  const quickScheduleActions = dueClass === "is-late" || !task.due || task.status === "En attente"
+    ? `<div class="late-task-actions" aria-label="Actions de planification rapide">
         <button class="item-action item-action-primary" type="button" onclick="rescheduleTask('${task.id}', 'today')">Aujourd'hui</button>
         <button class="item-action" type="button" onclick="rescheduleTask('${task.id}', 'tomorrow')">Demain</button>
         <button class="item-action" type="button" onclick="rescheduleTask('${task.id}', 'none')">Sans date</button>
@@ -2708,7 +2735,7 @@ function taskCard(task) {
       <p class="card-meta">${escapeHTML(taskListName(task))} - ${escapeHTML(task.status)} - ${escapeHTML(dueLabel)} - ${escapeHTML(task.source || "manuel")}</p>
       ${effort ? `<p class="card-meta task-effort-line">${escapeHTML(effort)}</p>` : ""}
       ${task.notes ? `<p class="card-meta">${escapeHTML(task.notes)}</p>` : ""}
-      ${lateActions}
+      ${quickScheduleActions}
       ${taskListSelector(task)}
       <div class="card-actions">
         ${task.status !== "Termine" ? `<button class="item-action" type="button" onclick="completeTask('${task.id}')">Terminer</button>` : ""}
@@ -2770,11 +2797,12 @@ function externalCard(item, className) {
 
 function mailCard(item) {
   const attachmentLabel = Number(item.attachmentCount || 0) > 0 ? ` - ${item.attachmentCount} piece(s) jointe(s)` : "";
+  const important = isImportantMailClient(item);
   return `
-    <article class="mail-card">
+    <article class="mail-card ${important ? "is-important" : ""}">
       <div class="card-top">
         <p class="card-title">${escapeHTML(item.title)}</p>
-        <span class="source-pill">${item.unread ? "Non lu" : "Email"}</span>
+        <span class="source-pill">${item.unread ? "Non lu" : important ? "A regarder" : "Email"}</span>
       </div>
       <p class="card-meta">${escapeHTML(item.source)}${item.detail ? ` - ${escapeHTML(item.detail)}` : ""}${escapeHTML(attachmentLabel)}</p>
       <div class="card-actions">
@@ -4122,8 +4150,8 @@ function renderMailDialog(message, loading = false) {
   renderMailAttachments(message.attachments || []);
   el.sendMailReply.disabled = !message.canReply || message.needsSendScope;
   el.mailSendStatus.textContent = message.needsSendScope
-    ? "Pour envoyer depuis l'app, reconnecte Gmail dans Connexions. Tu peux deja lire et preparer la reponse."
-    : message.canReply ? "" : "Reponse directe indisponible pour cet email.";
+    ? "Pour creer un brouillon Gmail, reconnecte Gmail dans Connexions. Tu peux deja lire et preparer la reponse."
+    : message.canReply ? "Le bouton cree un brouillon Gmail. Rien n'est envoye automatiquement." : "Brouillon direct indisponible pour cet email.";
 }
 
 function renderMailAttachments(attachments) {
@@ -4208,21 +4236,20 @@ async function sendMailReply() {
   }
 
   el.sendMailReply.disabled = true;
-  el.mailSendStatus.textContent = "Envoi en cours...";
+  el.mailSendStatus.textContent = "Creation du brouillon Gmail...";
   try {
-    const response = await fetch("/api/mail/reply", {
+    const response = await fetch("/api/mail/draft", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: currentMailMessage.id, body }),
     });
     const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error || "Reponse non envoyee.");
-    el.mailReplyText.value = "";
-    el.mailSendStatus.textContent = "Reponse envoyee.";
-    showToast("Reponse envoyee.");
+    if (!response.ok) throw new Error(payload.error || "Brouillon non cree.");
+    el.mailSendStatus.textContent = `Brouillon Gmail cree pour ${payload.draft?.to || "le destinataire"}. Rien n'a ete envoye.`;
+    showToast("Brouillon Gmail cree.");
   } catch (error) {
-    el.mailSendStatus.textContent = error.message || "Reponse non envoyee.";
-    showToast("Reponse non envoyee.");
+    el.mailSendStatus.textContent = error.message || "Brouillon non cree.";
+    showToast("Brouillon non cree.");
   } finally {
     el.sendMailReply.disabled = !currentMailMessage?.canReply || currentMailMessage?.needsSendScope;
   }
@@ -4822,6 +4849,10 @@ async function refreshServerStateQuietly() {
   if (hasOpenDialog || isTyping) return;
 
   try {
+    if (document.body.dataset.activeView === "inbox" && Date.now() - lastInboxSyncAttempt > 5 * 60 * 1000) {
+      lastInboxSyncAttempt = Date.now();
+      await fetch("/api/google/sync?service=gmail", { method: "POST" });
+    }
     const response = await fetch("/api/state");
     state = migrateState(await response.json());
     await loadMorningBrief();

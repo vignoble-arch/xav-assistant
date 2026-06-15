@@ -1369,6 +1369,40 @@ select,
   background: var(--surface-strong);
 }
 
+.inbox-triage-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 14px 0 18px;
+}
+
+.inbox-triage-summary article {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 13px;
+  background: var(--surface-strong);
+}
+
+.inbox-triage-summary strong,
+.inbox-triage-summary span {
+  display: block;
+}
+
+.inbox-triage-summary strong {
+  font-size: 1.08rem;
+}
+
+.inbox-triage-summary span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.mail-card.is-important {
+  border-color: rgba(165, 109, 40, 0.28);
+  background: #fffaf0;
+}
+
 .settings-shortcuts {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -5569,6 +5603,7 @@ body[data-active-view="vivre"] .quick-capture {
   .task-toolbar,
   .task-summary,
   .note-summary,
+  .inbox-triage-summary,
   .kanban {
     grid-template-columns: 1fr;
   }

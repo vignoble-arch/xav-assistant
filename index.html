@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=liberer-1" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="styles.css?v=manual-day-organizer-1" />
+    <link rel="stylesheet" href="styles.css?v=task-effort-fields-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -1389,6 +1389,32 @@
             Echeance
             <input id="taskDue" type="date" />
           </label>
+          <label>
+            Temps estime
+            <input id="taskEstimatedMinutes" type="number" min="0" step="5" placeholder="Minutes" />
+          </label>
+          <label>
+            Charge mentale
+            <select id="taskMentalLoad">
+              <option value="">Non renseignee</option>
+              <option value="1">1 - Legere</option>
+              <option value="2">2 - Moderee</option>
+              <option value="3">3 - Soutenue</option>
+              <option value="4">4 - Forte</option>
+              <option value="5">5 - Tres forte</option>
+            </select>
+          </label>
+          <label>
+            Charge physique
+            <select id="taskPhysicalLoad">
+              <option value="">Non renseignee</option>
+              <option value="1">1 - Legere</option>
+              <option value="2">2 - Moderee</option>
+              <option value="3">3 - Soutenue</option>
+              <option value="4">4 - Forte</option>
+              <option value="5">5 - Tres forte</option>
+            </select>
+          </label>
           <label class="wide-field">
             Details
             <textarea id="taskNotes" rows="4" placeholder="Adresse, contexte, precision, numero de commande..."></textarea>
@@ -1433,7 +1459,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=manual-day-organizer-1"></script>
+    <script src="app.js?v=task-effort-fields-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

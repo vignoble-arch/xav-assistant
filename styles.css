@@ -907,6 +907,16 @@ select,
   margin: 7px 0 0;
 }
 
+.task-effort-line {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 12px;
+  padding: 7px 10px;
+  background: rgba(94, 126, 104, 0.1);
+  color: #4f6656;
+  font-weight: 850;
+}
+
 .card-actions {
   display: flex;
   flex-wrap: wrap;

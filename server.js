@@ -1174,6 +1174,9 @@ async function saveTaskFromApp(req, res) {
     source: existing?.source || "manuel",
     due: String(body.due || ""),
     notes: String(body.notes || existing?.notes || ""),
+    estimatedMinutes: normalizePositiveNumber(body.estimatedMinutes ?? existing?.estimatedMinutes),
+    mentalLoad: normalizeLoadValue(body.mentalLoad ?? existing?.mentalLoad),
+    physicalLoad: normalizeLoadValue(body.physicalLoad ?? existing?.physicalLoad),
     sourceId: existing?.sourceId || "",
     sourceListId: existing?.sourceListId || "",
     completedAt,
@@ -1196,6 +1199,17 @@ async function saveTaskFromApp(req, res) {
     : [task, ...state.tasks];
   writeJson(STATE_FILE, state);
   sendJson(res, state);
+}
+
+function normalizePositiveNumber(value) {
+  const number = Number(value || 0);
+  return Number.isFinite(number) && number > 0 ? Math.round(number) : 0;
+}
+
+function normalizeLoadValue(value) {
+  const number = Number(value || 0);
+  if (!Number.isFinite(number) || number <= 0) return 0;
+  return Math.max(1, Math.min(5, Math.round(number)));
 }
 
 async function deleteTaskFromApp(req, res) {
@@ -1798,6 +1812,9 @@ function googleTaskToAppTask(task, listId, listName) {
     source: "Google Tasks",
     due: task.due ? task.due.slice(0, 10) : "",
     notes: task.notes || "",
+    estimatedMinutes: 0,
+    mentalLoad: 0,
+    physicalLoad: 0,
     completedAt: task.completed || "",
     updatedAt: task.updated || new Date().toISOString(),
   };
@@ -1894,12 +1911,26 @@ function mergeInboxBySourceId(incoming, existing) {
 
 function mergeTasksBySourceId(incoming, existing) {
   const localTasks = existing.filter((task) => task.source !== "Google Tasks");
+  const existingGoogleTasks = new Map(
+    existing
+      .filter((task) => task.source === "Google Tasks" && task.sourceId)
+      .map((task) => [task.sourceId, task])
+  );
   const seen = new Set();
   const cleanIncoming = incoming.filter((task) => {
     if (!task.sourceId) return true;
     if (seen.has(task.sourceId)) return false;
     seen.add(task.sourceId);
     return true;
+  }).map((task) => {
+    const current = existingGoogleTasks.get(task.sourceId);
+    if (!current) return task;
+    return {
+      ...task,
+      estimatedMinutes: normalizePositiveNumber(current.estimatedMinutes ?? task.estimatedMinutes),
+      mentalLoad: normalizeLoadValue(current.mentalLoad ?? task.mentalLoad),
+      physicalLoad: normalizeLoadValue(current.physicalLoad ?? task.physicalLoad),
+    };
   });
   return [...cleanIncoming, ...localTasks];
 }
@@ -3714,7 +3745,14 @@ function getAiStateSummary(state) {
   const urgentTasks = openTasks
     .filter((task) => ["Urgente", "Importante"].includes(task.priority))
     .slice(0, 5)
-    .map((task) => `${task.title} (${task.list || task.category || "sans liste"})`);
+    .map((task) => {
+      const effort = formatTaskEffortForAi(task);
+      return `${task.title} (${task.list || task.category || "sans liste"}${effort ? `, ${effort}` : ""})`;
+    });
+  const effortTasks = openTasks
+    .filter((task) => task.estimatedMinutes || task.mentalLoad || task.physicalLoad)
+    .slice(0, 8)
+    .map((task) => `${task.title}: ${formatTaskEffortForAi(task)}`);
   const reports = (state.reports || [])
     .slice(0, 4)
     .map((report) => `${report.title}: ${report.status}`);
@@ -3723,10 +3761,22 @@ function getAiStateSummary(state) {
   return [
     `Contexte actuel: ${openTasks.length} taches ouvertes.`,
     urgentTasks.length ? `Taches importantes: ${urgentTasks.join("; ")}.` : "",
+    effortTasks.length ? `Charges declarees pour organiser la journee: ${effortTasks.join("; ")}.` : "",
     upcomingAgenda.length ? `Agenda Google synchronise: lecture de l'agenda personnel et de l'agenda assistants. Prochains rendez-vous: ${upcomingAgenda.join("; ")}.` : "Agenda Google synchronise: aucun rendez-vous lu dans les 30 prochains jours, ou synchronisation a relancer.",
     activeOrders.length ? `Commandes en cours: ${activeOrders.slice(0, 5).map((order) => `${order.reference} - ${order.customerName} (${order.status})`).join("; ")}.` : "",
     reports.length ? `Travaux en cours: ${reports.join("; ")}.` : "",
   ].filter(Boolean).join(" ");
+}
+
+function formatTaskEffortForAi(task) {
+  const parts = [];
+  const minutes = normalizePositiveNumber(task.estimatedMinutes);
+  const mentalLoad = normalizeLoadValue(task.mentalLoad);
+  const physicalLoad = normalizeLoadValue(task.physicalLoad);
+  if (minutes) parts.push(`temps estime ${minutes} min`);
+  if (mentalLoad) parts.push(`charge mentale ${mentalLoad}/5`);
+  if (physicalLoad) parts.push(`charge physique ${physicalLoad}/5`);
+  return parts.join(", ");
 }
 
 function getUpcomingAgendaItems(state) {
@@ -3756,7 +3806,8 @@ function buildMorningBrief(state) {
     .sort(sortTasksForBrief)
     .slice(0, 5)
     .map(taskToBriefItem);
-  const loadScore = priorities.length + agendaToday.length + Math.min(lateTasks.length, 4);
+  const effortScore = priorities.reduce((sum, task) => sum + Math.max(Number(task.mentalLoad || 0), Number(task.physicalLoad || 0)), 0);
+  const loadScore = priorities.length + agendaToday.length + Math.min(lateTasks.length, 4) + Math.ceil(effortScore / 6);
 
   return {
     generatedAt: new Date().toISOString(),
@@ -3823,6 +3874,10 @@ function taskToBriefItem(task) {
     priority: task.priority || "Normale",
     due: task.due || "",
     source: task.source || "manuel",
+    estimatedMinutes: normalizePositiveNumber(task.estimatedMinutes),
+    mentalLoad: normalizeLoadValue(task.mentalLoad),
+    physicalLoad: normalizeLoadValue(task.physicalLoad),
+    effort: formatTaskEffortForAi(task),
   };
 }
 

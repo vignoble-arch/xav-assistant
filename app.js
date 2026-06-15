@@ -690,12 +690,29 @@ function getOpenTasksByList(listName) {
 function taskInlineDetails(task) {
   const parts = [];
   if (task.due) parts.push(formatDate(task.due));
+  if (taskEffortLine(task)) parts.push(taskEffortLine(task));
   if (task.notes) parts.push(task.notes);
   return parts.join(" - ");
 }
 
 function taskDetailLine(task) {
   return taskInlineDetails(task) || task.source || "Tache";
+}
+
+function taskEffortLine(task) {
+  const parts = [];
+  const minutes = Number(task.estimatedMinutes || 0);
+  if (minutes > 0) parts.push(`Temps estime : ${formatEstimatedTime(minutes)}`);
+  if (Number(task.mentalLoad || 0) > 0) parts.push(`Mental : ${task.mentalLoad}/5`);
+  if (Number(task.physicalLoad || 0) > 0) parts.push(`Physique : ${task.physicalLoad}/5`);
+  return parts.join(" - ");
+}
+
+function formatEstimatedTime(minutes) {
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? `${hours}h${String(rest).padStart(2, "0")}` : `${hours}h`;
 }
 
 function setTaskProgressList(selector, tasks) {
@@ -1121,7 +1138,8 @@ function computeDashboardLoadScore(stats, priorities, agenda) {
   const today = Math.min(Number(stats.today || 0), 4);
   const agendaCount = Math.min(agenda.length, 4);
   const priorityCount = Math.min(priorities.length, 3);
-  return Math.max(1, Math.min(10, 2 + late + Math.ceil(today / 2) + agendaCount + Math.max(0, priorityCount - 1)));
+  const effort = priorities.reduce((sum, task) => sum + Math.max(Number(task.mentalLoad || 0), Number(task.physicalLoad || 0)), 0);
+  return Math.max(1, Math.min(10, 2 + late + Math.ceil(today / 2) + agendaCount + Math.max(0, priorityCount - 1) + Math.ceil(effort / 6)));
 }
 
 function buildAiDecisions(brief, loadScore) {
@@ -2400,6 +2418,7 @@ function memoryCard(exchange) {
 }
 
 function priorityCard(task) {
+  const effort = taskEffortLine(task);
   return `
     <article class="priority-card">
       <div class="card-top">
@@ -2407,6 +2426,7 @@ function priorityCard(task) {
         ${priorityTag(effectivePriority(task))}
       </div>
       <p class="card-meta">${escapeHTML(taskListName(task))} - ${formatDate(task.due)} - ${escapeHTML(task.source)}</p>
+      ${effort ? `<p class="card-meta task-effort-line">${escapeHTML(effort)}</p>` : ""}
       <div class="card-actions">
         <button class="item-action" type="button" onclick="completeTask('${task.id}')">Terminer</button>
         <button class="item-action" type="button" onclick="moveTask('${task.id}', 'En attente')">Reporter</button>
@@ -2418,6 +2438,7 @@ function priorityCard(task) {
 
 function taskCard(task) {
   const dueClass = getDueClass(task);
+  const effort = taskEffortLine(task);
   const lateActions = dueClass === "is-late"
     ? `<div class="late-task-actions" aria-label="Actions de rattrapage">
         <button class="item-action item-action-primary" type="button" onclick="rescheduleTask('${task.id}', 'today')">Aujourd'hui</button>
@@ -2432,6 +2453,7 @@ function taskCard(task) {
         ${priorityTag(effectivePriority(task))}
       </div>
       <p class="card-meta">${escapeHTML(taskListName(task))} - ${escapeHTML(task.status)} - ${task.due ? formatDate(task.due) : "Sans echeance"} - ${escapeHTML(task.source || "manuel")}</p>
+      ${effort ? `<p class="card-meta task-effort-line">${escapeHTML(effort)}</p>` : ""}
       ${task.notes ? `<p class="card-meta">${escapeHTML(task.notes)}</p>` : ""}
       ${lateActions}
       <div class="card-actions">
@@ -2960,6 +2982,9 @@ function openTaskForm(id = "", options = {}) {
   document.querySelector("#taskCategory").value = task ? taskListName(task) : options.list || "bureau";
   document.querySelector("#taskPriority").value = task?.priority || "Normale";
   document.querySelector("#taskDue").value = task?.due || "";
+  document.querySelector("#taskEstimatedMinutes").value = task?.estimatedMinutes || "";
+  document.querySelector("#taskMentalLoad").value = task?.mentalLoad || "";
+  document.querySelector("#taskPhysicalLoad").value = task?.physicalLoad || "";
   document.querySelector("#taskNotes").value = task?.notes || "";
   el.taskDialogTitle.textContent = task ? "Modifier la tache" : "Ajouter une tache";
   el.taskSubmitButton.textContent = task ? "Enregistrer" : "Ajouter";
@@ -3418,6 +3443,9 @@ async function handleTaskSubmit(event) {
     priority: document.querySelector("#taskPriority").value,
     list: document.querySelector("#taskCategory").value,
     due: document.querySelector("#taskDue").value || "",
+    estimatedMinutes: Number(document.querySelector("#taskEstimatedMinutes").value || 0),
+    mentalLoad: Number(document.querySelector("#taskMentalLoad").value || 0),
+    physicalLoad: Number(document.querySelector("#taskPhysicalLoad").value || 0),
     notes: document.querySelector("#taskNotes").value.trim(),
   };
   const saved = await saveTask(payload);
@@ -4043,7 +4071,8 @@ function buildMorningBriefClient(currentState) {
     .sort(sortTasksForFocus)
     .slice(0, 5)
     .map(taskToBriefItem);
-  const loadScore = priorities.length + agenda.length + Math.min(lateTasks.length, 4);
+  const effortScore = priorities.reduce((sum, task) => sum + Math.max(Number(task.mentalLoad || 0), Number(task.physicalLoad || 0)), 0);
+  const loadScore = priorities.length + agenda.length + Math.min(lateTasks.length, 4) + Math.ceil(effortScore / 6);
   return {
     generatedAt: new Date().toISOString(),
     date: today,
@@ -4092,7 +4121,22 @@ function taskToBriefItem(task) {
     list: taskListName(task),
     priority: task.priority || "Normale",
     due: task.due || "",
+    estimatedMinutes: normalizePositiveInteger(task.estimatedMinutes),
+    mentalLoad: normalizeTaskLoad(task.mentalLoad),
+    physicalLoad: normalizeTaskLoad(task.physicalLoad),
+    effort: taskEffortLine(task),
   };
+}
+
+function normalizePositiveInteger(value) {
+  const number = Number(value || 0);
+  return Number.isFinite(number) && number > 0 ? Math.round(number) : 0;
+}
+
+function normalizeTaskLoad(value) {
+  const number = Number(value || 0);
+  if (!Number.isFinite(number) || number <= 0) return 0;
+  return Math.max(1, Math.min(5, Math.round(number)));
 }
 
 function uniqueByTaskId() {
@@ -4113,6 +4157,9 @@ function migrateState(saved) {
   migrated.tasks = (saved.tasks || seedState.tasks).map((task) => ({
     ...task,
     list: taskListName(task),
+    estimatedMinutes: normalizePositiveInteger(task.estimatedMinutes),
+    mentalLoad: normalizeTaskLoad(task.mentalLoad),
+    physicalLoad: normalizeTaskLoad(task.physicalLoad),
   }));
   migrated.lists = Object.fromEntries(TASK_LISTS.map((name) => [name, saved.lists?.[name] || []]));
   migrated.mail = (saved.mail || seedState.mail).map((item) => ({

@@ -13,7 +13,8 @@ const WORKERS = [
   { key: "secretaire", label: "Suzette", description: "Emails, dossiers, echeances" },
   { key: "commercial", label: "Gaspard", description: "Clients, relances, Baqio" },
 ];
-const FLOW_PAGE_ORDER = ["dashboard", "organization", "inspire", "expire", "vivre", "tasks", "inbox", "notes"];
+const FLOW_PAGE_ORDER = ["dashboard", "organization", "inspire", "expire", "tasks", "inbox", "notes", "lists"];
+const SETTINGS_VIEWS = ["vivre", "requests", "commercial", "timeclock", "memory", "connections"];
 const DAILY_ZEN_PHRASES = [
   "Une chose claire vaut mieux que dix urgences bruyantes.",
   "On avance mieux quand la journee respire.",
@@ -393,6 +394,9 @@ function bindEvents() {
   document.querySelector("#mobileOpenNote")?.addEventListener("click", openQuickNote);
   document.querySelectorAll("[data-mobile-view]").forEach((button) => {
     button.addEventListener("click", () => switchView(button.dataset.mobileView));
+  });
+  document.querySelectorAll("[data-settings-view]").forEach((button) => {
+    button.addEventListener("click", () => switchView(button.dataset.settingsView));
   });
   document.querySelector("#submitAssistant").addEventListener("click", handleAssistantSubmit);
   el.askLocalAi.addEventListener("click", askLocalAi);
@@ -3939,7 +3943,8 @@ function stopQuickNoteDictation() {
 function switchView(view) {
   document.body.dataset.activeView = view;
   document.querySelectorAll(".nav-item").forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.view === view);
+    const isSettingsChild = button.dataset.view === "settings" && SETTINGS_VIEWS.includes(view);
+    button.classList.toggle("is-active", button.dataset.view === view || isSettingsChild);
   });
   document.querySelectorAll("[data-mobile-view]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.mobileView === view);

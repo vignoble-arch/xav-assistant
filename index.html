@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=logo-artmas-1" />
     <link rel="icon" href="art-mas-logo.png?v=logo-artmas-1" type="image/png" />
     <link rel="apple-touch-icon" href="art-mas-logo.png?v=logo-artmas-1" />
-    <link rel="stylesheet" href="styles.css?v=hamburger-2" />
+    <link rel="stylesheet" href="styles.css?v=menu-clean-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -42,17 +42,11 @@
           <button class="nav-item" type="button" data-view="organization">Respire</button>
           <button class="nav-item" type="button" data-view="inspire">Inspire</button>
           <button class="nav-item" type="button" data-view="expire">Expire</button>
-          <button class="nav-item" type="button" data-view="vivre">Vivre</button>
-          <button class="nav-item" type="button" data-view="requests">Demandes</button>
           <button class="nav-item" type="button" data-view="tasks">Taches</button>
           <button class="nav-item" type="button" data-view="inbox">Inbox</button>
-          <button class="nav-item" type="button" data-view="commercial">Commercial</button>
-          <button class="nav-item" type="button" data-view="timeclock">Pointeuse</button>
           <button class="nav-item" type="button" data-view="notes">Notes</button>
-          <button class="nav-item" type="button" data-view="memory">Memoire</button>
           <button class="nav-item" type="button" data-view="lists">Listes</button>
-          <button class="nav-item" type="button" data-view="settings">Reglages</button>
-          <button class="nav-item" type="button" data-view="connections">Connexions</button>
+          <button class="nav-item" type="button" data-view="settings">Parametres</button>
         </nav>
 
         <section class="sync-panel" aria-label="Etat des connexions">
@@ -1057,10 +1051,40 @@
         <section class="management-view" data-panel="settings" hidden>
           <div class="view-header">
             <div>
-              <p class="section-kicker">Personnalisation</p>
-              <h2>Ambiance de l'app</h2>
+              <p class="section-kicker">Parametres</p>
+              <h2>Reglages et outils</h2>
             </div>
             <button class="ghost-button" type="button" id="resetBranding">Revenir simple</button>
+          </div>
+          <div class="settings-shortcuts" aria-label="Outils secondaires">
+            <button type="button" data-settings-view="vivre">
+              <strong>Vivre</strong>
+              <span>Maison, perso, courses</span>
+            </button>
+            <button type="button" data-settings-view="requests">
+              <strong>Demandes</strong>
+              <span>Suivi Fernand</span>
+            </button>
+            <button type="button" data-settings-view="commercial">
+              <strong>Commercial</strong>
+              <span>Clients, commandes, Baqio</span>
+            </button>
+            <button type="button" data-settings-view="timeclock">
+              <strong>Pointeuse</strong>
+              <span>Heures et observations</span>
+            </button>
+            <button type="button" data-settings-view="memory">
+              <strong>Memoire IA</strong>
+              <span>RAG, docs, consignes</span>
+            </button>
+            <button type="button" data-settings-view="connections">
+              <strong>Connexions</strong>
+              <span>Google, OpenAI, Baqio</span>
+            </button>
+          </div>
+          <div class="settings-section-title">
+            <p class="section-kicker">Personnalisation</p>
+            <h3>Ambiance de l'app</h3>
           </div>
           <form class="settings-form" id="brandingForm">
             <section class="settings-preview">
@@ -1242,9 +1266,6 @@
       <button type="button" data-mobile-view="expire">
         <span>Expire</span>
       </button>
-      <button type="button" data-mobile-view="vivre">
-        <span>Vivre</span>
-      </button>
       <button type="button" data-mobile-view="tasks">
         <span>Taches</span>
       </button>
@@ -1256,6 +1277,9 @@
       </button>
       <button type="button" data-mobile-view="inbox">
         <span>Emails</span>
+      </button>
+      <button type="button" data-mobile-view="lists">
+        <span>Listes</span>
       </button>
     </nav>
 
@@ -1535,7 +1559,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=hamburger-2"></script>
+    <script src="app.js?v=menu-clean-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

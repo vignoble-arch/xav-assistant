@@ -1369,6 +1369,50 @@ select,
   background: var(--surface-strong);
 }
 
+.settings-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.settings-shortcuts button {
+  display: grid;
+  gap: 5px;
+  min-height: 92px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  color: var(--ink);
+  background: var(--surface-strong);
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-shortcuts button:hover {
+  border-color: rgba(85, 103, 72, 0.35);
+  background: #f7f7ef;
+}
+
+.settings-shortcuts strong {
+  font-size: 1rem;
+}
+
+.settings-shortcuts span {
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+.settings-section-title {
+  margin-top: 24px;
+}
+
+.settings-section-title h3 {
+  margin: 2px 0 0;
+  font-size: 1.12rem;
+}
+
 .settings-preview {
   display: flex;
   align-items: center;
@@ -5504,6 +5548,7 @@ body[data-active-view="vivre"] .quick-capture {
   .list-columns,
   .commercial-summary,
   .commercial-grid,
+  .settings-shortcuts,
   .connections-grid {
     grid-template-columns: 1fr;
   }

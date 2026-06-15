@@ -16,18 +16,18 @@
       "url": "/quick-note.html",
       "icons": [
         {
-          "src": "/icon.svg",
-          "sizes": "any",
-          "type": "image/svg+xml"
+          "src": "/art-mas-logo.png",
+          "sizes": "449x447",
+          "type": "image/png"
         }
       ]
     }
   ],
   "icons": [
     {
-      "src": "/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/art-mas-logo.png",
+      "sizes": "449x447",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]

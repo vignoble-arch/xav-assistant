@@ -60,26 +60,29 @@ button {
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 .brand-logo-slot {
   display: grid;
-  width: 46px;
-  height: 46px;
+  flex: 0 0 64px;
+  width: 64px;
+  height: 64px;
   place-items: center;
   border: 1px solid rgba(255, 255, 255, 0.24);
-  border-radius: 8px;
-  background: #d9b474;
+  border-radius: 50%;
+  background: #fffdf8;
   color: #23211e;
   font-weight: 800;
   overflow: hidden;
+  box-sizing: border-box;
+  padding: 5px;
 }
 
 .brand-logo-slot img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .brand-logo-slot span {
@@ -4881,6 +4884,18 @@ textarea {
   mix-blend-mode: multiply;
 }
 
+.respire-brandmark img,
+.inspire-brandmark img,
+.expire-brandmark img,
+.vivre-brandmark img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  padding: 4px;
+  border-radius: 50%;
+  background: rgba(255, 253, 248, 0.78);
+}
+
 .vivre-brandmark p {
   margin: 0;
   font-family: Georgia, "Times New Roman", serif;
@@ -5381,8 +5396,9 @@ body[data-active-view="vivre"] .quick-capture {
   }
 
   .brand-logo-slot {
-    width: 38px;
-    height: 38px;
+    flex-basis: 52px;
+    width: 52px;
+    height: 52px;
   }
 
   .brand-subtitle {
@@ -5627,8 +5643,8 @@ body[data-active-view="vivre"] .quick-capture {
   }
 
   .respire-brandmark img {
-    width: 28px;
-    height: 28px;
+    width: 44px;
+    height: 44px;
   }
 
   .respire-brandmark p {
@@ -5910,8 +5926,8 @@ body[data-active-view="vivre"] .quick-capture {
   }
 
   .inspire-brandmark img {
-    width: 28px;
-    height: 28px;
+    width: 44px;
+    height: 44px;
   }
 
   .inspire-brandmark p {
@@ -6103,8 +6119,8 @@ body[data-active-view="vivre"] .quick-capture {
   }
 
   .expire-brandmark img {
-    width: 28px;
-    height: 28px;
+    width: 44px;
+    height: 44px;
   }
 
   .expire-brandmark p {
@@ -6304,8 +6320,8 @@ body[data-active-view="vivre"] .quick-capture {
   }
 
   .vivre-brandmark img {
-    width: 28px;
-    height: 28px;
+    width: 44px;
+    height: 44px;
   }
 
   .vivre-brandmark p {

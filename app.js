@@ -529,9 +529,10 @@ function applyBranding() {
     el.brandLogo.hidden = false;
     el.brandLogoFallback.hidden = true;
   } else if (el.brandLogo && el.brandLogoFallback) {
-    el.brandLogo.removeAttribute("src");
-    el.brandLogo.hidden = true;
-    el.brandLogoFallback.hidden = false;
+    el.brandLogo.src = "art-mas-logo.png";
+    el.brandLogo.alt = "Vignoble Art Mas";
+    el.brandLogo.hidden = false;
+    el.brandLogoFallback.hidden = true;
   }
 }
 
@@ -4484,8 +4485,8 @@ async function sendMorningNotification(isTest) {
   await registration.showNotification(isTest ? "Assistant Xavier est pret" : "Bonjour Xavier", {
     body,
     tag: "assistant-xavier-morning",
-    icon: "/icon.svg",
-    badge: "/icon.svg",
+    icon: "/art-mas-logo.png",
+    badge: "/art-mas-logo.png",
     data: { url: "/" },
   });
 }

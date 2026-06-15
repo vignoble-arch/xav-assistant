@@ -181,6 +181,10 @@ let assistantThreadMessages = [];
 const el = {
   todayLabel: document.querySelector("#todayLabel"),
   dailyZen: document.querySelector("#dailyZen"),
+  ancrageZen: document.querySelector("#ancrageZen"),
+  ancrageLoad: document.querySelector("#ancrageLoad"),
+  ancrageLoadLabel: document.querySelector("#ancrageLoadLabel"),
+  ancrageSummary: document.querySelector("#ancrageSummary"),
   brandLogo: document.querySelector("#brandLogo"),
   brandLogoFallback: document.querySelector("#brandLogoFallback"),
   brandTitle: document.querySelector(".brand-title"),
@@ -510,16 +514,21 @@ function applyBranding() {
 }
 
 function renderDailyZen() {
-  if (!el.dailyZen) return;
+  if (!el.dailyZen && !el.ancrageZen) return;
+  let phrase = "";
   if (morningBriefState?.zenPhrase) {
-    el.dailyZen.textContent = morningBriefState.zenPhrase;
+    phrase = morningBriefState.zenPhrase;
+    if (el.dailyZen) el.dailyZen.textContent = phrase;
+    if (el.ancrageZen) el.ancrageZen.textContent = phrase;
     return;
   }
   const branding = readBranding();
   const phrases = Array.isArray(branding.zenPhrases) && branding.zenPhrases.length ? branding.zenPhrases : DAILY_ZEN_PHRASES;
   const dayKey = Number(new Intl.DateTimeFormat("fr-FR", { day: "numeric" }).format(new Date())) || 1;
   const index = (dayKey - 1) % phrases.length;
-  el.dailyZen.textContent = phrases[index];
+  phrase = phrases[index];
+  if (el.dailyZen) el.dailyZen.textContent = phrase;
+  if (el.ancrageZen) el.ancrageZen.textContent = phrase;
 }
 
 function bindFunctionalPages() {
@@ -1058,41 +1067,27 @@ function renderMorningBrief() {
   const priorities = brief.priorities || [];
   const carryOver = brief.carryOver || [];
   const agenda = brief.agenda || [];
-  const tomorrow = brief.plannedTomorrow || [];
   const stats = brief.stats || {};
+  const loadScore = computeDashboardLoadScore(stats, priorities, agenda);
+  if (el.ancrageLoad) el.ancrageLoad.textContent = `${loadScore}/10`;
+  if (el.ancrageLoadLabel) el.ancrageLoadLabel.textContent = loadScore >= 8 ? "dense mais maitrisable" : loadScore >= 5 ? "charge moderee" : "journee respirante";
+  if (el.ancrageSummary) {
+    const planningCount = getPlanningItems().length;
+    el.ancrageSummary.textContent = `${planningCount} element(s) au planning, ${Math.min(priorities.length, 3)} priorite(s), charge mentale ${loadScore}/10.`;
+  }
+  const decisions = buildAiDecisions(brief, loadScore);
   el.morningBrief.innerHTML = `
-    <div class="morning-headline">
-      <span class="source-pill">${escapeHTML(loadLabel(brief.load))}</span>
-      <p>${escapeHTML(brief.headline)}</p>
-    </div>
-    <div class="morning-metrics">
-      <span><strong>${Number(stats.late || 0)}</strong> retard</span>
-      <span><strong>${Number(stats.today || 0)}</strong> aujourd'hui</span>
-      <span><strong>${Number(stats.agenda || 0)}</strong> agenda</span>
-      <span><strong>${Number(stats.tomorrow || 0)}</strong> demain</span>
-    </div>
-    <div class="morning-grid">
-      <section>
-        <h3>Priorites</h3>
-        ${briefList(priorities, "Aucune priorite immediate.")}
-      </section>
-      <section>
-        <h3>Report d'hier</h3>
-        ${briefList(carryOver, "Rien a reprendre d'hier.")}
-      </section>
-      <section>
-        <h3>Agenda</h3>
-        ${agenda.length ? `<ul>${agenda.map((item) => `<li><strong>${escapeHTML(item.time)}</strong> ${escapeHTML(item.title)}</li>`).join("")}</ul>` : "<p class=\"empty-state\">Aucun rendez-vous aujourd'hui.</p>"}
-      </section>
-      <section>
-        <h3>Demain</h3>
-        ${briefList(tomorrow, "Rien de prevu pour demain.")}
-      </section>
-    </div>
-    <div class="morning-routine">
-      <h3>Routine courte</h3>
-      <ol>${(brief.routine || []).slice(0, 5).map((item) => `<li>${escapeHTML(item)}</li>`).join("")}</ol>
-      <p class="card-meta">${escapeHTML(brief.planningReminder)}</p>
+    <p class="ancrage-decision-lead">${escapeHTML(brief.headline)}</p>
+    <div class="ancrage-decision-list">
+      ${decisions.map((decision) => `
+        <article>
+          <span></span>
+          <div>
+            <strong>${escapeHTML(decision.title)}</strong>
+            <small>${escapeHTML(decision.detail)}</small>
+          </div>
+        </article>
+      `).join("")}
     </div>
   `;
 }
@@ -1108,6 +1103,48 @@ function loadLabel(load) {
   return "Journee legere";
 }
 
+function computeDashboardLoadScore(stats, priorities, agenda) {
+  const late = Math.min(Number(stats.late || 0), 5);
+  const today = Math.min(Number(stats.today || 0), 4);
+  const agendaCount = Math.min(agenda.length, 4);
+  const priorityCount = Math.min(priorities.length, 3);
+  return Math.max(1, Math.min(10, 2 + late + Math.ceil(today / 2) + agendaCount + Math.max(0, priorityCount - 1)));
+}
+
+function buildAiDecisions(brief, loadScore) {
+  const stats = brief.stats || {};
+  const decisions = [];
+  if (Number(stats.late || 0) > 0) {
+    decisions.push({
+      title: "Traiter d'abord le retard",
+      detail: `${stats.late} tache(s) a remettre au clair avant d'ajouter du nouveau.`,
+    });
+  }
+  if ((brief.priorities || []).length >= 3) {
+    decisions.push({
+      title: "Garder seulement 3 priorites",
+      detail: "le reste attend pour eviter la dispersion.",
+    });
+  }
+  if (loadScore >= 7) {
+    decisions.push({
+      title: "Conserver une vraie pause",
+      detail: "charge mentale haute, pause utile a maintenir.",
+    });
+  }
+  if ((brief.carryOver || []).length) {
+    decisions.push({
+      title: "Replacer les reports d'hier",
+      detail: "ne pas les laisser redevenir du bruit de fond.",
+    });
+  }
+  decisions.push({
+    title: "Finir par 10 minutes de bilan",
+    detail: "clore la journee et preparer demain plus legerement.",
+  });
+  return decisions.slice(0, 5);
+}
+
 function renderRecentProgress() {
   if (!el.recentProgress || !el.recentDoneCount) return;
   const days = Array.from({ length: 5 }, (_, index) => addDaysISO(index - 4));
@@ -1120,6 +1157,10 @@ function renderRecentProgress() {
     .filter((task) => days.includes(task.doneDate));
 
   el.recentDoneCount.textContent = `${completed.length}`;
+  if (el.recentProgress.closest?.(".ancrage-moments")) {
+    el.recentProgress.innerHTML = buildKeyMoments(completed.length);
+    return;
+  }
   if (!completed.length) {
     el.recentProgress.innerHTML = emptyState("Aucune tache terminee sur les 5 derniers jours. Des que tu coches, le compteur remonte.");
     return;
@@ -1139,6 +1180,39 @@ function renderRecentProgress() {
       </article>
     `;
   }).join("");
+}
+
+function buildKeyMoments(doneCount) {
+  const planningItems = getPlanningItems();
+  const firstTask = planningItems.find((item) => item.type === "task");
+  const firstEvent = planningItems.find((item) => item.type === "event");
+  const focusWindow = firstTask?.time || firstEvent?.time || "09:30";
+  const denseMoment = firstEvent?.time || (planningItems.length >= 4 ? planningItems[3].time : "14:00");
+  const momentumLabel = doneCount
+    ? `${doneCount} tache(s) terminee(s) sur 5 jours`
+    : "Elan a relancer doucement";
+  return `
+    <article class="ancrage-moment-row is-focus">
+      <span></span>
+      <strong>Moment de focus</strong>
+      <em>${escapeHTML(focusWindow || "matin")}</em>
+    </article>
+    <article class="ancrage-moment-row is-calm">
+      <span></span>
+      <strong>Fenetre calme</strong>
+      <em>fin de journee</em>
+    </article>
+    <article class="ancrage-moment-row is-dense">
+      <span></span>
+      <strong>Moment dense</strong>
+      <em>${escapeHTML(denseMoment || "a surveiller")}</em>
+    </article>
+    <article class="ancrage-moment-row is-momentum">
+      <span></span>
+      <strong>Avancee</strong>
+      <em>${escapeHTML(momentumLabel)}</em>
+    </article>
+  `;
 }
 
 function formatShortDay(dateKey) {

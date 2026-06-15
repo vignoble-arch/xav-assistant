@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=liberer-1" />
     <link rel="icon" href="icon.svg?v=pwa-1" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg?v=pwa-1" />
-    <link rel="stylesheet" href="styles.css?v=task-notes-ui-2" />
+    <link rel="stylesheet" href="styles.css?v=ancrage-dashboard-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -28,7 +28,7 @@
         </div>
 
         <nav class="nav-list">
-          <button class="nav-item is-active" type="button" data-view="dashboard">Vue du jour</button>
+          <button class="nav-item is-active" type="button" data-view="dashboard">Ancrage du jour</button>
           <button class="nav-item" type="button" data-view="organization">Organisation</button>
           <button class="nav-item" type="button" data-view="inspire">Inspire</button>
           <button class="nav-item" type="button" data-view="expire">Expire</button>
@@ -89,93 +89,102 @@
           </form>
         </section>
 
-        <section class="dashboard-grid" data-panel="dashboard">
-          <div class="priority-band">
+        <section class="dashboard-grid ancrage-dashboard" data-panel="dashboard">
+          <div class="ancrage-card ancrage-hero">
             <div>
-              <p class="section-kicker">Essentiel</p>
-              <h2>A faire aujourd'hui</h2>
+              <p class="section-kicker">Dashboard journalier</p>
+              <h2><span>Ancrage</span><span>du jour</span></h2>
+              <p>Une journee claire place chaque chose au bon moment.</p>
             </div>
-            <div class="priority-list" id="priorityList"></div>
+            <div class="ancrage-metrics">
+              <article>
+                <span>Meteo</span>
+                <strong id="ancrageWeather">21°C</strong>
+                <small>clair · vent leger</small>
+              </article>
+              <article>
+                <span>Charge</span>
+                <strong id="ancrageLoad">--/10</strong>
+                <small id="ancrageLoadLabel">journee a composer</small>
+              </article>
+              <article>
+                <span>Elan</span>
+                <strong id="recentDoneCount">0</strong>
+                <small>taches terminees sur 5 jours</small>
+              </article>
+            </div>
           </div>
 
-          <section class="panel morning-panel">
-            <div class="panel-header">
+          <blockquote class="ancrage-quote">
+            <p id="ancrageZen">Une journee claire ne cherche pas a tout faire : elle place chaque chose au bon moment.</p>
+            <cite>Paulo · organisation</cite>
+          </blockquote>
+
+          <section class="ancrage-card ancrage-planning">
+            <div class="ancrage-section-header">
               <div>
-                <p class="section-kicker">Routine matin</p>
-                <h2>Organisation proposee</h2>
+                <p class="section-kicker">Planning</p>
+                <h2>Lecture de la journee</h2>
               </div>
-              <div class="panel-actions">
-                <span class="status-muted" id="morningNotificationStatus">Notif inactive</span>
-                <input class="time-input" id="morningNotificationTime" type="time" value="08:00" aria-label="Heure de notification du matin" />
-                <button class="mini-button" type="button" id="enableMorningNotification">Activer notif</button>
-                <button class="mini-button" type="button" id="refreshMorningBrief">Actualiser</button>
-              </div>
+              <button class="mini-button" type="button" id="openAgendaForm">Ajouter</button>
             </div>
-            <div class="morning-brief" id="morningBrief"></div>
+            <div class="timeline ancrage-timeline" id="agendaList"></div>
+            <button class="ancrage-text-button" type="button" id="refreshMorningBrief">Reorganiser ma journee avec l'IA</button>
           </section>
 
-          <section class="panel progress-panel">
-            <div class="panel-header">
-              <div>
-                <p class="section-kicker">Avancee</p>
-                <h2>5 derniers jours</h2>
+          <aside class="ancrage-side">
+            <section class="ancrage-card ancrage-priorities">
+              <div class="ancrage-section-header">
+                <div>
+                  <p class="section-kicker">Priorites</p>
+                  <h2>Ce qui compte vraiment</h2>
+                </div>
+                <button class="mini-button" type="button" data-open-task-form>Ajouter</button>
               </div>
-              <span class="count-pill" id="recentDoneCount">0</span>
+              <div class="priority-list" id="priorityList"></div>
+              <p class="ancrage-muted">3 priorites seulement · le reste attend</p>
+            </section>
+
+            <section class="ancrage-card ancrage-decisions">
+              <div class="ancrage-section-header">
+                <div>
+                  <p class="section-kicker">Decisions IA</p>
+                  <h2>Optimisations proposees</h2>
+                </div>
+              </div>
+              <div class="morning-brief" id="morningBrief"></div>
+            </section>
+
+            <section class="ancrage-card ancrage-moments">
+              <div class="ancrage-section-header">
+                <div>
+                  <p class="section-kicker">Moments cles</p>
+                  <h2>Fenetres utiles</h2>
+                </div>
+              </div>
+              <div class="recent-progress" id="recentProgress"></div>
+            </section>
+          </aside>
+
+          <section class="ancrage-card ancrage-bottom">
+            <div>
+              <p class="section-kicker">Journee proposee par l'IA</p>
+              <h2 id="ancrageSummary">Planning, priorites, charge et elan prets.</h2>
             </div>
-            <div class="recent-progress" id="recentProgress"></div>
+            <div class="ancrage-bottom-actions">
+              <span class="status-muted" id="morningNotificationStatus">Notif inactive</span>
+              <input class="time-input" id="morningNotificationTime" type="time" value="08:00" aria-label="Heure de notification du matin" />
+              <button class="ghost-button" type="button" id="enableMorningNotification">Notif matin</button>
+              <button class="assistant-button small" type="button" data-open-task-form>Modifier</button>
+              <button class="ghost-button" type="button" data-refresh-system-status>Verifier serveur</button>
+            </div>
           </section>
 
-          <section class="panel dashboard-main">
-            <div class="panel-header">
-              <div>
-                <p class="section-kicker">Execution</p>
-                <h2>Taches importantes</h2>
-              </div>
-              <button class="mini-button" type="button" data-open-task-form>Nouvelle</button>
-            </div>
+          <section class="ancrage-hidden-feeds" aria-label="Flux secondaires">
             <div class="item-list" id="activeTasks"></div>
-          </section>
-
-          <section class="panel dashboard-side">
-            <div class="panel-header">
-              <div>
-                <p class="section-kicker">Journee</p>
-                <h2>Planning</h2>
-              </div>
-              <button class="mini-button" type="button" id="openAgendaForm">Nouvel evenement</button>
-            </div>
-            <div class="timeline" id="agendaList"></div>
-          </section>
-
-          <section class="panel dashboard-side">
-            <div class="panel-header">
-              <div>
-                <p class="section-kicker">Messages</p>
-                <h2>Emails a traiter</h2>
-              </div>
-              <span class="count-pill" id="mailCount">0</span>
-            </div>
             <div class="item-list" id="mailList"></div>
-          </section>
-
-          <section class="panel dashboard-side system-panel">
-            <div class="panel-header">
-              <div>
-                <p class="section-kicker">Serveur</p>
-                <h2>Etat systeme</h2>
-              </div>
-              <button class="mini-button" type="button" data-refresh-system-status>Verifier</button>
-            </div>
+            <span id="mailCount">0</span>
             <div class="system-status" id="systemStatusCard"></div>
-          </section>
-
-          <section class="panel dashboard-main">
-            <div class="panel-header">
-              <div>
-                <p class="section-kicker">Suivi</p>
-                <h2>Travaux en cours</h2>
-              </div>
-            </div>
             <div class="reports-list" id="reportsList"></div>
           </section>
         </section>
@@ -1177,7 +1186,7 @@
 
     <nav class="mobile-action-dock" aria-label="Actions rapides mobile">
       <button class="is-active" type="button" data-mobile-view="dashboard">
-        <span>Jour</span>
+        <span>Ancrage</span>
       </button>
       <button type="button" data-mobile-view="organization">
         <span>Zen</span>
@@ -1424,7 +1433,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=task-notes-ui-2"></script>
+    <script src="app.js?v=ancrage-dashboard-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

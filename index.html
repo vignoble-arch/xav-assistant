@@ -11,11 +11,17 @@
     <link rel="manifest" href="manifest.webmanifest?v=logo-artmas-1" />
     <link rel="icon" href="art-mas-logo.png?v=logo-artmas-1" type="image/png" />
     <link rel="apple-touch-icon" href="art-mas-logo.png?v=logo-artmas-1" />
-    <link rel="stylesheet" href="styles.css?v=logo-artmas-2" />
+    <link rel="stylesheet" href="styles.css?v=hamburger-2" />
   </head>
   <body>
     <div class="app-shell">
-      <aside class="sidebar" aria-label="Navigation principale">
+      <button class="main-menu-button" id="openMainMenu" type="button" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="mainNavigation">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <div class="nav-backdrop" id="navBackdrop" hidden></div>
+      <aside class="sidebar" id="mainNavigation" aria-label="Navigation principale">
         <div class="brand">
           <div class="brand-logo-slot" aria-label="Emplacement logo">
             <img id="brandLogo" src="art-mas-logo.png" alt="Vignoble Art Mas" />
@@ -26,10 +32,14 @@
             <p class="brand-subtitle">Cockpit prive</p>
           </div>
         </div>
+        <button class="drawer-close" id="closeMainMenu" type="button" aria-label="Fermer le menu">
+          <span></span>
+          <span></span>
+        </button>
 
         <nav class="nav-list">
           <button class="nav-item is-active" type="button" data-view="dashboard">Ancrage du jour</button>
-          <button class="nav-item" type="button" data-view="organization">Organisation</button>
+          <button class="nav-item" type="button" data-view="organization">Respire</button>
           <button class="nav-item" type="button" data-view="inspire">Inspire</button>
           <button class="nav-item" type="button" data-view="expire">Expire</button>
           <button class="nav-item" type="button" data-view="vivre">Vivre</button>
@@ -1224,7 +1234,7 @@
         <span>Ancrage</span>
       </button>
       <button type="button" data-mobile-view="organization">
-        <span>Zen</span>
+        <span>Respire</span>
       </button>
       <button type="button" data-mobile-view="inspire">
         <span>Inspire</span>
@@ -1525,7 +1535,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=logo-artmas-1"></script>
+    <script src="app.js?v=hamburger-2"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

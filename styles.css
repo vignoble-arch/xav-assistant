@@ -43,7 +43,7 @@ button {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   min-height: 100vh;
 }
 
@@ -174,7 +174,7 @@ button {
 
 .workspace {
   min-width: 0;
-  padding: 28px;
+  padding: 28px 28px 28px 92px;
 }
 
 .topbar,
@@ -6594,6 +6594,157 @@ body[data-active-view="vivre"] .quick-capture {
   .mobile-action-dock .dock-primary {
     color: #fffdf8;
     background: var(--blue);
+  }
+}
+
+.main-menu-button {
+  position: fixed;
+  top: 22px;
+  left: 22px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid rgba(36, 41, 35, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 253, 248, 0.92);
+  box-shadow: 0 14px 34px rgba(36, 41, 35, 0.18);
+  backdrop-filter: blur(12px);
+  cursor: pointer;
+}
+
+.app-shell {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.main-menu-button span,
+.respire-round-button span,
+.inspire-round-button span,
+.expire-round-button span,
+.vivre-round-button span {
+  display: block;
+  width: 18px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.main-menu-button span + span {
+  margin-top: 4px;
+}
+
+.nav-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(20, 24, 20, 0.46);
+  backdrop-filter: blur(4px);
+}
+
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 90;
+  width: min(332px, calc(100vw - 34px));
+  max-width: 100vw;
+  overflow-y: auto;
+  transform: translateX(-106%);
+  box-shadow: 28px 0 70px rgba(20, 24, 20, 0.28);
+  transition: transform 180ms ease;
+}
+
+body.menu-open .sidebar {
+  transform: translateX(0);
+}
+
+.drawer-close {
+  position: absolute;
+  top: 24px;
+  right: 18px;
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid rgba(255, 249, 238, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff9ee;
+  cursor: pointer;
+}
+
+.drawer-close span {
+  position: absolute;
+  width: 17px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.drawer-close span:first-child {
+  transform: rotate(45deg);
+}
+
+.drawer-close span:last-child {
+  transform: rotate(-45deg);
+}
+
+body[data-active-view="organization"] .main-menu-button,
+body[data-active-view="inspire"] .main-menu-button,
+body[data-active-view="expire"] .main-menu-button,
+body[data-active-view="vivre"] .main-menu-button {
+  display: none;
+}
+
+body[data-active-view="organization"] .workspace,
+body[data-active-view="inspire"] .workspace,
+body[data-active-view="expire"] .workspace,
+body[data-active-view="vivre"] .workspace {
+  padding-left: 28px;
+}
+
+@media (max-width: 720px) {
+  .main-menu-button {
+    top: calc(12px + env(safe-area-inset-top));
+    left: 12px;
+    width: 44px;
+    height: 44px;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    width: min(320px, calc(100vw - 22px));
+    padding: calc(20px + env(safe-area-inset-top)) 16px calc(20px + env(safe-area-inset-bottom));
+  }
+
+  .sidebar .nav-list {
+    display: grid;
+    gap: 7px;
+    width: 100%;
+    overflow: visible;
+    padding-bottom: 0;
+  }
+
+  .sidebar .nav-item {
+    width: 100%;
+    min-height: 42px;
+    text-align: left;
+    white-space: normal;
+  }
+
+  .workspace {
+    padding: 18px 14px 24px 68px;
+  }
+
+  body[data-active-view="organization"] .workspace,
+  body[data-active-view="inspire"] .workspace,
+  body[data-active-view="expire"] .workspace,
+  body[data-active-view="vivre"] .workspace {
+    padding-left: 14px;
   }
 }
 

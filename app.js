@@ -352,6 +352,7 @@ const el = {
 
 document.addEventListener("DOMContentLoaded", async () => {
   bindEvents();
+  switchView(document.querySelector(".nav-item.is-active")?.dataset.view || "dashboard");
   state = await loadState();
   applyBranding();
   await loadMorningBrief();
@@ -374,6 +375,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 function bindEvents() {
   document.querySelectorAll(".nav-item").forEach((button) => {
     button.addEventListener("click", () => switchView(button.dataset.view));
+  });
+  document.querySelector("#openMainMenu")?.addEventListener("click", openNavigationMenu);
+  document.querySelector("#closeMainMenu")?.addEventListener("click", closeNavigationMenu);
+  document.querySelector("#navBackdrop")?.addEventListener("click", closeNavigationMenu);
+  document.querySelectorAll(".respire-round-button, .inspire-round-button, .expire-round-button, .vivre-round-button").forEach((button) => {
+    button.addEventListener("click", openNavigationMenu);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeNavigationMenu();
   });
 
   document.querySelector("#openAssistant").addEventListener("click", openAssistant);
@@ -3943,6 +3953,19 @@ function switchView(view) {
     loadAgentInstructions();
     loadAiUsage();
   }
+  closeNavigationMenu();
+}
+
+function openNavigationMenu() {
+  document.body.classList.add("menu-open");
+  document.querySelector("#navBackdrop")?.removeAttribute("hidden");
+  document.querySelector("#openMainMenu")?.setAttribute("aria-expanded", "true");
+}
+
+function closeNavigationMenu() {
+  document.body.classList.remove("menu-open");
+  document.querySelector("#navBackdrop")?.setAttribute("hidden", "");
+  document.querySelector("#openMainMenu")?.setAttribute("aria-expanded", "false");
 }
 
 async function completeTask(id) {

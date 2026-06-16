@@ -68,6 +68,57 @@ h1 {
   line-height: 1.45;
 }
 
+.greeting-card {
+  display: grid;
+  gap: 7px;
+  border: 1px solid rgba(49, 93, 125, 0.18);
+  border-radius: 12px;
+  padding: 18px;
+  color: #172033;
+  background:
+    linear-gradient(140deg, rgba(231, 240, 245, 0.95), rgba(255, 253, 248, 0.96));
+  box-shadow: 0 12px 28px rgba(49, 93, 125, 0.12);
+}
+
+.greeting-card span {
+  color: var(--blue);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.greeting-card strong {
+  font-size: clamp(1.55rem, 8vw, 2.35rem);
+  line-height: 1.05;
+}
+
+.greeting-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1.02rem;
+}
+
+.greeting-card.is-arrival {
+  border-color: rgba(85, 116, 100, 0.24);
+  background:
+    linear-gradient(140deg, rgba(231, 239, 233, 0.98), rgba(255, 253, 248, 0.96));
+}
+
+.greeting-card.is-arrival span {
+  color: var(--green);
+}
+
+.greeting-card.is-departure {
+  border-color: rgba(165, 109, 40, 0.24);
+  background:
+    linear-gradient(140deg, rgba(245, 234, 217, 0.98), rgba(255, 253, 248, 0.96));
+}
+
+.greeting-card.is-departure span {
+  color: #a56d28;
+}
+
 .today-card,
 .result {
   border: 1px solid var(--line);

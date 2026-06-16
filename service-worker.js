@@ -1,4 +1,4 @@
-const CACHE_NAME = "assistant-xavier-pwa-68";
+const CACHE_NAME = "assistant-xavier-pwa-69";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
@@ -9,10 +9,10 @@ const STATIC_ASSETS = [
   "/quick-note.webmanifest?v=liberer-2",
   "/qr-liberer.png",
   "/pointeuse.html",
-  "/pointeuse.css?v=cathy-1",
-  "/pointeuse.js?v=cathy-1",
+  "/pointeuse.css?v=cathy-2",
+  "/pointeuse.js?v=cathy-2",
   "/styles.css?v=respire-template-1",
-  "/app.js?v=respire-template-1",
+  "/app.js?v=pointeuse-nfc-1",
   "/manifest.webmanifest?v=logo-artmas-1",
   "/icon.svg?v=pwa-1",
   "/art-mas-logo.png",

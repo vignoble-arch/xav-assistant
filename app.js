@@ -1884,7 +1884,7 @@ function commercialOrderCard(order) {
 function renderTimeclock() {
   if (!el.timeclockSummary || !el.timeclockEntries || !el.employeeList || !el.timeclockUrl) return;
   const timeclock = getTimeclockState();
-  const url = `${location.origin}/pointeuse.html`;
+  const url = `${location.origin}/pointeuse.html?nfc=1`;
   el.timeclockUrl.value = url;
 
   const today = localDateKey(new Date());

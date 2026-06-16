@@ -5,13 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#172033" />
     <title>Pointeuse Cathy</title>
-    <link rel="stylesheet" href="pointeuse.css?v=cathy-1" />
+    <link rel="stylesheet" href="pointeuse.css?v=cathy-2" />
   </head>
   <body>
     <main class="clock-shell">
       <section class="clock-card">
         <p class="kicker">Assistant Xavier</p>
         <h1>Pointeuse Cathy</h1>
+        <section class="greeting-card" id="greetingCard" aria-live="polite">
+          <span id="greetingKicker">Bonjour Cathy</span>
+          <strong id="greetingTitle">Prete a pointer</strong>
+          <p id="greetingText">Scanne la pastille NFC ou appuie sur le bouton.</p>
+        </section>
         <p class="hint" id="nextActionHint">Chargement de la journee...</p>
 
         <section class="today-card" aria-label="Pointages du jour">
@@ -28,9 +33,9 @@
         <button class="main-punch" type="button" id="punchButton">Pointer maintenant</button>
 
         <p class="result" id="result">En attente.</p>
-        <p class="small-note">Le premier pointage du jour est l'arrivee. Le deuxieme est le depart. La pause de 1h est retiree automatiquement, sauf depart avant 13h.</p>
+        <p class="small-note">Avec la pastille NFC, le pointage se lance automatiquement. Le premier scan du jour marque l'arrivee, le deuxieme marque le depart. La pause de 1h est retiree automatiquement, sauf depart avant 13h.</p>
       </section>
     </main>
-    <script src="pointeuse.js?v=cathy-1"></script>
+    <script src="pointeuse.js?v=cathy-2"></script>
   </body>
 </html>

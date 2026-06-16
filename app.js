@@ -13,7 +13,7 @@ const WORKERS = [
   { key: "secretaire", label: "Suzette", description: "Emails, dossiers, echeances" },
   { key: "commercial", label: "Gaspard", description: "Clients, relances, Baqio" },
 ];
-const FLOW_PAGE_ORDER = ["dashboard", "respire-template", "organization", "inspire", "expire", "vivre", "tasks", "inbox", "notes", "lists"];
+const FLOW_PAGE_ORDER = ["dashboard", "ancrage-template", "respire-template", "organization", "inspire", "expire", "vivre", "tasks", "inbox", "notes", "lists"];
 const SETTINGS_VIEWS = ["requests", "commercial", "timeclock", "connections"];
 const DAILY_ZEN_PHRASES = [
   "Une chose claire vaut mieux que dix urgences bruyantes.",
@@ -355,7 +355,7 @@ const el = {
 
 document.addEventListener("DOMContentLoaded", async () => {
   bindEvents();
-  switchView(document.querySelector(".nav-item.is-active")?.dataset.view || "dashboard");
+  switchView(getInitialView());
   state = await loadState();
   applyBranding();
   await loadMorningBrief();
@@ -375,6 +375,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   startAutoRefreshLoop();
 });
 
+function getInitialView() {
+  const params = new URLSearchParams(window.location.search);
+  const requestedView = params.get("view") || params.get("check");
+  const hasPanel = Array.from(document.querySelectorAll("[data-panel]")).some((panel) => panel.dataset.panel === requestedView);
+  if (requestedView && hasPanel) {
+    return requestedView;
+  }
+  return document.querySelector(".nav-item.is-active")?.dataset.view || "dashboard";
+}
+
 function bindEvents() {
   document.querySelectorAll(".nav-item").forEach((button) => {
     button.addEventListener("click", () => switchView(button.dataset.view));
@@ -387,6 +397,12 @@ function bindEvents() {
   });
   document.querySelectorAll("[data-rt-ai-open]").forEach((button) => {
     button.addEventListener("click", openRespireTemplateAi);
+  });
+  document.querySelectorAll("[data-ancrage-menu-open]").forEach((button) => {
+    button.addEventListener("click", openNavigationMenu);
+  });
+  document.querySelectorAll("[data-ancrage-ai-open]").forEach((button) => {
+    button.addEventListener("click", () => openAssistantWithText("@fernand Je veux travailler sur Ancrage du jour.", "quick"));
   });
   document.querySelectorAll("[data-rt-ai-close]").forEach((button) => {
     button.addEventListener("click", closeRespireTemplateAi);

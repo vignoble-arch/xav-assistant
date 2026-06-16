@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=logo-artmas-1" />
     <link rel="icon" href="art-mas-logo.png?v=logo-artmas-1" type="image/png" />
     <link rel="apple-touch-icon" href="art-mas-logo.png?v=logo-artmas-1" />
-    <link rel="stylesheet" href="styles.css?v=respire-template-1" />
+    <link rel="stylesheet" href="styles.css?v=ancrage-visual-2" />
   </head>
   <body>
     <div class="app-shell">
@@ -39,6 +39,7 @@
 
         <nav class="nav-list">
           <button class="nav-item is-active" type="button" data-view="dashboard">Ancrage du jour</button>
+          <button class="nav-item" type="button" data-view="ancrage-template">Test Ancrage</button>
           <button class="nav-item" type="button" data-view="respire-template">Test Respire</button>
           <button class="nav-item" type="button" data-view="organization">Respire</button>
           <button class="nav-item" type="button" data-view="inspire">Inspire</button>
@@ -194,6 +195,14 @@
             <div class="system-status" id="systemStatusCard"></div>
             <div class="reports-list" id="reportsList"></div>
           </section>
+        </section>
+
+        <section class="ancrage-template-view" data-panel="ancrage-template" hidden aria-label="Prototype visuel Ancrage du jour">
+          <div class="ancrage-template-frame">
+            <img src="ancrage-du-jour-visual.png?v=1" alt="Prototype visuel Ancrage du jour" />
+            <button class="ancrage-template-menu-hit" type="button" data-ancrage-menu-open aria-label="Ouvrir le menu"></button>
+            <button class="ancrage-template-ai-hit" type="button" data-ancrage-ai-open aria-label="Discuter avec les assistants IA"></button>
+          </div>
         </section>
 
         <section class="respire-template-view" data-panel="respire-template" hidden aria-label="Prototype Respire timeline riviere">
@@ -1746,11 +1755,11 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=pointeuse-nfc-1"></script>
+    <script src="app.js?v=ancrage-visual-2"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-          navigator.serviceWorker.register("/service-worker.js?v=pointeuse-nfc-1")
+          navigator.serviceWorker.register("/service-worker.js?v=ancrage-visual-2")
             .then((registration) => registration.update())
             .catch(() => {});
         });

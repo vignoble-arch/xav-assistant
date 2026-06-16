@@ -7,7 +7,7 @@ ENV PORT=4173
 ENV DATA_DIR=/app/data
 
 COPY package.json ./
-COPY index.html app.js styles.css repair.html quick-note.html quick-note.css quick-note.js quick-note.webmanifest pointeuse.html pointeuse.css pointeuse.js server.js manifest.webmanifest service-worker.js icon.svg art-mas-logo.png qr-assistant-xavier.jpg qr-pointeuse.jpg qr-liberer.png ./
+COPY index.html app.js styles.css repair.html quick-note.html quick-note.css quick-note.js quick-note.webmanifest pointeuse.html pointeuse.css pointeuse.js server.js manifest.webmanifest service-worker.js icon.svg art-mas-logo.png ancrage-du-jour-visual.png qr-assistant-xavier.jpg qr-pointeuse.jpg qr-liberer.png ./
 
 RUN mkdir -p /app/data
 

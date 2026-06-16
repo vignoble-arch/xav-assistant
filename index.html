@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=logo-artmas-1" />
     <link rel="icon" href="art-mas-logo.png?v=logo-artmas-1" type="image/png" />
     <link rel="apple-touch-icon" href="art-mas-logo.png?v=logo-artmas-1" />
-    <link rel="stylesheet" href="styles.css?v=daily-flow-1" />
+    <link rel="stylesheet" href="styles.css?v=respire-template-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -39,6 +39,7 @@
 
         <nav class="nav-list">
           <button class="nav-item is-active" type="button" data-view="dashboard">Ancrage du jour</button>
+          <button class="nav-item" type="button" data-view="respire-template">Test Respire</button>
           <button class="nav-item" type="button" data-view="organization">Respire</button>
           <button class="nav-item" type="button" data-view="inspire">Inspire</button>
           <button class="nav-item" type="button" data-view="expire">Expire</button>
@@ -193,6 +194,189 @@
             <div class="system-status" id="systemStatusCard"></div>
             <div class="reports-list" id="reportsList"></div>
           </section>
+        </section>
+
+        <section class="respire-template-view" data-panel="respire-template" hidden aria-label="Prototype Respire timeline riviere">
+          <header class="rt-topbar">
+            <div class="rt-brand">
+              <div class="rt-logo">
+                <img src="art-mas-logo.png" alt="Vignoble Art Mas" />
+              </div>
+              <div>
+                <strong>Assistant Xavier</strong>
+                <span>Cockpit prive</span>
+              </div>
+            </div>
+            <nav class="rt-nav" aria-label="Navigation prototype">
+              <span>Ancrage</span>
+              <span class="is-active">Respire</span>
+              <span>Inspire</span>
+              <span>Expire</span>
+              <span>Taches</span>
+              <span>Inbox</span>
+              <span>Notes</span>
+            </nav>
+            <button class="rt-ai-call has-suggestion" type="button" data-rt-ai-open aria-label="Appeler les assistants IA">
+              <span class="rt-bell" aria-hidden="true"></span>
+              Assistant IA
+            </button>
+          </header>
+
+          <div class="rt-service-badges" aria-label="Etat des connexions">
+            <span>Gmail V0.2</span>
+            <span>Drive V0.2</span>
+            <span>Agenda V0.2</span>
+            <span>Tasks V0.2</span>
+          </div>
+
+          <section class="rt-hero">
+            <div>
+              <p class="rt-kicker">Template Respire</p>
+              <h2>Une journee qui coule.</h2>
+              <p>Voir le chemin, poser les urgences, puis avancer une tache apres l'autre.</p>
+            </div>
+            <blockquote>
+              <strong>Une seule chose a la fois.</strong>
+              <span>Meme la vigne grandit jour apres jour.</span>
+            </blockquote>
+          </section>
+
+          <div class="rt-grid">
+            <aside class="rt-left">
+              <article class="rt-panel rt-morning">
+                <p class="rt-kicker">Bonjour Xavier</p>
+                <h3>On remet les choses dans le bon ordre.</h3>
+                <p>Paulo garde la journee lisible. La Cloche appelle l'equipe IA quand tu veux deleguer.</p>
+              </article>
+              <article class="rt-panel">
+                <div class="rt-panel-head">
+                  <span>Meteo</span>
+                  <strong>21 degres</strong>
+                </div>
+                <p>Ciel clair, vent leger. Info utile, pas prioritaire.</p>
+              </article>
+              <article class="rt-panel">
+                <div class="rt-panel-head">
+                  <span>Charge mentale</span>
+                  <strong>6/10</strong>
+                </div>
+                <div class="rt-gauge" aria-hidden="true"><span style="width: 60%"></span></div>
+                <p>Moderee. On garde une pause et on limite les bascules.</p>
+              </article>
+              <article class="rt-panel">
+                <div class="rt-panel-head">
+                  <span>Priorite du jour</span>
+                  <strong>14h00</strong>
+                </div>
+                <h3>Preparer la degustation clients</h3>
+                <p>Source : Paulo, proposition du matin.</p>
+              </article>
+              <article class="rt-panel rt-progress">
+                <div class="rt-panel-head">
+                  <span>Taches effectuees</span>
+                  <strong>25</strong>
+                </div>
+                <div class="rt-bars" aria-label="Taches terminees sur les cinq derniers jours">
+                  <span style="height: 36%"><b>3</b><em>Lun</em></span>
+                  <span style="height: 58%"><b>5</b><em>Mar</em></span>
+                  <span style="height: 48%"><b>4</b><em>Mer</em></span>
+                  <span style="height: 70%"><b>6</b><em>Jeu</em></span>
+                  <span style="height: 84%"><b>7</b><em>Ven</em></span>
+                </div>
+                <p>Total : 25 taches terminees. Bravo, tu avances.</p>
+              </article>
+            </aside>
+
+            <section class="rt-river-wrap" aria-label="Timeline riviere">
+              <div class="rt-river" aria-hidden="true">
+                <span class="rt-water"></span>
+                <span class="rt-bank rt-bank-left"></span>
+                <span class="rt-bank rt-bank-right"></span>
+                <span class="rt-stone rt-stone-one"></span>
+                <span class="rt-stone rt-stone-two"></span>
+                <span class="rt-stone rt-stone-three"></span>
+                <span class="rt-reed rt-reed-one"></span>
+                <span class="rt-reed rt-reed-two"></span>
+                <span class="rt-boat"><i></i><b></b></span>
+              </div>
+              <ol class="rt-steps">
+                <li class="is-done"><span>1</span><strong>Emails traites</strong><small>09h00</small></li>
+                <li class="is-done"><span>2</span><strong>Point equipe</strong><small>10h30</small></li>
+                <li class="is-current"><span>3</span><strong>Tache en cours</strong><small>La barque est ici</small></li>
+                <li><span>4</span><strong>Planifier</strong><small>15h30</small></li>
+                <li><span>5</span><strong>Bilan doux</strong><small>17h45</small></li>
+              </ol>
+            </section>
+
+            <aside class="rt-right">
+              <section class="rt-task-group">
+                <h3><span></span>Matin</h3>
+                <article class="rt-task is-done">
+                  <em>Terminee</em>
+                  <strong>Traiter emails importants</strong>
+                  <small>30 min - Inspire - Suzette</small>
+                </article>
+                <article class="rt-task is-done">
+                  <em>Terminee</em>
+                  <strong>Point equipe cave</strong>
+                  <small>45 min - Respire</small>
+                </article>
+              </section>
+              <section class="rt-task-group">
+                <h3><span></span>En cours</h3>
+                <article class="rt-task is-current">
+                  <em>Priorite</em>
+                  <strong>Preparer la degustation clients</strong>
+                  <small>1h00 - attention haute - barque alignee</small>
+                </article>
+              </section>
+              <section class="rt-task-group">
+                <h3><span></span>Apres-midi</h3>
+                <article class="rt-task">
+                  <em>A venir</em>
+                  <strong>Planifier les relances</strong>
+                  <small>30 min - Gaspard</small>
+                </article>
+                <article class="rt-task">
+                  <em>Plus tard</em>
+                  <strong>Bilan doux et demain</strong>
+                  <small>15 min - Paulo</small>
+                </article>
+              </section>
+              <section class="rt-ai-decisions">
+                <h3>Decisions IA</h3>
+                <p>Alleger l'apres-midi, proteger la pause, garder une seule priorite principale.</p>
+              </section>
+            </aside>
+          </div>
+
+          <button class="rt-floating-ai" type="button" data-rt-ai-open aria-label="Appeler les assistants IA">
+            <span class="rt-bell" aria-hidden="true"></span>
+            Appeler
+          </button>
+
+          <aside class="rt-ai-panel" data-rt-ai-panel aria-label="Panneau assistant IA" aria-hidden="true">
+            <div class="rt-ai-panel-head">
+              <div>
+                <p class="rt-kicker">La Cloche IA</p>
+                <h3>De quoi as-tu besoin maintenant ?</h3>
+              </div>
+              <button type="button" data-rt-ai-close aria-label="Fermer le panneau IA">x</button>
+            </div>
+            <div class="rt-ai-shortcuts">
+              <button type="button">Organiser ma journee</button>
+              <button type="button">Alleger ma journee</button>
+              <button type="button">Repondre a un email</button>
+              <button type="button">Transformer note en tache</button>
+              <button type="button">Prioriser les sorties</button>
+              <button type="button">Creer une pause</button>
+            </div>
+            <label>
+              Message a l'equipe IA
+              <textarea rows="5" placeholder="Ecris a Fernand, Paulo, Suzette ou Gaspard..."></textarea>
+            </label>
+            <button class="rt-ai-send" type="button">Envoyer a l'assistant</button>
+          </aside>
         </section>
 
         <section class="respire-view" data-panel="organization" hidden aria-label="Organisation du travail Respire">
@@ -1562,11 +1746,11 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=nav-vivre-1"></script>
+    <script src="app.js?v=respire-template-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-          navigator.serviceWorker.register("/service-worker.js?v=nav-vivre-1")
+          navigator.serviceWorker.register("/service-worker.js?v=respire-template-1")
             .then((registration) => registration.update())
             .catch(() => {});
         });

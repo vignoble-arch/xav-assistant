@@ -13,7 +13,7 @@ const WORKERS = [
   { key: "secretaire", label: "Suzette", description: "Emails, dossiers, echeances" },
   { key: "commercial", label: "Gaspard", description: "Clients, relances, Baqio" },
 ];
-const FLOW_PAGE_ORDER = ["dashboard", "organization", "inspire", "expire", "vivre", "tasks", "inbox", "notes", "lists"];
+const FLOW_PAGE_ORDER = ["dashboard", "respire-template", "organization", "inspire", "expire", "vivre", "tasks", "inbox", "notes", "lists"];
 const SETTINGS_VIEWS = ["requests", "commercial", "timeclock", "connections"];
 const DAILY_ZEN_PHRASES = [
   "Une chose claire vaut mieux que dix urgences bruyantes.",
@@ -385,8 +385,17 @@ function bindEvents() {
   document.querySelectorAll(".respire-round-button, .inspire-round-button, .expire-round-button, .vivre-round-button").forEach((button) => {
     button.addEventListener("click", openNavigationMenu);
   });
+  document.querySelectorAll("[data-rt-ai-open]").forEach((button) => {
+    button.addEventListener("click", openRespireTemplateAi);
+  });
+  document.querySelectorAll("[data-rt-ai-close]").forEach((button) => {
+    button.addEventListener("click", closeRespireTemplateAi);
+  });
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closeNavigationMenu();
+    if (event.key === "Escape") {
+      closeNavigationMenu();
+      closeRespireTemplateAi();
+    }
   });
 
   document.querySelector("#openAssistant").addEventListener("click", openAssistant);
@@ -3970,6 +3979,7 @@ function stopQuickNoteDictation() {
 
 function switchView(view) {
   document.body.dataset.activeView = view;
+  closeRespireTemplateAi();
   document.querySelectorAll(".nav-item").forEach((button) => {
     const isSettingsChild = button.dataset.view === "settings" && SETTINGS_VIEWS.includes(view);
     button.classList.toggle("is-active", button.dataset.view === view || isSettingsChild);
@@ -3999,6 +4009,20 @@ function closeNavigationMenu() {
   document.body.classList.remove("menu-open");
   document.querySelector("#navBackdrop")?.setAttribute("hidden", "");
   document.querySelector("#openMainMenu")?.setAttribute("aria-expanded", "false");
+}
+
+function openRespireTemplateAi() {
+  const view = document.querySelector(".respire-template-view");
+  if (!view) return;
+  view.classList.add("is-ai-open");
+  view.querySelector("[data-rt-ai-panel]")?.setAttribute("aria-hidden", "false");
+}
+
+function closeRespireTemplateAi() {
+  const view = document.querySelector(".respire-template-view");
+  if (!view) return;
+  view.classList.remove("is-ai-open");
+  view.querySelector("[data-rt-ai-panel]")?.setAttribute("aria-hidden", "true");
 }
 
 async function completeTask(id) {

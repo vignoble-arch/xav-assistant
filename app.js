@@ -13,8 +13,8 @@ const WORKERS = [
   { key: "secretaire", label: "Suzette", description: "Emails, dossiers, echeances" },
   { key: "commercial", label: "Gaspard", description: "Clients, relances, Baqio" },
 ];
-const FLOW_PAGE_ORDER = ["dashboard", "organization", "inspire", "expire", "tasks", "inbox", "notes", "lists"];
-const SETTINGS_VIEWS = ["vivre", "requests", "commercial", "timeclock", "memory", "connections"];
+const FLOW_PAGE_ORDER = ["dashboard", "organization", "inspire", "expire", "vivre", "tasks", "inbox", "notes", "lists"];
+const SETTINGS_VIEWS = ["requests", "commercial", "timeclock", "connections"];
 const DAILY_ZEN_PHRASES = [
   "Une chose claire vaut mieux que dix urgences bruyantes.",
   "On avance mieux quand la journee respire.",

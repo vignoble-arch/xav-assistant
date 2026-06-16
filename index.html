@@ -42,10 +42,12 @@
           <button class="nav-item" type="button" data-view="organization">Respire</button>
           <button class="nav-item" type="button" data-view="inspire">Inspire</button>
           <button class="nav-item" type="button" data-view="expire">Expire</button>
+          <button class="nav-item" type="button" data-view="vivre">Vivre</button>
           <button class="nav-item" type="button" data-view="tasks">Taches</button>
           <button class="nav-item" type="button" data-view="inbox">Inbox</button>
           <button class="nav-item" type="button" data-view="notes">Notes</button>
           <button class="nav-item" type="button" data-view="lists">Listes</button>
+          <button class="nav-item" type="button" data-view="memory">Prompts IA</button>
           <button class="nav-item" type="button" data-view="settings">Parametres</button>
         </nav>
 
@@ -972,8 +974,9 @@
         <section class="management-view" data-panel="memory" hidden>
           <div class="view-header">
             <div>
-              <p class="section-kicker">Contexte IA</p>
-              <h2>Memoire courte</h2>
+              <p class="section-kicker">Prompts et memoire IA</p>
+              <h2>Consignes des agents</h2>
+              <p class="view-subtitle">Modifier ici le caractere, le role et les consignes permanentes de Fernand, Paulo, Suzette et Gaspard.</p>
             </div>
             <div class="connection-actions">
               <button class="ghost-button" type="button" id="refreshMemory">Actualiser</button>
@@ -1058,10 +1061,6 @@
             <button class="ghost-button" type="button" id="resetBranding">Revenir simple</button>
           </div>
           <div class="settings-shortcuts" aria-label="Outils secondaires">
-            <button type="button" data-settings-view="vivre">
-              <strong>Vivre</strong>
-              <span>Maison, perso, courses</span>
-            </button>
             <button type="button" data-settings-view="requests">
               <strong>Demandes</strong>
               <span>Suivi Fernand</span>
@@ -1075,8 +1074,8 @@
               <span>Heures et observations</span>
             </button>
             <button type="button" data-settings-view="memory">
-              <strong>Memoire IA</strong>
-              <span>RAG, docs, consignes</span>
+              <strong>Prompts IA</strong>
+              <span>Agents, RAG, docs, consignes</span>
             </button>
             <button type="button" data-settings-view="connections">
               <strong>Connexions</strong>
@@ -1266,6 +1265,9 @@
       </button>
       <button type="button" data-mobile-view="expire">
         <span>Expire</span>
+      </button>
+      <button type="button" data-mobile-view="vivre">
+        <span>Vivre</span>
       </button>
       <button type="button" data-mobile-view="tasks">
         <span>Taches</span>
@@ -1560,11 +1562,11 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=pc-repair-1"></script>
+    <script src="app.js?v=nav-vivre-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-          navigator.serviceWorker.register("/service-worker.js?v=pc-repair-1")
+          navigator.serviceWorker.register("/service-worker.js?v=nav-vivre-1")
             .then((registration) => registration.update())
             .catch(() => {});
         });

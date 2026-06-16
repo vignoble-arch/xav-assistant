@@ -404,6 +404,9 @@ function bindEvents() {
   document.querySelectorAll("[data-ancrage-ai-open]").forEach((button) => {
     button.addEventListener("click", () => openAssistantWithText("@fernand Je veux travailler sur Ancrage du jour.", "quick"));
   });
+  document.querySelectorAll("[data-ancrage-task], [data-ancrage-step]").forEach((button) => {
+    button.addEventListener("click", () => setAncrageVisualStep(button.dataset.ancrageTask || button.dataset.ancrageStep || "3"));
+  });
   document.querySelectorAll("[data-rt-ai-close]").forEach((button) => {
     button.addEventListener("click", closeRespireTemplateAi);
   });
@@ -4039,6 +4042,32 @@ function closeRespireTemplateAi() {
   if (!view) return;
   view.classList.remove("is-ai-open");
   view.querySelector("[data-rt-ai-panel]")?.setAttribute("aria-hidden", "true");
+}
+
+function setAncrageVisualStep(stepValue) {
+  const view = document.querySelector(".ancrage-coded-view");
+  if (!view) return;
+  const step = Math.max(1, Math.min(7, Number(stepValue) || 3));
+  const positions = {
+    1: "20%",
+    2: "29%",
+    3: "49%",
+    4: "57%",
+    5: "64%",
+    6: "76%",
+    7: "84%",
+  };
+  view.style.setProperty("--boat-y", positions[step] || positions[3]);
+  view.querySelectorAll("[data-ancrage-step]").forEach((button) => {
+    const value = Number(button.dataset.ancrageStep);
+    button.classList.toggle("is-done", value < step);
+    button.classList.toggle("is-active", value === step);
+  });
+  view.querySelectorAll("[data-ancrage-task]").forEach((button) => {
+    const value = Number(button.dataset.ancrageTask);
+    button.classList.toggle("is-done", value < step);
+    button.classList.toggle("is-current", value === step);
+  });
 }
 
 async function completeTask(id) {

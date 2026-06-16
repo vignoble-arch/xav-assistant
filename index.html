@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest?v=logo-artmas-1" />
     <link rel="icon" href="art-mas-logo.png?v=logo-artmas-1" type="image/png" />
     <link rel="apple-touch-icon" href="art-mas-logo.png?v=logo-artmas-1" />
-    <link rel="stylesheet" href="styles.css?v=ancrage-visual-2" />
+    <link rel="stylesheet" href="styles.css?v=ancrage-coded-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -197,11 +197,187 @@
           </section>
         </section>
 
-        <section class="ancrage-template-view" data-panel="ancrage-template" hidden aria-label="Prototype visuel Ancrage du jour">
-          <div class="ancrage-template-frame">
-            <img src="ancrage-du-jour-visual.png?v=1" alt="Prototype visuel Ancrage du jour" />
-            <button class="ancrage-template-menu-hit" type="button" data-ancrage-menu-open aria-label="Ouvrir le menu"></button>
-            <button class="ancrage-template-ai-hit" type="button" data-ancrage-ai-open aria-label="Discuter avec les assistants IA"></button>
+        <section class="ancrage-template-view ancrage-coded-view" data-panel="ancrage-template" hidden aria-label="Prototype code Ancrage du jour">
+          <div class="av-shell">
+            <header class="av-header">
+              <div class="av-title-block">
+                <span class="av-leaf-mark" aria-hidden="true"></span>
+                <div>
+                  <h2>Ancrage du jour</h2>
+                  <p>Ma journee, alignee avec l'essentiel.</p>
+                </div>
+              </div>
+              <div class="av-header-actions">
+                <button type="button" aria-label="Rechercher"><span class="av-icon-search" aria-hidden="true"></span></button>
+                <button type="button" aria-label="Notifications"><span class="av-icon-bell" aria-hidden="true"></span></button>
+                <button class="av-ai-button" type="button" data-ancrage-ai-open aria-label="Discuter avec les assistants IA">
+                  <span aria-hidden="true">...</span>
+                  <small>Discuter avec<br />les assistants IA</small>
+                </button>
+                <button type="button" data-ancrage-menu-open aria-label="Ouvrir le menu"><span class="av-icon-menu" aria-hidden="true"></span></button>
+              </div>
+            </header>
+
+            <div class="av-layout">
+              <aside class="av-left-column">
+                <section class="av-greeting">
+                  <div>
+                    <h3>Bonjour Olivier</h3>
+                    <p>"Tu n'as pas a tout faire aujourd'hui.<br />Juste avancer d'un pas a la fois."</p>
+                  </div>
+                  <span class="av-weather"><b></b>18 degres</span>
+                </section>
+
+                <article class="av-card av-load-card">
+                  <div class="av-card-title">
+                    <strong>Ma charge mentale</strong>
+                    <span>i</span>
+                  </div>
+                  <div class="av-gauge" aria-label="Charge mentale 6 sur 10">
+                    <span></span>
+                    <b>Moderee</b>
+                    <em>6/10</em>
+                  </div>
+                  <i class="av-rocks" aria-hidden="true"></i>
+                </article>
+
+                <article class="av-card av-priority-card">
+                  <span class="av-priority-icon" aria-hidden="true"></span>
+                  <div>
+                    <small>Ma priorite du jour</small>
+                    <strong>Preparer la reunion client</strong>
+                    <p>14h00</p>
+                  </div>
+                </article>
+
+                <article class="av-card av-count-card">
+                  <strong>Mes taches</strong>
+                  <div class="av-count-row is-done"><span></span><b>5</b><p>Terminees</p></div>
+                  <div class="av-count-row is-current"><span></span><b>1</b><p>En cours</p></div>
+                  <div class="av-count-row"><span></span><b>4</b><p>A venir</p></div>
+                </article>
+
+                <article class="av-card av-progress-card">
+                  <strong>Taches effectuees</strong>
+                  <small>5 derniers jours</small>
+                  <div class="av-bars" aria-label="Taches terminees sur cinq jours">
+                    <span style="--h: 36%"><b>3</b><em>Lun</em></span>
+                    <span style="--h: 58%"><b>5</b><em>Mar</em></span>
+                    <span style="--h: 48%"><b>4</b><em>Mer</em></span>
+                    <span style="--h: 70%"><b>6</b><em>Jeu</em></span>
+                    <span style="--h: 84%"><b>7</b><em>Ven</em></span>
+                  </div>
+                  <p><b>Total : 25 taches</b><br />Bravo, tu avances !</p>
+                </article>
+
+                <article class="av-card av-mantra-card">
+                  <span aria-hidden="true"></span>
+                  <p>Avancer avec clarte,<br />c'est se liberer l'esprit.</p>
+                  <small>Respire. Inspire. Expire. Vis.</small>
+                </article>
+              </aside>
+
+              <section class="av-river-column" aria-label="Chemin de la journee">
+                <div class="av-river-art" aria-hidden="true">
+                  <span class="av-water"></span>
+                  <span class="av-splash av-splash-one"></span>
+                  <span class="av-splash av-splash-two"></span>
+                  <span class="av-splash av-splash-three"></span>
+                  <span class="av-bank av-bank-left"></span>
+                  <span class="av-bank av-bank-right"></span>
+                  <span class="av-stone av-stone-a"></span>
+                  <span class="av-stone av-stone-b"></span>
+                  <span class="av-stone av-stone-c"></span>
+                  <span class="av-stone av-stone-d"></span>
+                  <span class="av-reed av-reed-a"></span>
+                  <span class="av-reed av-reed-b"></span>
+                  <span class="av-boat" data-ancrage-boat><i></i><b></b></span>
+                </div>
+                <button class="av-step is-done" style="--x: 18%; --y: 17%" type="button" data-ancrage-step="1">1</button>
+                <button class="av-step is-done" style="--x: 73%; --y: 24%" type="button" data-ancrage-step="2">2</button>
+                <button class="av-step is-active" style="--x: 71%; --y: 38%" type="button" data-ancrage-step="3">3</button>
+                <button class="av-step" style="--x: 14%; --y: 57%" type="button" data-ancrage-step="4">4</button>
+                <button class="av-step" style="--x: 69%; --y: 62%" type="button" data-ancrage-step="5">5</button>
+                <button class="av-step" style="--x: 14%; --y: 75%" type="button" data-ancrage-step="6">6</button>
+                <button class="av-step" style="--x: 69%; --y: 84%" type="button" data-ancrage-step="7">7</button>
+                <p class="av-current-note">Tache<br />en cours</p>
+              </section>
+
+              <aside class="av-right-column">
+                <section class="av-task-group">
+                  <h3><span aria-hidden="true"></span>Matin</h3>
+                  <button class="av-task-card is-done" type="button" data-ancrage-task="1">
+                    <span></span>
+                    <strong>Traiter les emails</strong>
+                    <small>Vider ma boite de reception</small>
+                    <em>30 min</em>
+                    <b>Basse</b>
+                  </button>
+                  <button class="av-task-card is-done" type="button" data-ancrage-task="2">
+                    <span></span>
+                    <strong>Point equipe</strong>
+                    <small>Suivi des projets en cours</small>
+                    <em>45 min</em>
+                    <b>Moyenne</b>
+                  </button>
+                </section>
+
+                <section class="av-task-group">
+                  <h3><span aria-hidden="true"></span>En cours</h3>
+                  <button class="av-task-card is-current" type="button" data-ancrage-task="3">
+                    <span></span>
+                    <strong>Preparer la reunion client</strong>
+                    <small>Presentation et supports</small>
+                    <em>1h00</em>
+                    <b>Haute</b>
+                  </button>
+                </section>
+
+                <section class="av-task-group">
+                  <h3><span aria-hidden="true"></span>Apres-midi</h3>
+                  <button class="av-task-card" type="button" data-ancrage-task="4">
+                    <span></span>
+                    <strong>Analyse des donnees</strong>
+                    <small>Rapport mensuel</small>
+                    <em>1h30</em>
+                    <b>Haute</b>
+                  </button>
+                  <button class="av-task-card" type="button" data-ancrage-task="5">
+                    <span></span>
+                    <strong>Rediger le compte-rendu</strong>
+                    <small>Reunion du jour</small>
+                    <em>45 min</em>
+                    <b>Basse</b>
+                  </button>
+                </section>
+
+                <section class="av-task-group">
+                  <h3><span aria-hidden="true"></span>Plus tard</h3>
+                  <button class="av-task-card" type="button" data-ancrage-task="6">
+                    <span></span>
+                    <strong>Appel fournisseur</strong>
+                    <small>Point d'avancement</small>
+                    <em>30 min</em>
+                    <b>Moyenne</b>
+                  </button>
+                  <button class="av-task-card" type="button" data-ancrage-task="7">
+                    <span></span>
+                    <strong>Planifier la semaine</strong>
+                    <small>Organiser les priorites</small>
+                    <em>30 min</em>
+                    <b>Basse</b>
+                  </button>
+                </section>
+              </aside>
+            </div>
+
+            <nav class="av-bottom-nav" aria-label="Navigation prototype Ancrage">
+              <button class="is-active" type="button"><span></span>Ancrage du jour</button>
+              <button type="button"><span></span>Projets</button>
+              <button class="av-plus" type="button">+</button>
+              <button type="button"><span></span>Inspiration</button>
+              <button type="button"><span></span>Profil</button>
+            </nav>
           </div>
         </section>
 
@@ -1755,11 +1931,11 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=ancrage-visual-2"></script>
+    <script src="app.js?v=ancrage-coded-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-          navigator.serviceWorker.register("/service-worker.js?v=ancrage-visual-2")
+          navigator.serviceWorker.register("/service-worker.js?v=ancrage-coded-1")
             .then((registration) => registration.update())
             .catch(() => {});
         });

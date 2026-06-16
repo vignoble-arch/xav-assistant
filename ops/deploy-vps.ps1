@@ -36,7 +36,6 @@ $include = @(
   "qr-assistant-xavier.jpg",
   "qr-pointeuse.jpg",
   "qr-liberer.png",
-  "ancrage-du-jour-visual.png",
   "art-mas-logo.png",
   "icon.svg",
   "manifest.webmanifest",

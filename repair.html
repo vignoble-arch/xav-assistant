@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#172033" />
+    <title>Reparer Assistant Xavier</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Inter, Segoe UI, Arial, sans-serif;
+        color: #242923;
+        background: #f5f1e8;
+      }
+
+      body {
+        display: grid;
+        min-height: 100vh;
+        margin: 0;
+        place-items: center;
+        padding: 24px;
+      }
+
+      main {
+        width: min(520px, 100%);
+        border: 1px solid rgba(36, 41, 35, 0.12);
+        border-radius: 8px;
+        padding: 24px;
+        background: #fffdf8;
+        box-shadow: 0 20px 54px rgba(36, 41, 35, 0.14);
+      }
+
+      img {
+        display: block;
+        width: 86px;
+        height: 86px;
+        object-fit: contain;
+        margin-bottom: 18px;
+      }
+
+      h1,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 1.35rem;
+      }
+
+      p {
+        margin-top: 10px;
+        color: #6f746f;
+        line-height: 1.5;
+      }
+
+      a {
+        display: inline-flex;
+        min-height: 42px;
+        align-items: center;
+        justify-content: center;
+        margin-top: 20px;
+        border-radius: 8px;
+        padding: 0 16px;
+        color: #fffdf8;
+        background: #315d7d;
+        font-weight: 800;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="art-mas-logo.png" alt="Vignoble Art Mas" />
+      <h1>Reparation de l'app</h1>
+      <p id="status">Nettoyage du cache local en cours...</p>
+      <a id="homeLink" href="/" hidden>Rouvrir Assistant Xavier</a>
+    </main>
+    <script>
+      async function repair() {
+        const status = document.querySelector("#status");
+        try {
+          if ("serviceWorker" in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(registrations.map((registration) => registration.unregister()));
+          }
+          if ("caches" in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((key) => caches.delete(key)));
+          }
+          status.textContent = "Cache repare. Reouverture de l'app...";
+          setTimeout(() => {
+            window.location.replace("/?repaired=" + Date.now());
+          }, 700);
+        } catch (error) {
+          status.textContent = "Le nettoyage automatique n'a pas pu finir. Clique sur le bouton pour rouvrir l'app.";
+          document.querySelector("#homeLink").hidden = false;
+        }
+      }
+
+      repair();
+    </script>
+  </body>
+</html>

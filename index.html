@@ -1560,11 +1560,13 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=daily-flow-1"></script>
+    <script src="app.js?v=pc-repair-1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-          navigator.serviceWorker.register("/service-worker.js").catch(() => {});
+          navigator.serviceWorker.register("/service-worker.js?v=pc-repair-1")
+            .then((registration) => registration.update())
+            .catch(() => {});
         });
       }
     </script>

@@ -25,6 +25,7 @@ $include = @(
   "docker-compose.yml",
   "Dockerfile",
   "index.html",
+  "repair.html",
   "quick-note.html",
   "quick-note.css",
   "quick-note.js",
